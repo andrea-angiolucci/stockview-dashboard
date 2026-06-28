@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StockView — Angiolucci Occhiali</title>
+<style>
+  :root{
+    --bg:#0f1720; --panel:#16212e; --panel2:#1c2a3a; --line:#26384c;
+    --txt:#e8eef5; --muted:#8aa0b6; --accent:#3da9fc; --accent2:#2b7fd6;
+    --ok:#36c98d; --warn:#f5a524; --pkg:#c084fc; --truck:#f59e0b;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--txt);font-size:14px}
+  /* ---------- LOGIN ---------- */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    padding:34px 30px;width:100%;max-width:380px}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .brand .dot{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),#7c5cff);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff}
+  .brand h1{font-size:19px;margin:0;letter-spacing:.3px}
+  .sub{color:var(--muted);font-size:12.5px;margin:2px 0 22px}
+  label{display:block;font-size:12px;color:var(--muted);margin:14px 0 6px}
+  input[type=email],input[type=password],input[type=text]{width:100%;padding:11px 13px;border-radius:10px;
+    border:1px solid var(--line);background:var(--panel2);color:var(--txt);font-size:14px;outline:none}
+  input:focus{border-color:var(--accent)}
+  button{cursor:pointer;font-family:inherit}
+  .btn{width:100%;margin-top:22px;padding:12px;border:none;border-radius:10px;background:var(--accent);
+    color:#04121f;font-weight:700;font-size:14.5px;transition:.15s}
+  .btn:hover{background:var(--accent2);color:#fff}
+  .btn:disabled{opacity:.55;cursor:default}
+  .err{color:#ff8585;font-size:12.5px;margin-top:14px;min-height:16px}
+  /* ---------- APP ---------- */
+  #app{display:none}
+  header{position:sticky;top:0;z-index:20;background:rgba(15,23,32,.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:10px 18px;display:flex;align-items:center;gap:14px}
+  header .brand h1{font-size:16px}
+  header .spacer{flex:1}
+  .who{color:var(--muted);font-size:12.5px}
+  .ghost{background:transparent;border:1px solid var(--line);color:var(--muted);padding:7px 12px;border-radius:9px;font-size:12.5px}
+  .ghost:hover{color:var(--txt);border-color:var(--accent)}
+  .wrap{max-width:1500px;margin:0 auto;padding:18px}
+  .controls{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+  .row .field{flex:1;min-width:240px}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:4px}
+  .chip{padding:6px 11px;border-radius:20px;border:1px solid var(--line);background:var(--panel2);
+    color:var(--muted);font-size:12.5px;cursor:pointer;user-select:none}
+  .chip.on{background:var(--accent);color:#04121f;border-color:var(--accent);font-weight:600}
+  .toggle{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;user-select:none;cursor:pointer;white-space:nowrap}
+  .searchbtn{padding:11px 22px;border:none;border-radius:10px;background:var(--accent);color:#04121f;font-weight:700}
+  .searchbtn:hover{background:var(--accent2);color:#fff}
+  .hint{color:var(--muted);font-size:12px;margin-top:10px}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:10px}
+  .legend b{color:var(--txt);font-weight:600}
+  .status{color:var(--muted);font-size:13px;margin:4px 2px 12px}
+  .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{padding:9px 11px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  thead th{position:sticky;top:0;background:var(--panel2);color:var(--muted);font-weight:600;z-index:5;
+    border-bottom:1px solid var(--line);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  tbody tr:hover{background:var(--panel2)}
+  td.sku b{color:var(--txt)}
+  td.sku small{color:var(--muted);display:block;font-size:11.5px}
+  .num{text-align:center;font-variant-numeric:tabular-nums}
+  .filcol{text-align:center;border-left:1px solid var(--line)}
+  .depot{background:rgba(61,169,252,.05)}
+  .disp{font-weight:700}
+  .disp.zero{color:var(--muted);font-weight:400}
+  .disp.pos{color:var(--ok)}
+  .badges{display:flex;gap:6px;justify-content:center;margin-top:2px}
+  .bdg{font-size:10.5px;padding:1px 5px;border-radius:6px;font-weight:600}
+  .bdg.pkg{background:rgba(192,132,252,.16);color:var(--pkg)}
+  .bdg.truck{background:rgba(245,158,11,.16);color:var(--truck)}
+  .tot{text-align:center;font-weight:700;border-left:2px solid var(--line);background:var(--panel2)}
+  .empty{padding:48px;text-align:center;color:var(--muted)}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--accent);
+    border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:7px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login">
+  <div class="card">
+    <div class="brand"><div class="dot">S</div><h1>StockView</h1></div>
+    <div class="sub">Angiolucci Occhiali · accesso riservato</div>
+    <form id="loginForm">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" placeholder="nome@angiolucciocchiali.com" required />
+      <label for="pwd">Password</label>
+      <input id="pwd" type="password" autocomplete="current-password" placeholder="••••••••" required />
+      <button class="btn" id="loginBtn" type="submit">Accedi</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app">
+  <header>
+    <div class="brand"><div class="dot">S</div><h1>StockView · Giacenze</h1></div>
+    <div class="spacer"></div>
+    <span class="who" id="who"></span>
+    <button class="ghost" id="logout">Esci</button>
+  </header>
+
+  <div class="wrap">
+    <div class="controls">
+      <div class="row">
+        <div class="field">
+          <label>Cerca per marchio, modello o codice a barre</label>
+          <input id="q" type="text" placeholder="es. RAY-BAN, oppure RX5154, oppure un barcode" />
+        </div>
+        <label class="toggle"><input type="checkbox" id="onlyAvail" /> Solo disponibili (stock&nbsp;&gt;&nbsp;0)</label>
+        <button class="searchbtn" id="go">Cerca</button>
+      </div>
+      <div class="field" style="margin-top:14px">
+        <label>Filiali</label>
+        <div class="chips" id="filChips"><span class="hint">Carico filiali…</span></div>
+      </div>
+      <div class="legend">
+        <span><b class="disp pos">12</b> disponibile (magazzino − prenotati)</span>
+        <span><span class="bdg pkg">📦 2</span> <b>prenotati</b> (occhiale selezionato, non più disponibile)</span>
+        <span><span class="bdg truck">🚚 5</span> <b>in arrivo</b></span>
+      </div>
+    </div>
+
+    <div class="status" id="status">Inserisci un marchio, un modello o un barcode e premi <b>Cerca</b>.</div>
+    <div class="tablewrap" id="tablewrap" style="display:none">
+      <table id="tbl"><thead></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://exrlurfvydxrqfzjdobp.supabase.co";
+const SUPABASE_KEY = "sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = s => document.querySelector(s);
+let FILIALI = [];          // {codice,nome,tipo}
+let activeFil = new Set(); // codici filiale selezionati
+
+/* ---------------- AUTH ---------------- */
+async function boot(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session) showApp(session); else showLogin();
+}
+function showLogin(){ $("#login").style.display="flex"; $("#app").style.display="none"; }
+async function showApp(session){
+  $("#login").style.display="none"; $("#app").style.display="block";
+  $("#who").textContent = session.user.email;
+  await loadFiliali();
+}
+$("#loginForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const btn=$("#loginBtn"); const err=$("#loginErr");
+  err.textContent=""; btn.disabled=true; btn.textContent="Accesso…";
+  const { data, error } = await sb.auth.signInWithPassword({ email:$("#email").value.trim(), password:$("#pwd").value });
+  btn.disabled=false; btn.textContent="Accedi";
+  if(error){ err.textContent = error.message.includes("Invalid")? "Email o password non corretti." : error.message; return; }
+  showApp(data.session);
+});
+$("#logout").addEventListener("click", async ()=>{ await sb.auth.signOut(); location.reload(); });
+
+/* ---------------- FILIALI ---------------- */
+async function loadFiliali(){
+  const { data, error } = await sb.from("filiali").select("codice,nome,tipo,attiva").eq("attiva", true);
+  if(error){ $("#filChips").innerHTML = '<span class="hint">Errore nel caricamento filiali</span>'; return; }
+  // pdv prima (per nome), deposito in fondo
+  FILIALI = (data||[]).sort((a,b)=>{
+    const da=a.tipo==="deposito"?1:0, db=b.tipo==="deposito"?1:0;
+    if(da!==db) return da-db;
+    return (a.nome||a.codice).localeCompare(b.nome||b.codice);
+  });
+  activeFil = new Set(FILIALI.map(f=>f.codice));
+  renderChips();
+}
+function renderChips(){
+  const c=$("#filChips"); c.innerHTML="";
+  FILIALI.forEach(f=>{
+    const el=document.createElement("span");
+    el.className="chip"+(activeFil.has(f.codice)?" on":"");
+    el.textContent=(f.nome||f.codice)+(f.tipo==="deposito"?" 🏬":"");
+    el.onclick=()=>{ activeFil.has(f.codice)?activeFil.delete(f.codice):activeFil.add(f.codice); renderChips(); };
+    c.appendChild(el);
+  });
+}
+
+/* ---------------- RICERCA ---------------- */
+const COLS = "barcode,marchio,modello,colore,calibro,categoria,tipo_lenti,filiale,quantita_magazzino,quantita_prenotata,quantita_disponibile,quantita_in_arrivo";
+
+async function fetchAll(q){
+  // pagina a blocchi di 1000 per superare l'eventuale cap del Data API
+  const out=[]; const PAGE=1000; const MAX=12000;
+  for(let from=0; from<MAX; from+=PAGE){
+    let query = sb.from("giacenze").select(COLS).range(from, from+PAGE-1).order("marchio").order("modello");
+    query = applyFilter(query, q);
+    const { data, error } = await query;
+    if(error) throw error;
+    out.push(...data);
+    if(data.length < PAGE) break;
+  }
+  return out;
+}
+function applyFilter(query, q){
+  q=q.trim();
+  // se sembra un barcode (solo cifre, >=6) → match esatto/prefisso su barcode
+  if(/^\d{6,}$/.test(q)) return query.ilike("barcode", q+"%");
+  return query.or(`marchio.ilike.%${q}%,modello.ilike.%${q}%`);
+}
+
+$("#go").addEventListener("click", runSearch);
+$("#q").addEventListener("keydown", e=>{ if(e.key==="Enter") runSearch(); });
+
+async function runSearch(){
+  const q=$("#q").value.trim();
+  const status=$("#status"); const wrap=$("#tablewrap");
+  if(q.length<2){ status.innerHTML="Inserisci almeno 2 caratteri."; wrap.style.display="none"; return; }
+  status.innerHTML='<span class="spin"></span>Ricerca in corso…'; wrap.style.display="none";
+  try{
+    let rows = await fetchAll(q);
+    if($("#onlyAvail").checked) rows = rows.filter(r=>(r.quantita_disponibile||0)>0 || (r.quantita_in_arrivo||0)>0);
+    render(rows, q);
+  }catch(err){ status.innerHTML='<span style="color:#ff8585">Errore: '+(err.message||err)+'</span>'; }
+}
+
+function render(rows, q){
+  const status=$("#status"); const wrap=$("#tablewrap");
+  const cols = FILIALI.filter(f=>activeFil.has(f.codice));
+  // raggruppa per barcode
+  const map=new Map();
+  for(const r of rows){
+    if(!activeFil.has(r.filiale)) continue;
+    let g=map.get(r.barcode);
+    if(!g){ g={info:r, cells:{}, tot:0}; map.set(r.barcode,g); }
+    g.cells[r.filiale]={
+      disp:r.quantita_disponibile||0, pren:r.quantita_prenotata||0,
+      arr:r.quantita_in_arrivo||0, mag:r.quantita_magazzino||0
+    };
+    g.tot += (r.quantita_disponibile||0);
+  }
+  const groups=[...map.values()];
+  if(groups.length===0){
+    wrap.style.display="none";
+    status.innerHTML='Nessun risultato per <b>'+escapeHtml(q)+'</b> nelle filiali selezionate.';
+    return;
+  }
+  // header
+  let thead="<tr><th>Articolo</th>";
+  cols.forEach(f=> thead+=`<th class="filcol${f.tipo==='deposito'?' depot':''}">${escapeHtml(f.nome||f.codice)}</th>`);
+  thead+='<th class="tot">Tot. disp.</th></tr>';
+  $("#tbl").tHead.innerHTML=thead;
+  // body
+  let totPezzi=0; const body=[];
+  for(const g of groups){
+    totPezzi += g.tot;
+    const i=g.info;
+    let tr='<tr><td class="sku"><b>'+escapeHtml(i.marchio||"—")+" "+escapeHtml(i.modello||"")+'</b>'+
+      '<small>'+[i.colore,i.calibro,i.barcode].filter(Boolean).map(escapeHtml).join(" · ")+'</small></td>';
+    for(const f of cols){
+      const c=g.cells[f.codice];
+      tr+=`<td class="filcol${f.tipo==='deposito'?' depot':''}">`;
+      if(!c){ tr+='<span class="disp zero">·</span>'; }
+      else{
+        const cls = c.disp>0?"disp pos":"disp zero";
+        tr+=`<span class="${cls}" title="Magazzino: ${c.mag}">${c.disp}</span>`;
+        if(c.pren>0||c.arr>0){
+          tr+='<div class="badges">';
+          if(c.pren>0) tr+=`<span class="bdg pkg" title="${c.pren} prenotati">📦 ${c.pren}</span>`;
+          if(c.arr>0)  tr+=`<span class="bdg truck" title="${c.arr} in arrivo">🚚 ${c.arr}</span>`;
+          tr+='</div>';
+        }
+      }
+      tr+="</td>";
+    }
+    tr+=`<td class="tot">${g.tot}</td></tr>`;
+    body.push(tr);
+  }
+  $("#tbl").tBodies[0].innerHTML=body.join("");
+  wrap.style.display="block";
+  status.innerHTML=`<b>${groups.length}</b> articoli · <b>${totPezzi}</b> pezzi disponibili nelle filiali selezionate · ricerca: <b>${escapeHtml(q)}</b>`;
+}
+
+function escapeHtml(s){ return String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+
+boot();
+</script>
+</body>
+</html>
