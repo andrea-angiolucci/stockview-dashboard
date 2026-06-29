@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StockView — Assortimento ideale</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --panel:#fff; --ink:#1f2a37; --muted:#6b7785;
+    --line:#e3e8ef; --accent:#2b7fd6; --accent2:#1f6ac0; --ok:#1aa974; --bad:#e5484d;
+    --chip:#eef3f9; --shadow:0 6px 22px rgba(20,40,70,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:32px 28px;width:100%;max-width:360px}
+  .brand{display:flex;align-items:center;gap:11px;margin-bottom:4px}
+  .brand .dot{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#7c5cff);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff}
+  .brand h1{font-size:18px;margin:0}
+  .sub{color:var(--muted);font-size:12.5px;margin:2px 0 18px}
+  label{display:block;font-size:12px;color:var(--muted);margin:12px 0 5px}
+  input[type=email],input[type=password],input[type=text]{width:100%;padding:10px 12px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:14px;outline:none}
+  input:focus{border-color:var(--accent)}
+  button{cursor:pointer;font-family:inherit}
+  .btn{width:100%;margin-top:18px;padding:11px;border:none;border-radius:9px;background:var(--accent);color:#fff;font-weight:600;font-size:14.5px}
+  .btn:hover{background:var(--accent2)}
+  .err{color:var(--bad);font-size:12.5px;margin-top:12px;min-height:15px}
+  #app{display:none}
+  header{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);padding:10px 18px;display:flex;align-items:center;gap:16px}
+  header .brand h1{font-size:15px}
+  header .spacer{flex:1}
+  header a.nav{color:var(--accent);text-decoration:none;font-size:13px;font-weight:600}
+  header a.nav:hover{text-decoration:underline}
+  .who{color:var(--muted);font-size:12.5px}
+  .ghost{background:#fff;border:1px solid var(--line);color:var(--muted);padding:6px 11px;border-radius:8px;font-size:12.5px}
+  .ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .wrap{max-width:1500px;margin:0 auto;padding:18px}
+  .bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .seg button{background:#fff;border:none;padding:9px 18px;font-size:14px;color:var(--muted);font-weight:600}
+  .seg button.on{background:var(--accent);color:#fff}
+  .spacer{flex:1}
+  .addbox{display:flex;gap:6px;align-items:center}
+  .addbox input{width:230px}
+  .addbtn{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:9px 13px;font-size:13px;color:var(--ink);font-weight:600}
+  .addbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .savebtn{background:var(--ok);border:none;color:#fff;border-radius:8px;padding:10px 18px;font-weight:700;font-size:13.5px}
+  .savebtn:disabled{opacity:.5}
+  .legend{color:var(--muted);font-size:12px;margin:0 0 12px}
+  .legend b{color:var(--ink)}
+  .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:var(--shadow)}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{padding:7px 9px;text-align:center;border-bottom:1px solid var(--line);border-right:1px solid var(--line);white-space:nowrap}
+  thead th{position:sticky;top:0;background:#f1f5fa;color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;z-index:5}
+  th.mar,td.mar{text-align:left;position:sticky;left:0;background:#fff;z-index:4;font-weight:600;min-width:180px}
+  thead th.mar{z-index:6;background:#f1f5fa}
+  tbody tr:hover td{background:#f7fafc}
+  tbody tr:hover td.mar{background:#eef4fb}
+  td input.q{width:54px;text-align:center;border:1px solid transparent;border-radius:6px;padding:5px 2px;font-size:13px;background:transparent;color:var(--ink)}
+  td input.q:focus{border-color:var(--accent);background:#fff}
+  td.has input.q{font-weight:700;color:var(--accent2)}
+  td.tot,th.tot{background:#f1f5fa;font-weight:700;border-left:2px solid var(--line)}
+  tfoot td{background:#eef4fb;font-weight:700;border-top:2px solid var(--line);position:sticky;bottom:0}
+  tfoot td.mar{background:#e4eef9}
+  .miss{color:var(--bad);font-size:12.5px;margin-top:8px;min-height:16px}
+  .ok{color:var(--ok)}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:9px;font-size:13.5px;opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="card">
+    <div class="brand"><div class="dot">S</div><h1>StockView</h1></div>
+    <div class="sub">Assortimento ideale · accesso riservato</div>
+    <form id="loginForm">
+      <label for="email">Email</label><input id="email" type="email" autocomplete="username" required />
+      <label for="pwd">Password</label><input id="pwd" type="password" autocomplete="current-password" required />
+      <button class="btn" id="loginBtn" type="submit">Accedi</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="brand"><div class="dot">S</div><h1>StockView · Assortimento ideale</h1></div>
+    <a class="nav" href="index.html">Giacenze</a>
+    <a class="nav" href="presenza.html">Controllo presenza</a>
+    <div class="spacer"></div>
+    <span class="who" id="who"></span>
+    <button class="ghost" id="logout">Esci</button>
+  </header>
+
+  <div class="wrap">
+    <div class="bar">
+      <div class="seg" id="seg">
+        <button data-t="Vista" class="on">Vista</button>
+        <button data-t="Sole">Sole</button>
+      </div>
+      <div class="spacer"></div>
+      <div class="addbox">
+        <input id="addInput" list="marchiList" placeholder="Aggiungi marchio…" />
+        <datalist id="marchiList"></datalist>
+        <button class="addbtn" id="addBtn">+ Aggiungi</button>
+      </div>
+      <button class="savebtn" id="saveBtn">Salva modifiche</button>
+    </div>
+    <div class="legend">Profondità: <b>7</b>=ST · <b>14</b>=ST+P1 · <b>21</b>=ST+P1+P2 · <b>28</b>=+P3 · <b>35</b>=+P4 … (vuoto/0 = linea spenta in quel negozio). I totali di riga e colonna si aggiornano in tempo reale.</div>
+    <div class="tablewrap"><table id="tbl"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
+    <div class="miss" id="miss"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://exrlurfvydxrqfzjdobp.supabase.co";
+const SUPABASE_KEY="sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=s=>document.querySelector(s);
+let PDV=[];                 // [{codice,nome}] colonne (ordine per nome)
+let DATA={Vista:{},Sole:{}};// DATA[tipo][marchio][codice]=qty
+let tab="Vista"; let dirty=false;
+
+async function boot(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session) showApp(session); else $("#login").style.display="flex";
+}
+async function showApp(session){
+  $("#login").style.display="none"; $("#app").style.display="block";
+  $("#who").textContent=session.user.email;
+  await load();
+}
+$("#loginForm").addEventListener("submit",async e=>{
+  e.preventDefault(); const b=$("#loginBtn"),er=$("#loginErr");
+  er.textContent=""; b.disabled=true; b.textContent="Accesso…";
+  const {data,error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pwd").value});
+  b.disabled=false; b.textContent="Accedi";
+  if(error){er.textContent=error.message.includes("Invalid")?"Email o password non corretti.":error.message;return;}
+  showApp(data.session);
+});
+$("#logout").addEventListener("click",async()=>{await sb.auth.signOut();location.reload();});
+
+async function load(){
+  const [{data:fil},{data:rows},{data:marchi}]=await Promise.all([
+    sb.from("filiali").select("codice,nome,tipo,attiva"),
+    sb.from("assortimento_marchio").select("marchio,tipo_lenti,filiale,qty_ideale"),
+    sb.rpc("sv_marchi")
+  ]);
+  // colonne PDV = quelle presenti nell'assortimento, ordinate per nome
+  const usate=new Set((rows||[]).map(r=>r.filiale));
+  PDV=(fil||[]).filter(f=>usate.has(f.codice)).sort((a,b)=>a.nome.localeCompare(b.nome)).map(f=>({codice:f.codice,nome:f.nome}));
+  DATA={Vista:{},Sole:{}};
+  for(const r of (rows||[])){ (DATA[r.tipo_lenti] ||= {}); (DATA[r.tipo_lenti][r.marchio] ||= {}); DATA[r.tipo_lenti][r.marchio][r.filiale]=r.qty_ideale; }
+  // datalist marchi esistenti
+  $("#marchiList").innerHTML=(marchi||[]).map(m=>`<option value="${esc(typeof m==='string'?m:Object.values(m)[0])}">`).join("");
+  render();
+}
+
+$("#seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  [...$("#seg").children].forEach(x=>x.classList.remove("on")); b.classList.add("on"); tab=b.dataset.t; render();});
+
+function render(){
+  const marchi=Object.keys(DATA[tab]).sort((a,b)=>a.localeCompare(b));
+  let head="<tr><th class='mar'>Marchio</th>"+PDV.map(p=>`<th>${esc(p.nome)}</th>`).join("")+"<th class='tot'>Totale</th></tr>";
+  $("#tbl").tHead.innerHTML=head;
+  const body=marchi.map(m=>{
+    let tr=`<tr><td class="mar">${esc(m)}</td>`;
+    for(const p of PDV){ const q=DATA[tab][m][p.codice]||0;
+      tr+=`<td class="${q>0?'has':''}"><input class="q" type="number" min="0" step="7" value="${q||''}" data-m="${esc(m)}" data-f="${p.codice}" title="${tiers(q)}"></td>`;
+    }
+    tr+=`<td class="tot" data-rowtot="${esc(m)}">0</td></tr>`;
+    return tr;
+  });
+  $("#tbl").tBodies[0].innerHTML=body.join("")||`<tr><td class="mar" colspan="${PDV.length+2}" style="text-align:center;color:var(--muted);padding:24px">Nessun marchio per ${tab}. Aggiungine uno dall'alto.</td></tr>`;
+  let foot="<tr><td class='mar'>Totale</td>"+PDV.map(p=>`<td data-coltot="${p.codice}">0</td>`).join("")+"<td class='tot' id='grandtot'>0</td></tr>";
+  $("#tbl").tFoot.innerHTML=foot;
+  $("#tbl").querySelectorAll("input.q").forEach(i=>i.addEventListener("input",onEdit));
+  recalc();
+}
+function onEdit(e){
+  const i=e.target; const m=i.dataset.m, f=i.dataset.f; let v=parseInt(i.value,10); if(isNaN(v)||v<0)v=0;
+  DATA[tab][m][f]=v; i.parentElement.classList.toggle("has",v>0); i.title=tiers(v); dirty=true; recalc();
+}
+function recalc(){
+  const marchi=Object.keys(DATA[tab]);
+  const col={}; PDV.forEach(p=>col[p.codice]=0); let grand=0;
+  marchi.forEach(m=>{ let rt=0; PDV.forEach(p=>{const q=DATA[tab][m][p.codice]||0; rt+=q; col[p.codice]+=q;}); grand+=rt;
+    const c=$(`[data-rowtot="${cssEsc(m)}"]`); if(c)c.textContent=rt; });
+  PDV.forEach(p=>{const c=$(`[data-coltot="${p.codice}"]`); if(c)c.textContent=col[p.codice];});
+  const g=$("#grandtot"); if(g)g.textContent=grand;
+}
+function tiers(q){ if(!q)return "spento"; const n=Math.round(q/7); const lad=["ST","P1","P2","P3","P4","T0","T1","T2","T3","T4","T5","T6","T7","T8","T9"];
+  return q+" pezzi · "+lad.slice(0,Math.min(n,lad.length)).join("+")+(n>lad.length?"…":""); }
+
+$("#addBtn").addEventListener("click",()=>{
+  const v=$("#addInput").value.trim(); if(!v)return;
+  if(DATA[tab][v]){ toast("Marchio già presente"); return; }
+  DATA[tab][v]={}; $("#addInput").value=""; dirty=true; render();
+});
+
+$("#saveBtn").addEventListener("click",async()=>{
+  const btn=$("#saveBtn"); btn.disabled=true; btn.textContent="Salvataggio…";
+  // ricostruisci righe non-zero per il tab corrente e sostituisci
+  const rows=[];
+  for(const m of Object.keys(DATA[tab])) for(const p of PDV){ const q=DATA[tab][m][p.codice]||0; if(q>0) rows.push({marchio:m,tipo_lenti:tab,filiale:p.codice,qty_ideale:q}); }
+  const del=await sb.from("assortimento_marchio").delete().eq("tipo_lenti",tab);
+  if(del.error){ btn.disabled=false; btn.textContent="Salva modifiche"; toast("Errore: "+del.error.message); return; }
+  if(rows.length){ const ins=await sb.from("assortimento_marchio").insert(rows);
+    if(ins.error){ btn.disabled=false; btn.textContent="Salva modifiche"; toast("Errore: "+ins.error.message); return; } }
+  dirty=false; btn.disabled=false; btn.textContent="Salva modifiche"; toast("Assortimento "+tab+" salvato ✓");
+});
+
+let toastT;
+function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2600); }
+window.addEventListener("beforeunload",e=>{ if(dirty){e.preventDefault();e.returnValue="";} });
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+function cssEsc(s){return String(s).replace(/["\\]/g,"\\$&");}
+boot();
+</script>
+</body>
+</html>
