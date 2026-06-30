@@ -130,7 +130,7 @@
       <div class="fcol"><span>Ordina negozi</span>
         <select class="sort" id="sortPdv"><option value="nome">Nome A-Z</option><option value="venduto" selected>Venduto ↓</option></select>
       </div>
-      <div class="fcol"><span>Esporta</span><button class="ghost" id="dl" style="padding:9px 14px">Scarica Excel</button></div>
+      <div class="fcol"><span>Esporta</span><div style="display:flex;gap:6px"><select class="sort" id="dlmode"><option value="sint">Sintetico</option><option value="full">Completo</option></select><button class="ghost" id="dl" style="padding:9px 14px">Scarica Excel</button></div></div>
     </div>
     <div class="legend">
       <span><span class="pill bad">0</span> 0 da riordinare (buco)</span>
@@ -203,7 +203,25 @@ $("#seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)
 $("#segShow").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#segShow").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");showMode=b.dataset.s;if(lastCells.length)draw();});
 $("#sortRef").addEventListener("change",()=>{if(lastCells.length)draw();});
 $("#sortPdv").addEventListener("change",()=>{if(lastCells.length)draw();});
-$("#dl").addEventListener("click",()=>{ if(!lastCells.length){alert("Nessun dato da esportare: applica un filtro.");return;} const rows=lastCells.map(c=>({Fornitore:c.fornitore,Marchio:c.marchio,Tipo:c.tipo_lenti,Categoria:c.categoria,Barcode:c.barcode,Modello:c.modello,Colore:c.colore,Calibro:c.calibro,Negozio:c.negozio,Disponibile:c.disponibile,Magazzino:c.magazzino,Prenotati:c.prenotati,InArrivo:c.in_arrivo,Venduto:c.venduto,Presente:c.presente})); const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Presenza"); XLSX.writeFile(wb,"controllo_presenza_"+new Date().toISOString().slice(0,10)+".xlsx"); });
+function svSave(rows,suff){ const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Presenza"); XLSX.writeFile(wb,"controllo_presenza"+(suff||"")+"_"+new Date().toISOString().slice(0,10)+".xlsx"); }
+async function svFetchAll(table,sel,vals,extra){ let out=[]; const CH=150; for(let i=0;i<vals.length;i+=CH){ const part=vals.slice(i,i+CH); let from=0; while(true){ let q=sb.from(table).select(sel).in("barcode",part); if(extra)q=extra(q); const r=await q.range(from,from+999); const d=r.data||[]; out=out.concat(d); if(d.length<1000)break; from+=1000; } } return out; }
+$("#dl").addEventListener("click",async()=>{
+  if(!lastCells.length){alert("Nessun dato da esportare: applica un filtro.");return;}
+  if($("#dlmode").value==="sint"){ svSave(lastCells.map(c=>({Fornitore:c.fornitore,Marchio:c.marchio,Tipo:c.tipo_lenti,Categoria:c.categoria,Barcode:c.barcode,Modello:c.modello,Colore:c.colore,Calibro:c.calibro,Negozio:c.negozio,Disponibile:c.disponibile,Magazzino:c.magazzino,Prenotati:c.prenotati,InArrivo:c.in_arrivo,Venduto:c.venduto,Presente:c.presente}))); return; }
+  const dl=$("#dl"),lab=dl.textContent; dl.disabled=true; dl.textContent="Preparo…";
+  try{
+    const bcs=[...new Set(lastCells.map(c=>c.barcode))];
+    const gi=await svFetchAll("giacenze","*",bcs); const gm={}; gi.forEach(g=>{gm[g.barcode+"|"+g.filiale]=g;});
+    const sy=new Date().getFullYear()+"-01-01";
+    const ve=await svFetchAll("vendite","barcode,filiale,quantita,prezzo_vendita,costo,margine,data",bcs,q=>q.gte("data",sy));
+    const va={}; ve.forEach(x=>{const k=x.barcode+"|"+x.filiale; if(!va[k])va[k]={p:0,r:0,co:0,m:0,u:null}; const a=va[k]; a.p+=(x.quantita||1); a.r+=(x.prezzo_vendita||0); a.co+=(x.costo||0); a.m+=(x.margine||0); if(!a.u||x.data>a.u)a.u=x.data;});
+    const rnd=x=>Math.round((x||0)*100)/100;
+    const rows=lastCells.map(c=>{const k=c.barcode+"|"+c.filiale,g=gm[k]||{},s=va[k]||{};
+      return {Fornitore:c.fornitore,Marchio:c.marchio,Negozio:c.negozio,Filiale:c.filiale,Categoria:c.categoria,TipoLenti:c.tipo_lenti,Barcode:c.barcode,Modello:c.modello,Colore:c.colore,Calibro:c.calibro,Disponibile:c.disponibile,Magazzino:c.magazzino,Prenotati:c.prenotati,InArrivo:c.in_arrivo,Presente:c.presente,PrezzoAcquisto:g.prezzo_acquisto,PrezzoVendita:g.prezzo_vendita,DataUltAcquisto:g.data_ult_acquisto,DataUltVendita:g.data_ult_vendita,VendutoAnnoPezzi:c.venduto,RicavoAnno:rnd(s.r),CostoAnno:rnd(s.co),MargineAnno:rnd(s.m),UltimaVendita:s.u||null};});
+    svSave(rows,"_completo");
+  }catch(e){alert("Errore export completo: "+e);}
+  dl.disabled=false; dl.textContent=lab;
+});
 
 function scheduleRun(){ clearTimeout(runT); runT=setTimeout(run,300); }
 
