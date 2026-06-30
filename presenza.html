@@ -167,7 +167,7 @@ async function loadFilters(){
   mkFilter("msFornitore","Fornitore",[...new Set(A.map(r=>r.fornitore))].sort());
   mkFilter("msMarchio","Marchio",[...new Set(A.map(r=>r.marchio))].sort());
   mkFilter("msTipo","Tipo lenti",[...new Set(A.map(r=>r.tipo_lenti))].sort());
-  mkFilter("msCategoria","Categoria",LADDER);
+  const vc=await sb.rpc("sv_categorie"); mkFilter("msCategoria","Categoria",(vc.data||[]).map(x=>x.categoria));
   const vf=await sb.rpc("vendite_per_filiale"); (vf.data||[]).forEach(r=>vfiliale[r.filiale]=Number(r.pezzi));
 }
 function trunc(s){s=String(s);return s.length>18?s.slice(0,17)+"…":s;}
