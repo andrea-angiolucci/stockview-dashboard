@@ -125,10 +125,10 @@
         <div class="seg" id="seg"><button data-v="lista" class="on">Elenco</button><button data-v="matrice">Matrice</button></div>
       </div>
       <div class="fcol"><span>Ordina referenze</span>
-        <select class="sort" id="sortRef"><option value="modello">Modello A-Z</option><option value="giacenza">Giacenza ↓</option><option value="venduto">Venduto ↓</option></select>
+        <select class="sort" id="sortRef"><option value="modello">Modello A-Z</option><option value="giacenza">Giacenza ↓</option><option value="venduto" selected>Venduto ↓</option></select>
       </div>
       <div class="fcol"><span>Ordina negozi</span>
-        <select class="sort" id="sortPdv"><option value="nome">Nome A-Z</option><option value="venduto">Venduto ↓</option></select>
+        <select class="sort" id="sortPdv"><option value="nome">Nome A-Z</option><option value="venduto" selected>Venduto ↓</option></select>
       </div>
     </div>
     <div class="legend">
@@ -167,7 +167,7 @@ async function loadFilters(){
   mkFilter("msFornitore","Fornitore",[...new Set(A.map(r=>r.fornitore))].sort());
   mkFilter("msMarchio","Marchio",[...new Set(A.map(r=>r.marchio))].sort());
   mkFilter("msTipo","Tipo lenti",[...new Set(A.map(r=>r.tipo_lenti))].sort());
-  mkFilter("msCategoria","Categoria",LADDER);
+  const vc=await sb.rpc("sv_categorie"); mkFilter("msCategoria","Categoria",(vc.data||[]).map(x=>x.categoria));
   const vf=await sb.rpc("vendite_per_filiale"); (vf.data||[]).forEach(r=>vfiliale[r.filiale]=Number(r.pezzi));
 }
 function trunc(s){s=String(s);return s.length>18?s.slice(0,17)+"…":s;}
