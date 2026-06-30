@@ -66,8 +66,12 @@
   .pill.bad{background:rgba(255,107,107,.15);color:var(--bad)}
   .filcol{text-align:center;border-left:1px solid var(--line)}
   .cell0{color:var(--bad);font-weight:700;background:rgba(255,107,107,.1)}
+  .cellordered{color:var(--ok);font-weight:700;background:rgba(54,201,141,.13)}
   .cellok{color:var(--ok);font-weight:600}
   .cellna{color:#3a4d63}
+  .filcol .cg{line-height:1.25}
+  .filcol .cv{margin-top:3px;padding-top:3px;border-top:1px dashed var(--line);color:var(--muted);font-size:11px;font-weight:600;line-height:1.1}
+  .filcol .cv::before{content:"▾ ";opacity:.5}
   .bdg{font-size:10px;padding:0 4px;border-radius:5px;font-weight:700;margin-left:3px}
   .bdg.pkg{background:rgba(192,132,252,.18);color:var(--pkg)}
   .bdg.truck{background:rgba(245,165,36,.18);color:var(--truck)}
@@ -128,10 +132,12 @@
       </div>
     </div>
     <div class="legend">
-      <span><span class="pill bad">0</span> disponibile 0 (buco)</span>
+      <span><span class="pill bad">0</span> 0 da riordinare (buco)</span>
+      <span><span class="cellordered" style="padding:1px 7px;border-radius:5px">0</span> 0 ma già ordinato (in arrivo)</span>
       <span><span class="bdg pkg">📦</span> prenotato</span>
       <span><span class="bdg truck">🚚</span> in arrivo</span>
       <span><span class="cellna">·</span> non previsto</span>
+      <span>Matrice: <b>sopra</b> giacenza · <b>▾ sotto</b> venduto anno</span>
       <span>I risultati si aggiornano automaticamente.</span>
     </div>
     <div class="status" id="status"><span class="spin"></span>Carico…</div>
@@ -239,7 +245,7 @@ function drawList(cells){
     const arr = c.in_arrivo>0 ? '<span class="bdg truck">🚚 '+c.in_arrivo+'</span>' : '';
     return `<tr><td>${esc(c.marchio)}</td><td>${esc(c.tipo_lenti)}</td><td>${esc(c.categoria)}</td>`+
     `<td class="ref"><b>${esc(c.modello||"")}</b><small>${[c.colore,c.calibro,c.barcode].filter(Boolean).map(esc).join(" · ")}</small></td>`+
-    `<td>${esc(c.negozio)}</td><td class="filcol">${disp}</td><td class="filcol">${c.magazzino}</td><td class="filcol">${c.prenotati}</td><td class="filcol">${arr}</td><td class="filcol">${vbarcode[c.barcode]||0}</td></tr>`;
+    `<td>${esc(c.negozio)}</td><td class="filcol">${disp}</td><td class="filcol">${c.magazzino}</td><td class="filcol">${c.prenotati}</td><td class="filcol">${arr}</td><td class="filcol">${c.venduto}</td></tr>`;
   }).join("")||'<tr><td colspan="10" style="padding:28px;text-align:center;color:var(--muted)">Nessuna riga. ✅</td></tr>';
 }
 function drawMatrix(cells,negozi){
@@ -256,10 +262,10 @@ function drawMatrix(cells,negozi){
     for(const n of negozi){const c=r.by[n];
       if(!c){tr+='<td class="filcol cellna">·</td>';continue;}
       colTot[n]+=c.disponibile; grand+=c.disponibile;
-      let cls=c.disponibile===0?"cell0":"cellok",extra="";
+      let cls=c.disponibile===0?(c.in_arrivo>0?"cellordered":"cell0"):"cellok",extra="";
       if(c.prenotati>0)extra+=`<span class="bdg pkg" title="${c.prenotati} prenotati">📦${c.prenotati}</span>`;
       if(c.in_arrivo>0)extra+=`<span class="bdg truck" title="${c.in_arrivo} in arrivo">🚚${c.in_arrivo}</span>`;
-      tr+=`<td class="filcol ${cls}" title="Mag ${c.magazzino} · pren ${c.prenotati} · arrivo ${c.in_arrivo}">${c.disponibile}${extra}</td>`;
+      tr+=`<td class="filcol ${cls}" title="Giacenza ${c.disponibile} · mag ${c.magazzino} · pren ${c.prenotati} · in arrivo ${c.in_arrivo} · venduto ${c.venduto}"><div class="cg">${c.disponibile}${extra}</div><div class="cv" title="venduto anno">${c.venduto}</div></td>`;
     }
     tr+=`<td class="tot">${r._tot}</td></tr>`; return tr;
   });
