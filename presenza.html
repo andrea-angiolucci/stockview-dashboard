@@ -64,15 +64,15 @@
   .ref b{color:var(--txt)} .ref small{display:block;color:var(--muted);font-size:11.5px}
   .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11.5px;font-weight:600}
   .pill.bad{background:rgba(255,107,107,.15);color:var(--bad)}
-  .filcol{text-align:center;border-left:1px solid var(--line)}
+  .filcol{text-align:center;border-left:1px solid var(--line);position:relative}
   .cell0{color:var(--bad);font-weight:700;background:rgba(255,107,107,.1)}
   .cellordered{color:var(--ok);font-weight:700;background:rgba(54,201,141,.13)}
   .cellok{color:var(--ok);font-weight:600}
   .cellna{color:#3a4d63}
   .cg{line-height:1.25}
-  .cv{margin-top:3px;padding-top:3px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;font-weight:600;line-height:1.1}
-  .cv::before{content:"▾ ";opacity:.5}
-  .bdg{font-size:10px;padding:0 4px;border-radius:5px;font-weight:700;margin-left:3px}
+  .cv{margin-top:2px;padding-top:2px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;font-weight:600;line-height:1.1}
+  .bdgs{position:absolute;top:1px;right:2px;display:flex;flex-direction:column;gap:1px;align-items:flex-end;line-height:1}
+  .bdg{font-size:9.5px;padding:0 3px;border-radius:4px;font-weight:700}
   .bdg.pkg{background:rgba(192,132,252,.18);color:var(--pkg)}
   .bdg.truck{background:rgba(245,165,36,.18);color:var(--truck)}
   td.mar,th.mar{position:sticky;left:0;background:var(--panel);z-index:4}
@@ -137,7 +137,7 @@
       <span><span class="bdg pkg">📦</span> prenotato</span>
       <span><span class="bdg truck">🚚</span> in arrivo</span>
       <span><span class="cellna">·</span> non previsto</span>
-      <span>Matrice: <b>sopra</b> giacenza · <b>▾ sotto</b> venduto anno</span>
+      <span>Matrice: <b>sopra</b> giacenza · <b>sotto</b> venduto anno</span>
       <span>I risultati si aggiornano automaticamente.</span>
     </div>
     <div class="status" id="status"><span class="spin"></span>Carico…</div>
@@ -167,24 +167,32 @@ async function loadFilters(){
   mkFilter("msFornitore","Fornitore",[...new Set(A.map(r=>r.fornitore))].sort());
   mkFilter("msMarchio","Marchio",[...new Set(A.map(r=>r.marchio))].sort());
   mkFilter("msTipo","Tipo lenti",[...new Set(A.map(r=>r.tipo_lenti))].sort());
-  const vc=await sb.rpc("sv_categorie"); mkFilter("msCategoria","Categoria",(vc.data||[]).map(x=>x.categoria));
+  await refreshCategorie();
   const vf=await sb.rpc("vendite_per_filiale"); (vf.data||[]).forEach(r=>vfiliale[r.filiale]=Number(r.pezzi));
 }
+async function refreshCategorie(){
+  const f=[...(FILTERS.msFornitore?FILTERS.msFornitore.selected:[])],m=[...(FILTERS.msMarchio?FILTERS.msMarchio.selected:[])],t=[...(FILTERS.msTipo?FILTERS.msTipo.selected:[])];
+  const prev=FILTERS.msCategoria?[...FILTERS.msCategoria.selected]:[];
+  const r=await sb.rpc("sv_cat",{p_fornitori:f,p_marchi:m,p_tipi:t});
+  const cats=(r.data||[]).map(x=>x.categoria);
+  mkFilter("msCategoria","Categoria",cats,prev);
+}
 function trunc(s){s=String(s);return s.length>18?s.slice(0,17)+"…":s;}
-function mkFilter(elId,label,items){
+function mkFilter(elId,label,items,preselected){
   const host=document.getElementById(elId);
   host.innerHTML='<button class="ms-btn"><span class="cnt">tutti</span><span>▾</span></button>'+
     '<div class="ms-pop"><input class="ms-search" placeholder="Cerca…"/><div class="ms-acts"><button data-a="all">Tutti</button><button data-a="none">Nessuno</button></div><div class="ms-list"></div></div>';
   const btn=host.querySelector(".ms-btn"),pop=host.querySelector(".ms-pop"),list=host.querySelector(".ms-list"),search=host.querySelector(".ms-search");
-  const sel=new Set(); FILTERS[elId]={selected:sel,items};
+  const sel=new Set((preselected||[]).filter(x=>items.includes(x))); FILTERS[elId]={selected:sel,items};
+  function changed(){ if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo")refreshCategorie(); scheduleRun(); }
   function render(f){f=(f||"").toLowerCase();list.innerHTML="";items.filter(it=>!f||String(it).toLowerCase().includes(f)).forEach(it=>{
     const row=document.createElement("label");row.className="ms-item";const cb=document.createElement("input");cb.type="checkbox";cb.checked=sel.has(it);
-    cb.onchange=()=>{cb.checked?sel.add(it):sel.delete(it);upd();scheduleRun();};const sp=document.createElement("span");sp.textContent=it;row.appendChild(cb);row.appendChild(sp);list.appendChild(row);});}
+    cb.onchange=()=>{cb.checked?sel.add(it):sel.delete(it);upd();changed();};const sp=document.createElement("span");sp.textContent=it;row.appendChild(cb);row.appendChild(sp);list.appendChild(row);});}
   function upd(){const c=btn.querySelector(".cnt"); c.textContent= sel.size===0?"tutti":(sel.size===1?[...sel][0]:sel.size+" selez. (multipla)"); c.title=sel.size?[...sel].join(", "):"tutti";}
   btn.onclick=()=>{document.querySelectorAll(".ms-pop").forEach(p=>{if(p!==pop)p.classList.remove("open");});pop.classList.toggle("open");render(search.value);};
   search.oninput=()=>render(search.value);
-  host.querySelector('[data-a="all"]').onclick=()=>{items.forEach(it=>sel.add(it));render(search.value);upd();scheduleRun();};
-  host.querySelector('[data-a="none"]').onclick=()=>{sel.clear();render(search.value);upd();scheduleRun();};
+  host.querySelector('[data-a="all"]').onclick=()=>{items.forEach(it=>sel.add(it));render(search.value);upd();changed();};
+  host.querySelector('[data-a="none"]').onclick=()=>{sel.clear();render(search.value);upd();changed();};
   upd();render("");
 }
 document.addEventListener("click",e=>{if(!e.target.closest(".ms"))document.querySelectorAll(".ms-pop").forEach(p=>p.classList.remove("open"));});
@@ -254,7 +262,7 @@ function drawMatrix(cells,negozi){
   let rows=[...refs.values()];
   if(showMode==="mancanti") rows=rows.filter(r=>r._buchi>0);
   sortRows(rows);
-  let h="<tr><th class='mar'>Referenza</th>"+negozi.map(n=>`<th class="filcol">${esc(n)}<br><small style='font-weight:400'>vend ${nomeSales[n]||0}</small></th>`).join("")+"<th class='tot'>Totali</th></tr>";
+  let h="<tr><th class='mar'>Referenza</th>"+negozi.map(n=>`<th class="filcol">${esc(n)}</th>`).join("")+"<th class='tot'>Totali</th></tr>";
   $("#tbl").tHead.innerHTML=h;
   const colTot={},colVend={}; negozi.forEach(n=>{colTot[n]=0;colVend[n]=0;}); let grand=0,grandVend=0;
   const body=rows.map(r=>{
@@ -265,7 +273,7 @@ function drawMatrix(cells,negozi){
       let cls=c.disponibile===0?(c.in_arrivo>0?"cellordered":"cell0"):"cellok",extra="";
       if(c.prenotati>0)extra+=`<span class="bdg pkg" title="${c.prenotati} prenotati">📦${c.prenotati}</span>`;
       if(c.in_arrivo>0)extra+=`<span class="bdg truck" title="${c.in_arrivo} in arrivo">🚚${c.in_arrivo}</span>`;
-      tr+=`<td class="filcol ${cls}" title="Giacenza ${c.disponibile} · mag ${c.magazzino} · pren ${c.prenotati} · in arrivo ${c.in_arrivo} · venduto ${c.venduto}"><div class="cg">${c.disponibile}${extra}</div><div class="cv" title="venduto anno">${c.venduto}</div></td>`;
+      tr+=`<td class="filcol ${cls}" title="Giacenza ${c.disponibile} · mag ${c.magazzino} · pren ${c.prenotati} · in arrivo ${c.in_arrivo} · venduto ${c.venduto}"><div class="cg">${c.disponibile}</div><div class="cv" title="venduto anno">${c.venduto}</div>${extra?`<span class="bdgs">${extra}</span>`:""}</td>`;
     }
     tr+=`<td class="tot"><div class="cg">${r._tot}</div><div class="cv">${r._vtot}</div></td></tr>`; return tr;
   });
