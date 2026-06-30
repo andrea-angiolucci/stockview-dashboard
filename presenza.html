@@ -69,9 +69,9 @@
   .cellordered{color:var(--ok);font-weight:700;background:rgba(54,201,141,.13)}
   .cellok{color:var(--ok);font-weight:600}
   .cellna{color:#3a4d63}
-  .filcol .cg{line-height:1.25}
-  .filcol .cv{margin-top:3px;padding-top:3px;border-top:1px dashed var(--line);color:var(--muted);font-size:11px;font-weight:600;line-height:1.1}
-  .filcol .cv::before{content:"▾ ";opacity:.5}
+  .cg{line-height:1.25}
+  .cv{margin-top:3px;padding-top:3px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;font-weight:600;line-height:1.1}
+  .cv::before{content:"▾ ";opacity:.5}
   .bdg{font-size:10px;padding:0 4px;border-radius:5px;font-weight:700;margin-left:3px}
   .bdg.pkg{background:rgba(192,132,252,.18);color:var(--pkg)}
   .bdg.truck{background:rgba(245,165,36,.18);color:var(--truck)}
@@ -250,27 +250,27 @@ function drawList(cells){
 }
 function drawMatrix(cells,negozi){
   const refs=new Map();
-  for(const c of cells){ if(!refs.has(c.barcode))refs.set(c.barcode,{info:c,by:{},_tot:0,_buchi:0}); const r=refs.get(c.barcode); r.by[c.negozio]=c; r._tot+=c.disponibile; if(c.disponibile===0)r._buchi++; }
+  for(const c of cells){ if(!refs.has(c.barcode))refs.set(c.barcode,{info:c,by:{},_tot:0,_vtot:0,_buchi:0}); const r=refs.get(c.barcode); r.by[c.negozio]=c; r._tot+=c.disponibile; r._vtot+=c.venduto; if(c.disponibile===0)r._buchi++; }
   let rows=[...refs.values()];
   if(showMode==="mancanti") rows=rows.filter(r=>r._buchi>0);
   sortRows(rows);
-  let h="<tr><th class='mar'>Referenza</th>"+negozi.map(n=>`<th class="filcol">${esc(n)}<br><small style='font-weight:400'>vend ${nomeSales[n]||0}</small></th>`).join("")+"<th class='tot'>Tot. disp.</th></tr>";
+  let h="<tr><th class='mar'>Referenza</th>"+negozi.map(n=>`<th class="filcol">${esc(n)}<br><small style='font-weight:400'>vend ${nomeSales[n]||0}</small></th>`).join("")+"<th class='tot'>Totali</th></tr>";
   $("#tbl").tHead.innerHTML=h;
-  const colTot={}; negozi.forEach(n=>colTot[n]=0); let grand=0;
+  const colTot={},colVend={}; negozi.forEach(n=>{colTot[n]=0;colVend[n]=0;}); let grand=0,grandVend=0;
   const body=rows.map(r=>{
     let tr=`<tr><td class="mar ref"><b>${esc(r.info.marchio)} ${esc(r.info.modello||"")}</b><small>${[r.info.tipo_lenti,r.info.categoria,r.info.colore,r.info.calibro,r.info.barcode].filter(Boolean).map(esc).join(" · ")}</small></td>`;
     for(const n of negozi){const c=r.by[n];
       if(!c){tr+='<td class="filcol cellna">·</td>';continue;}
-      colTot[n]+=c.disponibile; grand+=c.disponibile;
+      colTot[n]+=c.disponibile; grand+=c.disponibile; colVend[n]+=c.venduto; grandVend+=c.venduto;
       let cls=c.disponibile===0?(c.in_arrivo>0?"cellordered":"cell0"):"cellok",extra="";
       if(c.prenotati>0)extra+=`<span class="bdg pkg" title="${c.prenotati} prenotati">📦${c.prenotati}</span>`;
       if(c.in_arrivo>0)extra+=`<span class="bdg truck" title="${c.in_arrivo} in arrivo">🚚${c.in_arrivo}</span>`;
       tr+=`<td class="filcol ${cls}" title="Giacenza ${c.disponibile} · mag ${c.magazzino} · pren ${c.prenotati} · in arrivo ${c.in_arrivo} · venduto ${c.venduto}"><div class="cg">${c.disponibile}${extra}</div><div class="cv" title="venduto anno">${c.venduto}</div></td>`;
     }
-    tr+=`<td class="tot">${r._tot}</td></tr>`; return tr;
+    tr+=`<td class="tot"><div class="cg">${r._tot}</div><div class="cv">${r._vtot}</div></td></tr>`; return tr;
   });
   $("#tbl").tBodies[0].innerHTML=body.join("")||'<tr><td class="mar" colspan="'+(negozi.length+2)+'" style="text-align:center;color:var(--muted);padding:24px">Nessuna referenza con mancanti. ✅</td></tr>';
-  $("#tbl").tFoot.innerHTML="<tr><td class='mar'>Totale giacenza</td>"+negozi.map(n=>`<td>${colTot[n]}</td>`).join("")+`<td class='tot'>${grand}</td></tr>`;
+  $("#tbl").tFoot.innerHTML="<tr><td class='mar'>Totale giac. / vend.</td>"+negozi.map(n=>`<td><div class="cg">${colTot[n]}</div><div class="cv">${colVend[n]}</div></td>`).join("")+`<td class='tot'><div class="cg">${grand}</div><div class="cv">${grandVend}</div></td></tr>`;
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
 boot();
