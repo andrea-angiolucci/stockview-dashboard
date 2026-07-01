@@ -130,7 +130,7 @@
       <div class="fcol"><span>Ordina negozi</span>
         <select class="sort" id="sortPdv"><option value="nome">Nome A-Z</option><option value="venduto" selected>Venduto ↓</option></select>
       </div>
-      <div class="fcol"><span>Esporta</span><div style="display:flex;gap:6px"><select class="sort" id="dlmode"><option value="sint">Sintetico</option><option value="full">Completo</option></select><button class="ghost" id="dl" style="padding:9px 14px">Scarica Excel</button></div></div>
+      <div class="fcol"><span>Esporta</span><div style="display:flex;gap:6px"><select class="sort" id="dlmode"><option value="sint">Sintetico</option><option value="full">Completo</option></select><button class="ghost" id="dl" style="padding:9px 14px">Scarica Excel</button></div></div><div class="fcol"><span> </span><button class="btn" id="ordine" style="padding:9px 16px">Lista ordine</button></div>
     </div>
     <div class="legend">
       <span><span class="pill bad">0</span> 0 da riordinare (buco)</span>
@@ -224,6 +224,38 @@ $("#dl").addEventListener("click",async()=>{
 });
 
 function scheduleRun(){ clearTimeout(runT); runT=setTimeout(run,300); }
+
+$("#ordine").addEventListener("click",async()=>{
+  if(!lastCells.length){alert("Nessuna selezione: applica un filtro.");return;}
+  const b=$("#ordine"),lab=b.textContent;b.disabled=true;b.textContent="Calcolo…";
+  try{
+    const need={},meta={};
+    lastCells.forEach(c=>{ if(c.disponibile===0){ need[c.barcode]=(need[c.barcode]||0)+1; if(!meta[c.barcode])meta[c.barcode]={Fornitore:c.fornitore,Marchio:c.marchio,Tipo:c.tipo_lenti,Categoria:c.categoria,Modello:c.modello,Colore:c.colore,Calibro:c.calibro}; } });
+    const bcs=Object.keys(need);
+    if(!bcs.length){alert("Nessun buco nella selezione: niente da ordinare.");b.disabled=false;b.textContent=lab;return;}
+    const inarr={};
+    for(let i=0;i<bcs.length;i+=150){ const part=bcs.slice(i,i+150); let from=0; while(true){ const r=await sb.from("giacenze").select("barcode,quantita_in_arrivo").in("barcode",part).range(from,from+999); const d=r.data||[]; d.forEach(g=>{inarr[g.barcode]=(inarr[g.barcode]||0)+(g.quantita_in_arrivo||0);}); if(d.length<1000)break; from+=1000; } }
+    let rows=bcs.map(bc=>{ const m=meta[bc]; return Object.assign({},m,{Barcode:bc,Buchi:need[bc],InArrivo:inarr[bc]||0,DaOrdinare:Math.max(0,need[bc]-(inarr[bc]||0))}); }).filter(r=>r.DaOrdinare>0).sort((x,y)=>String(x.Fornitore+x.Marchio+x.Modello).localeCompare(String(y.Fornitore+y.Marchio+y.Modello)));
+    svOrdModal(rows);
+  }catch(e){alert("Errore lista ordine: "+e);}
+  b.disabled=false;b.textContent=lab;
+});
+function svOrdModal(rows){
+  const tot=rows.reduce((s,r)=>s+r.DaOrdinare,0);
+  const old=document.getElementById("ovord"); if(old)old.remove();
+  const ov=document.createElement("div"); ov.id="ovord";
+  ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px";
+  const cols=["Fornitore","Marchio","Modello","Colore","Calibro","Categoria","Tipo","Barcode","Buchi","InArrivo","DaOrdinare"];
+  const th=cols.map(c=>"<th style='position:sticky;top:0;background:#1c2a3a;padding:6px 9px;text-align:left;font-size:11px;text-transform:uppercase;color:#8aa0b6'>"+c+"</th>").join("");
+  const tb=rows.length?rows.map(r=>"<tr>"+cols.map(c=>"<td style='padding:5px 9px;border-bottom:1px solid #26384c;white-space:nowrap;font-size:12.5px"+(c==="DaOrdinare"?";font-weight:700;color:#3da9fc":"")+"'>"+(r[c]==null?"":r[c])+"</td>").join("")+"</tr>").join(""):"<tr><td colspan='11' style='padding:22px;text-align:center;color:#8aa0b6'>Niente da ordinare: buchi coperti dalle quantita in arrivo.</td></tr>";
+  ov.innerHTML="<div style='background:#16212e;border:1px solid #26384c;border-radius:14px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,.5);color:#e8eef5'>"+
+    "<div style='display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid #26384c'><b style='font-size:15px'>Lista ordine</b><span style='color:#8aa0b6;font-size:13px'>"+rows.length+" referenze &middot; <b style='color:#3da9fc'>"+tot+"</b> pezzi da ordinare</span><span style='flex:1'></span><button id='ordxls' style='padding:7px 12px;border-radius:8px;border:1px solid #26384c;background:#3da9fc;color:#04121f;font-weight:700;cursor:pointer'>Esporta Excel</button><button id='ordclose' style='padding:7px 12px;border-radius:8px;border:1px solid #26384c;background:transparent;color:#8aa0b6;cursor:pointer'>Chiudi</button></div>"+
+    "<div style='overflow:auto'><table style='border-collapse:collapse;width:100%'><thead><tr>"+th+"</tr></thead><tbody>"+tb+"</tbody></table></div></div>";
+  document.body.appendChild(ov);
+  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+  document.getElementById("ordclose").onclick=()=>ov.remove();
+  document.getElementById("ordxls").onclick=()=>{ const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Ordine"); XLSX.writeFile(wb,"lista_ordine_"+new Date().toISOString().slice(0,10)+".xlsx"); };
+}
 
 async function run(){
   const f=[...FILTERS.msFornitore.selected],m=[...FILTERS.msMarchio.selected],t=[...FILTERS.msTipo.selected],c=[...FILTERS.msCategoria.selected];
