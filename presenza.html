@@ -279,15 +279,15 @@ $("#ordine").addEventListener("click",async()=>{
     const bcs=Object.keys(holes);
     if(!bcs.length){svOrdModal([]);ob.disabled=false;ob.textContent=lab;return;}
     // in-arrivo aziendale per barcode (somma su tutte le filiali)
-    const inarr={};
-    const gi=await svFetchAll("giacenze","barcode,quantita_in_arrivo",bcs);
-    gi.forEach(g=>{ inarr[g.barcode]=(inarr[g.barcode]||0)+(g.quantita_in_arrivo||0); });
+    const inarr={}, depo={};
+    const gi=await svFetchAll("giacenze","barcode,filiale,quantita_disponibile,quantita_in_arrivo",bcs);
+    gi.forEach(g=>{ inarr[g.barcode]=(inarr[g.barcode]||0)+(g.quantita_in_arrivo||0); if(g.filiale==="A") depo[g.barcode]=(depo[g.barcode]||0)+(g.quantita_disponibile||0); });
     const rows=[];
     bcs.forEach(bc=>{
       const m=meta[bc], hs=holes[bc].slice(), ms=msSales[m.marchio]||{};
       hs.sort((a,b)=>(ms[b.negozio]||0)-(ms[a.negozio]||0) || (vfiliale[b.filiale]||0)-(vfiliale[a.filiale]||0) || String(a.negozio).localeCompare(String(b.negozio)));
-      const cov=inarr[bc]||0;
-      hs.slice(cov).forEach(c=>{ rows.push(Object.assign({},m,{barcode:bc,negozio:c.negozio,filiale:c.filiale,qta:1,buchi:hs.length,inarrivo:cov})); });
+      const ia=inarr[bc]||0, dp=depo[bc]||0, cov=ia+dp;
+      hs.slice(cov).forEach(c=>{ rows.push(Object.assign({},m,{barcode:bc,negozio:c.negozio,filiale:c.filiale,qta:1,buchi:hs.length,inarrivo:ia,deposito:dp})); });
     });
     rows.sort((a,b)=>String(a.fornitore+a.marchio+a.modello+a.negozio).localeCompare(String(b.fornitore+b.marchio+b.modello+b.negozio)));
     svOrdModal(rows);
@@ -310,11 +310,11 @@ function svOrdModal(rows){
     '<button class="ghost" id="ordxls" style="border-color:var(--ok);color:var(--ok)">Esporta Excel</button>'+
     '<button class="ghost" id="ordclose">Chiudi</button></div>';
   let bodyH;
-  if(!rows.length){ bodyH='<div style="padding:40px;text-align:center;color:var(--muted)">Nessun pezzo da ordinare: tutti i buchi sono coperti da quantità in arrivo (deposito o PDV). ✅</div>'; }
+  if(!rows.length){ bodyH='<div style="padding:40px;text-align:center;color:var(--muted)">Nessun pezzo da ordinare: tutti i buchi sono coperti da quantità in arrivo o giacenza in deposito. ✅</div>'; }
   else {
     bodyH='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+
-    ['Fornitore','Marchio','Modello','Colore','Cal.','Categoria','Tipo','Barcode','Negozio','Qta','Buchi cod.','In arrivo cod.'].map(h=>'<th style="position:sticky;top:0;background:var(--panel2);color:var(--muted);text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase">'+h+'</th>').join('')+'</tr></thead><tbody>'+
-    rows.map(r=>'<tr style="border-bottom:1px solid var(--line)"><td style="padding:6px 10px">'+esc(r.fornitore)+'</td><td style="padding:6px 10px">'+esc(r.marchio)+'</td><td style="padding:6px 10px">'+esc(r.modello||'')+'</td><td style="padding:6px 10px">'+esc(r.colore||'')+'</td><td style="padding:6px 10px">'+esc(r.calibro||'')+'</td><td style="padding:6px 10px">'+esc(r.categoria||'')+'</td><td style="padding:6px 10px">'+esc(r.tipo_lenti||'')+'</td><td style="padding:6px 10px">'+esc(r.barcode)+'</td><td style="padding:6px 10px;font-weight:700;color:var(--accent)">'+esc(r.negozio)+'</td><td style="padding:6px 10px;text-align:center;color:var(--ok);font-weight:700">'+r.qta+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.buchi+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.inarrivo+'</td></tr>').join('')+
+    ['Fornitore','Marchio','Modello','Colore','Cal.','Categoria','Tipo','Barcode','Negozio','Qta','Buchi cod.','In arrivo cod.','In deposito'].map(h=>'<th style="position:sticky;top:0;background:var(--panel2);color:var(--muted);text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase">'+h+'</th>').join('')+'</tr></thead><tbody>'+
+    rows.map(r=>'<tr style="border-bottom:1px solid var(--line)"><td style="padding:6px 10px">'+esc(r.fornitore)+'</td><td style="padding:6px 10px">'+esc(r.marchio)+'</td><td style="padding:6px 10px">'+esc(r.modello||'')+'</td><td style="padding:6px 10px">'+esc(r.colore||'')+'</td><td style="padding:6px 10px">'+esc(r.calibro||'')+'</td><td style="padding:6px 10px">'+esc(r.categoria||'')+'</td><td style="padding:6px 10px">'+esc(r.tipo_lenti||'')+'</td><td style="padding:6px 10px">'+esc(r.barcode)+'</td><td style="padding:6px 10px;font-weight:700;color:var(--accent)">'+esc(r.negozio)+'</td><td style="padding:6px 10px;text-align:center;color:var(--ok);font-weight:700">'+r.qta+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.buchi+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.inarrivo+'</td><td style="padding:6px 10px;text-align:center;color:var(--truck)">'+(r.deposito||0)+'</td></tr>').join('')+
     '</tbody></table></div>';
   }
   box.innerHTML=head+bodyH;
@@ -322,7 +322,7 @@ function svOrdModal(rows){
   document.getElementById("ordclose").onclick=()=>ov.remove();
   ov.onclick=e=>{if(e.target===ov)ov.remove();};
   const xbtn=document.getElementById("ordxls");
-  if(xbtn)xbtn.onclick=()=>{ const ws=XLSX.utils.json_to_sheet(rows.map(r=>({Fornitore:r.fornitore,Marchio:r.marchio,Modello:r.modello,Colore:r.colore,Calibro:r.calibro,Categoria:r.categoria,Tipo:r.tipo_lenti,Barcode:r.barcode,Negozio:r.negozio,Qta:r.qta,BuchiCodice:r.buchi,InArrivoCodice:r.inarrivo}))); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Ordine"); XLSX.writeFile(wb,"lista_ordine_"+new Date().toISOString().slice(0,10)+".xlsx"); };
+  if(xbtn)xbtn.onclick=()=>{ const ws=XLSX.utils.json_to_sheet(rows.map(r=>({Fornitore:r.fornitore,Marchio:r.marchio,Modello:r.modello,Colore:r.colore,Calibro:r.calibro,Categoria:r.categoria,Tipo:r.tipo_lenti,Barcode:r.barcode,Negozio:r.negozio,Qta:r.qta,BuchiCodice:r.buchi,InArrivoCodice:r.inarrivo,InDeposito:(r.deposito||0)}))); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Ordine"); XLSX.writeFile(wb,"lista_ordine_"+new Date().toISOString().slice(0,10)+".xlsx"); };
 }
 
 $("#riepilogo").addEventListener("click",()=>{
