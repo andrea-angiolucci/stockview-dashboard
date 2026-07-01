@@ -125,6 +125,7 @@
       <div class="fcol"><span>Vista</span>
         <div class="seg" id="seg"><button data-v="lista" class="on">Elenco</button><button data-v="matrice">Matrice</button></div>
       </div>
+      <div class="fcol"><span>Filiali</span><div class="seg" id="segFil"><button data-x="attive" class="on">Attive</button><button data-x="tutte">+ Deposito/tutte</button></div></div>
       <div class="fcol"><span>Ordina referenze</span>
         <select class="sort" id="sortRef"><option value="modello">Modello A-Z</option><option value="giacenza">Giacenza ↓</option><option value="venduto" selected>Venduto ↓</option></select>
       </div>
@@ -157,7 +158,7 @@ const SUPABASE_KEY="sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s);
 const LADDER=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9"];
-let view="lista", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
+let view="lista", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], FIL={}, extraFil=[], extraStock={}, showExtra=false, vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
 
 async function boot(){const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex";}
 async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; await loadFilters(); run(); checkDataFreshness();}
@@ -197,6 +198,7 @@ async function loadFilters(){
   mkFilter("msTipo","Tipo lenti",optsFor("tipo_lenti",[],[],[]));
   await refreshCategorie();
   const vf=await sb.rpc("vendite_per_filiale"); (vf.data||[]).forEach(r=>vfiliale[r.filiale]=Number(r.pezzi));
+  const ff=await sb.from("filiali").select("codice,nome,tipo,attiva"); (ff.data||[]).forEach(r=>FIL[r.codice]={nome:r.nome,tipo:r.tipo,attiva:r.attiva});
 }
 function optsFor(field,f,m,t){
   let rows=ASSORT;
@@ -246,6 +248,7 @@ $("#seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)
 $("#segShow").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#segShow").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");showMode=b.dataset.s;if(lastCells.length)draw();});
 $("#sortRef").addEventListener("change",()=>{if(lastCells.length)draw();});
 $("#sortPdv").addEventListener("change",()=>{if(lastCells.length)draw();});
+$("#segFil").addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;[...$("#segFil").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");showExtra=b.dataset.x==="tutte";if(showExtra){b.textContent="Carico…";if(lastCells.length)await loadExtraStock();b.textContent="+ Deposito/tutte";view="matrice";[...$("#seg").children].forEach(x=>x.classList.toggle("on",x.dataset.v==="matrice"));}if(lastCells.length)draw();});
 function svSave(rows,suff){ const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Presenza"); XLSX.writeFile(wb,"controllo_presenza"+(suff||"")+"_"+new Date().toISOString().slice(0,10)+".xlsx"); }
 async function svFetchAll(table,sel,vals,extra){ let out=[]; const CH=150; for(let i=0;i<vals.length;i+=CH){ const part=vals.slice(i,i+CH); let from=0; while(true){ let q=sb.from(table).select(sel).in("barcode",part); if(extra)q=extra(q); const r=await q.range(from,from+999); const d=r.data||[]; out=out.concat(d); if(d.length<1000)break; from+=1000; } } return out; }
 $("#dl").addEventListener("click",async()=>{
@@ -358,6 +361,7 @@ async function run(){
   lastCells=data||[]; vbarcode={};
   const bcs=[...new Set(lastCells.map(c=>c.barcode))];
   if(bcs.length){const vb=await sb.rpc("vendite_per_barcode",{p_barcodes:bcs});(vb.data||[]).forEach(r=>vbarcode[r.barcode]=Number(r.pezzi));}
+  if(showExtra)await loadExtraStock();
   draw();
 }
 
@@ -403,13 +407,26 @@ function drawList(cells){
     `<td>${esc(c.negozio)}</td><td class="filcol">${disp}</td><td class="filcol">${c.magazzino}</td><td class="filcol">${c.prenotati}</td><td class="filcol">${arr}</td><td class="filcol">${c.venduto}</td></tr>`;
   }).join("")||'<tr><td colspan="10" style="padding:28px;text-align:center;color:var(--muted)">Nessuna riga. ✅</td></tr>';
 }
+function filName(f){ const x=FIL[f]; return (x&&x.nome)?x.nome:f; }
+function filShort(f){ const x=FIL[f]; const n=(x&&x.nome)?x.nome:f; return n.length>10?n.slice(0,9)+"…":n; }
+async function loadExtraStock(){
+  extraStock={}; extraFil=[];
+  const active={B:1,C:1,D:1,E:1,G:1,H:1,I:1};
+  const bcs=[...new Set(lastCells.map(c=>c.barcode))];
+  if(!bcs.length)return;
+  const gi=await svFetchAll("giacenze","barcode,filiale,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo",bcs);
+  const filSet={};
+  gi.forEach(g=>{ if(active[g.filiale])return; const d=g.quantita_disponibile||0,m=g.quantita_magazzino||0,p=g.quantita_prenotata||0,a=g.quantita_in_arrivo||0; if(!(d||m||p||a))return; filSet[g.filiale]=1; (extraStock[g.barcode]=extraStock[g.barcode]||{})[g.filiale]={d:d,m:m,p:p,a:a}; });
+  extraFil=Object.keys(filSet).sort((a,b)=> a==="A"?-1:(b==="A"?1:String(a).localeCompare(String(b))) );
+}
 function drawMatrix(cells,negozi){
   const refs=new Map();
   for(const c of cells){ if(!refs.has(c.barcode))refs.set(c.barcode,{info:c,by:{},_tot:0,_vtot:0,_buchi:0}); const r=refs.get(c.barcode); r.by[c.negozio]=c; r._tot+=c.disponibile; r._vtot+=c.venduto; if(c.disponibile===0)r._buchi++; }
   let rows=[...refs.values()];
   if(showMode==="mancanti") rows=rows.filter(r=>r._buchi>0);
   sortRows(rows);
-  let h="<tr><th class='mar'>Referenza</th>"+negozi.map(n=>`<th class="filcol">${esc(n)}</th>`).join("")+"<th class='tot'>Totali</th></tr>";
+  const xf=(showExtra&&extraFil.length)?extraFil:[];
+  let h="<tr><th class='mar'>Referenza</th>"+negozi.map(n=>`<th class="filcol">${esc(n)}</th>`).join("")+xf.map(f=>`<th class="filcol" style="opacity:.7" title="${esc(filName(f))} (fuori linea)">${esc(filShort(f))}</th>`).join("")+"<th class='tot'>Totali</th></tr>";
   $("#tbl").tHead.innerHTML=h;
   const colTot={},colVend={}; negozi.forEach(n=>{colTot[n]=0;colVend[n]=0;}); let grand=0,grandVend=0;
   const body=rows.map(r=>{
@@ -422,10 +439,18 @@ function drawMatrix(cells,negozi){
       if(c.in_arrivo>0)extra+=`<span class="bdg truck" title="${c.in_arrivo} in arrivo">🚚${c.in_arrivo}</span>`;
       tr+=`<td class="filcol ${cls}" title="Giacenza ${c.disponibile} · mag ${c.magazzino} · pren ${c.prenotati} · in arrivo ${c.in_arrivo} · venduto ${c.venduto}"><div class="cg">${c.disponibile}</div><div class="cv" title="venduto anno">${c.venduto}</div>${extra?`<span class="bdgs">${extra}</span>`:""}</td>`;
     }
+    for(const f of xf){ const s=(extraStock[r.info.barcode]||{})[f];
+      if(!s){tr+='<td class="filcol cellna" style="background:rgba(255,255,255,.02)">·</td>';continue;}
+      let ex2="";
+      if(s.p>0)ex2+=`<span class="bdg pkg" title="${s.p} prenotati">📦${s.p}</span>`;
+      if(s.a>0)ex2+=`<span class="bdg truck" title="${s.a} in arrivo">🚚${s.a}</span>`;
+      const dcls=s.d>0?"cellok":"cellna";
+      tr+=`<td class="filcol ${dcls}" style="background:rgba(255,255,255,.02)" title="${esc(filName(f))} · disp ${s.d} · mag ${s.m} · pren ${s.p} · in arrivo ${s.a}"><div class="cg">${s.d}</div>${ex2?`<span class="bdgs">${ex2}</span>`:""}</td>`;
+    }
     tr+=`<td class="tot"><div class="cg">${r._tot}</div><div class="cv">${r._vtot}</div></td></tr>`; return tr;
   });
-  $("#tbl").tBodies[0].innerHTML=body.join("")||'<tr><td class="mar" colspan="'+(negozi.length+2)+'" style="text-align:center;color:var(--muted);padding:24px">Nessuna referenza con mancanti. ✅</td></tr>';
-  $("#tbl").tFoot.innerHTML="<tr><td class='mar'>Totale giac. / vend.</td>"+negozi.map(n=>`<td><div class="cg">${colTot[n]}</div><div class="cv">${colVend[n]}</div></td>`).join("")+`<td class='tot'><div class="cg">${grand}</div><div class="cv">${grandVend}</div></td></tr>`;
+  $("#tbl").tBodies[0].innerHTML=body.join("")||'<tr><td class="mar" colspan="'+(negozi.length+xf.length+2)+'" style="text-align:center;color:var(--muted);padding:24px">Nessuna referenza con mancanti. ✅</td></tr>';
+  $("#tbl").tFoot.innerHTML="<tr><td class='mar'>Totale giac. / vend.</td>"+negozi.map(n=>`<td><div class="cg">${colTot[n]}</div><div class="cv">${colVend[n]}</div></td>`).join("")+xf.map(()=>"<td></td>").join("")+`<td class='tot'><div class="cg">${grand}</div><div class="cv">${grandVend}</div></td></tr>`;
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
 boot();
