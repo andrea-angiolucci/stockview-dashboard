@@ -155,7 +155,7 @@ const SUPABASE_KEY="sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s);
 const LADDER=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9"];
-let view="lista", showMode="mancanti", lastCells=[], FILTERS={}, vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
+let view="lista", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
 
 async function boot(){const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex";}
 async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; await loadFilters(); run();}
@@ -166,12 +166,29 @@ $("#logout").addEventListener("click",async()=>{await sb.auth.signOut();location
 
 async function loadFilters(){
   const {data}=await sb.from("assortimento_marchio").select("fornitore,marchio,tipo_lenti");
-  const A=data||[];
-  mkFilter("msFornitore","Fornitore",[...new Set(A.map(r=>r.fornitore))].sort());
-  mkFilter("msMarchio","Marchio",[...new Set(A.map(r=>r.marchio))].sort());
-  mkFilter("msTipo","Tipo lenti",[...new Set(A.map(r=>r.tipo_lenti))].sort());
+  const A=data||[]; ASSORT=A;
+  mkFilter("msFornitore","Fornitore",optsFor("fornitore",[],[],[]));
+  mkFilter("msMarchio","Marchio",optsFor("marchio",[],[],[]));
+  mkFilter("msTipo","Tipo lenti",optsFor("tipo_lenti",[],[],[]));
   await refreshCategorie();
   const vf=await sb.rpc("vendite_per_filiale"); (vf.data||[]).forEach(r=>vfiliale[r.filiale]=Number(r.pezzi));
+}
+function optsFor(field,f,m,t){
+  let rows=ASSORT;
+  if(f&&f.length)rows=rows.filter(r=>f.includes(r.fornitore));
+  if(m&&m.length)rows=rows.filter(r=>m.includes(r.marchio));
+  if(t&&t.length)rows=rows.filter(r=>t.includes(r.tipo_lenti));
+  return [...new Set(rows.map(r=>r[field]))].filter(Boolean).sort();
+}
+function refreshCascade(changedId){
+  const f=[...(FILTERS.msFornitore?FILTERS.msFornitore.selected:[])];
+  if(changedId==="msFornitore"){
+    const prevM=[...FILTERS.msMarchio.selected];
+    mkFilter("msMarchio","Marchio",optsFor("marchio",f,[],[]),prevM);
+  }
+  const m=[...(FILTERS.msMarchio?FILTERS.msMarchio.selected:[])];
+  const prevT=[...FILTERS.msTipo.selected];
+  mkFilter("msTipo","Tipo lenti",optsFor("tipo_lenti",f,m,[]),prevT);
 }
 async function refreshCategorie(){
   const f=[...(FILTERS.msFornitore?FILTERS.msFornitore.selected:[])],m=[...(FILTERS.msMarchio?FILTERS.msMarchio.selected:[])],t=[...(FILTERS.msTipo?FILTERS.msTipo.selected:[])];
@@ -187,7 +204,7 @@ function mkFilter(elId,label,items,preselected){
     '<div class="ms-pop"><input class="ms-search" placeholder="Cerca…"/><div class="ms-acts"><button data-a="all">Tutti</button><button data-a="none">Nessuno</button></div><div class="ms-list"></div></div>';
   const btn=host.querySelector(".ms-btn"),pop=host.querySelector(".ms-pop"),list=host.querySelector(".ms-list"),search=host.querySelector(".ms-search");
   const sel=new Set((preselected||[]).filter(x=>items.includes(x))); FILTERS[elId]={selected:sel,items};
-  function changed(){ if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo")refreshCategorie(); scheduleRun(); }
+  function changed(){ if(elId==="msFornitore")refreshCascade("msFornitore"); else if(elId==="msMarchio")refreshCascade("msMarchio"); if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo")refreshCategorie(); scheduleRun(); }
   function render(f){f=(f||"").toLowerCase();list.innerHTML="";items.filter(it=>!f||String(it).toLowerCase().includes(f)).forEach(it=>{
     const row=document.createElement("label");row.className="ms-item";const cb=document.createElement("input");cb.type="checkbox";cb.checked=sel.has(it);
     cb.onchange=()=>{cb.checked?sel.add(it):sel.delete(it);upd();changed();};const sp=document.createElement("span");sp.textContent=it;row.appendChild(cb);row.appendChild(sp);list.appendChild(row);});}
@@ -228,30 +245,42 @@ $("#ordine").addEventListener("click",async()=>{
   if(!lastCells.length){alert("Nessun dato: applica un filtro.");return;}
   const ob=$("#ordine"),lab=ob.textContent; ob.disabled=true; ob.textContent="Calcolo…";
   try{
-    const need={}, meta={};
-    lastCells.forEach(c=>{ if(c.disponibile===0){ need[c.barcode]=(need[c.barcode]||0)+1; } if(!meta[c.barcode])meta[c.barcode]={fornitore:c.fornitore,marchio:c.marchio,tipo_lenti:c.tipo_lenti,categoria:c.categoria,modello:c.modello,colore:c.colore,calibro:c.calibro}; });
-    const bcs=Object.keys(need);
+    // vendite del marchio per PDV (anno corrente) dalle celle correnti
+    const msSales={};
+    lastCells.forEach(c=>{ (msSales[c.marchio]=msSales[c.marchio]||{}); msSales[c.marchio][c.negozio]=(msSales[c.marchio][c.negozio]||0)+(c.venduto||0); });
+    // buchi (celle disponibile 0) raggruppati per barcode
+    const holes={}, meta={};
+    lastCells.forEach(c=>{ if(!meta[c.barcode])meta[c.barcode]={fornitore:c.fornitore,marchio:c.marchio,tipo_lenti:c.tipo_lenti,categoria:c.categoria,modello:c.modello,colore:c.colore,calibro:c.calibro}; if(c.disponibile===0){ (holes[c.barcode]=holes[c.barcode]||[]).push(c); } });
+    const bcs=Object.keys(holes);
     if(!bcs.length){svOrdModal([]);ob.disabled=false;ob.textContent=lab;return;}
+    // in-arrivo aziendale per barcode (somma su tutte le filiali)
     const inarr={};
     const gi=await svFetchAll("giacenze","barcode,quantita_in_arrivo",bcs);
     gi.forEach(g=>{ inarr[g.barcode]=(inarr[g.barcode]||0)+(g.quantita_in_arrivo||0); });
-    let rows=bcs.map(bc=>{const m=meta[bc],nd=need[bc],ia=inarr[bc]||0;return Object.assign({},m,{barcode:bc,buchi:nd,inarrivo:ia,daord:Math.max(0,nd-ia)});});
-    rows=rows.filter(r=>r.daord>0);
-    rows.sort((a,b)=>String(a.fornitore+a.marchio+a.modello).localeCompare(String(b.fornitore+b.marchio+b.modello)));
+    const rows=[];
+    bcs.forEach(bc=>{
+      const m=meta[bc], hs=holes[bc].slice(), ms=msSales[m.marchio]||{};
+      hs.sort((a,b)=>(ms[b.negozio]||0)-(ms[a.negozio]||0) || (vfiliale[b.filiale]||0)-(vfiliale[a.filiale]||0) || String(a.negozio).localeCompare(String(b.negozio)));
+      const cov=inarr[bc]||0;
+      hs.slice(cov).forEach(c=>{ rows.push(Object.assign({},m,{barcode:bc,negozio:c.negozio,filiale:c.filiale,qta:1,buchi:hs.length,inarrivo:cov})); });
+    });
+    rows.sort((a,b)=>String(a.fornitore+a.marchio+a.modello+a.negozio).localeCompare(String(b.fornitore+b.marchio+b.modello+b.negozio)));
     svOrdModal(rows);
   }catch(e){alert("Errore lista ordine: "+e);}
   ob.disabled=false; ob.textContent=lab;
 });
 function svOrdModal(rows){
   const ex=document.getElementById("ovord"); if(ex)ex.remove();
-  const tot=rows.reduce((s,r)=>s+r.daord,0);
+  const tot=rows.reduce((s,r)=>s+r.qta,0);
+  const refs=new Set(rows.map(r=>r.barcode)).size;
+  const pdvs=new Set(rows.map(r=>r.negozio)).size;
   const ov=document.createElement("div"); ov.id="ovord";
   ov.style.cssText="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px";
   const box=document.createElement("div");
-  box.style.cssText="background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:1150px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow);overflow:hidden";
+  box.style.cssText="background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:1220px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow);overflow:hidden";
   const head='<div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;flex-wrap:wrap">'+
     '<div style="font-size:16px;font-weight:700">Lista ordine</div>'+
-    '<div style="color:var(--muted);font-size:13px"><b style="color:var(--txt)">'+rows.length+'</b> referenze · <b style="color:var(--accent)">'+tot+'</b> pezzi da ordinare</div>'+
+    '<div style="color:var(--muted);font-size:13px"><b style="color:var(--txt)">'+refs+'</b> referenze · <b style="color:var(--accent)">'+tot+'</b> pezzi da ordinare · <b style="color:var(--txt)">'+pdvs+'</b> PDV</div>'+
     '<div style="flex:1"></div>'+
     '<button class="ghost" id="ordxls" style="border-color:var(--ok);color:var(--ok)">Esporta Excel</button>'+
     '<button class="ghost" id="ordclose">Chiudi</button></div>';
@@ -259,8 +288,8 @@ function svOrdModal(rows){
   if(!rows.length){ bodyH='<div style="padding:40px;text-align:center;color:var(--muted)">Nessun pezzo da ordinare: tutti i buchi sono coperti da quantità in arrivo (deposito o PDV). ✅</div>'; }
   else {
     bodyH='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+
-    ['Fornitore','Marchio','Modello','Colore','Cal.','Categoria','Tipo','Barcode','Buchi','In arrivo','Da ordinare'].map(h=>'<th style="position:sticky;top:0;background:var(--panel2);color:var(--muted);text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase">'+h+'</th>').join('')+'</tr></thead><tbody>'+
-    rows.map(r=>'<tr style="border-bottom:1px solid var(--line)"><td style="padding:6px 10px">'+esc(r.fornitore)+'</td><td style="padding:6px 10px">'+esc(r.marchio)+'</td><td style="padding:6px 10px">'+esc(r.modello||'')+'</td><td style="padding:6px 10px">'+esc(r.colore||'')+'</td><td style="padding:6px 10px">'+esc(r.calibro||'')+'</td><td style="padding:6px 10px">'+esc(r.categoria||'')+'</td><td style="padding:6px 10px">'+esc(r.tipo_lenti||'')+'</td><td style="padding:6px 10px">'+esc(r.barcode)+'</td><td style="padding:6px 10px;text-align:center;color:var(--bad);font-weight:700">'+r.buchi+'</td><td style="padding:6px 10px;text-align:center;color:var(--truck)">'+r.inarrivo+'</td><td style="padding:6px 10px;text-align:center;color:var(--ok);font-weight:700">'+r.daord+'</td></tr>').join('')+
+    ['Fornitore','Marchio','Modello','Colore','Cal.','Categoria','Tipo','Barcode','Negozio','Qta','Buchi cod.','In arrivo cod.'].map(h=>'<th style="position:sticky;top:0;background:var(--panel2);color:var(--muted);text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase">'+h+'</th>').join('')+'</tr></thead><tbody>'+
+    rows.map(r=>'<tr style="border-bottom:1px solid var(--line)"><td style="padding:6px 10px">'+esc(r.fornitore)+'</td><td style="padding:6px 10px">'+esc(r.marchio)+'</td><td style="padding:6px 10px">'+esc(r.modello||'')+'</td><td style="padding:6px 10px">'+esc(r.colore||'')+'</td><td style="padding:6px 10px">'+esc(r.calibro||'')+'</td><td style="padding:6px 10px">'+esc(r.categoria||'')+'</td><td style="padding:6px 10px">'+esc(r.tipo_lenti||'')+'</td><td style="padding:6px 10px">'+esc(r.barcode)+'</td><td style="padding:6px 10px;font-weight:700;color:var(--accent)">'+esc(r.negozio)+'</td><td style="padding:6px 10px;text-align:center;color:var(--ok);font-weight:700">'+r.qta+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.buchi+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.inarrivo+'</td></tr>').join('')+
     '</tbody></table></div>';
   }
   box.innerHTML=head+bodyH;
@@ -268,7 +297,7 @@ function svOrdModal(rows){
   document.getElementById("ordclose").onclick=()=>ov.remove();
   ov.onclick=e=>{if(e.target===ov)ov.remove();};
   const xbtn=document.getElementById("ordxls");
-  if(xbtn)xbtn.onclick=()=>{ const ws=XLSX.utils.json_to_sheet(rows.map(r=>({Fornitore:r.fornitore,Marchio:r.marchio,Modello:r.modello,Colore:r.colore,Calibro:r.calibro,Categoria:r.categoria,Tipo:r.tipo_lenti,Barcode:r.barcode,Buchi:r.buchi,InArrivo:r.inarrivo,DaOrdinare:r.daord}))); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Ordine"); XLSX.writeFile(wb,"lista_ordine_"+new Date().toISOString().slice(0,10)+".xlsx"); };
+  if(xbtn)xbtn.onclick=()=>{ const ws=XLSX.utils.json_to_sheet(rows.map(r=>({Fornitore:r.fornitore,Marchio:r.marchio,Modello:r.modello,Colore:r.colore,Calibro:r.calibro,Categoria:r.categoria,Tipo:r.tipo_lenti,Barcode:r.barcode,Negozio:r.negozio,Qta:r.qta,BuchiCodice:r.buchi,InArrivoCodice:r.inarrivo}))); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Ordine"); XLSX.writeFile(wb,"lista_ordine_"+new Date().toISOString().slice(0,10)+".xlsx"); };
 }
 
 function scheduleRun(){ clearTimeout(runT); runT=setTimeout(run,300); }
@@ -300,6 +329,7 @@ function draw(){
   const negozi=negList(cells);
   const nRef=new Set(cells.map(c=>c.barcode)).size;
   $("#status").innerHTML=`<b>${nRef}</b> referenze · <b>${negozi.length}</b> negozi · <b style="color:var(--bad)">${buchi.length}</b> buchi · <b style="color:var(--truck)">${arrivi.length}</b> celle con arrivi`;
+  if(lastCells.length>=1000)$("#status").innerHTML+=' · <b style="color:var(--truck)">⚠ risultati troncati a 1000 righe: restringi i filtri per una lista completa</b>';
   view==="lista"?drawList(cells):drawMatrix(cells,negozi);
   $("#tablewrap").style.display="block";
 }
