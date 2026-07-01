@@ -108,6 +108,7 @@
       <a href="assortimento.html">Assortimento ideale</a>
     </nav>
     <div class="spacer"></div>
+    <span id="dataLight" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:default" title="Controllo aggiornamento dati…"><span id="dataDot" style="width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block"></span><span id="dataTxt">dati…</span></span>
     <span class="who" id="who"></span>
     <button class="ghost" id="logout">Esci</button>
   </header>
@@ -159,12 +160,35 @@ const LADDER=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9"];
 let view="lista", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
 
 async function boot(){const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex";}
-async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; await loadFilters(); run();}
+async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; await loadFilters(); run(); checkDataFreshness();}
 $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();const b=$("#loginBtn"),er=$("#loginErr");er.textContent="";b.disabled=true;b.textContent="Accesso…";
   const {data,error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pwd").value});
   b.disabled=false;b.textContent="Accedi"; if(error){er.textContent=error.message.includes("Invalid")?"Email o password non corretti.":error.message;return;} showApp(data.session);});
 $("#logout").addEventListener("click",async()=>{await sb.auth.signOut();location.reload();});
 
+async function checkDataFreshness(){
+  try{
+    const g=await sb.from("giacenze").select("aggiornato_il").order("aggiornato_il",{ascending:false}).limit(1);
+    const v=await sb.from("vendite").select("data").order("data",{ascending:false}).limit(1);
+    const gAgg=(g.data&&g.data[0])?new Date(g.data[0].aggiornato_il):null;
+    const vDat=(v.data&&v.data[0])?v.data[0].data:null;
+    const now=new Date();
+    const gH=gAgg?(now-gAgg)/3600000:999;
+    let vBehind=999;
+    if(vDat){ const d=new Date(vDat+"T00:00:00"); const t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()); vBehind=Math.round((t0-d)/86400000); }
+    const gState=gH<=30?2:(gH<=54?1:0);
+    const vState=vBehind<=1?2:(vBehind===2?1:0);
+    const st=Math.min(gState,vState);
+    const col=st===2?"var(--ok)":(st===1?"var(--truck)":"var(--bad)");
+    const word=st===2?"Dati aggiornati":(st===1?"Dati da verificare":"Dati non aggiornati");
+    const fmtDT=d=>d?d.toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
+    const fmtD=s=>{ if(!s)return "—"; const p=String(s).split("-"); return p[2]+"/"+p[1]+"/"+p[0]; };
+    const dot=document.getElementById("dataDot"),txt=document.getElementById("dataTxt"),wrap=document.getElementById("dataLight");
+    if(dot){dot.style.background=col;dot.style.boxShadow="0 0 6px "+col;}
+    if(txt){txt.textContent=word;txt.style.color=col;}
+    if(wrap)wrap.title="Giacenze: aggiornate il "+fmtDT(gAgg)+"  •  Vendite: fino al "+fmtD(vDat);
+  }catch(e){ const txt=document.getElementById("dataTxt"); if(txt)txt.textContent="dati ?"; }
+}
 async function loadFilters(){
   const {data}=await sb.from("assortimento_marchio").select("fornitore,marchio,tipo_lenti");
   const A=data||[]; ASSORT=A;
