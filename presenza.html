@@ -250,7 +250,8 @@ $("#seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)
 $("#segShow").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#segShow").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");showMode=b.dataset.s;if(lastCells.length)draw();});
 $("#sortRef").addEventListener("change",()=>{if(lastCells.length)draw();});
 $("#sortPdv").addEventListener("change",()=>{if(lastCells.length)draw();});
-document.addEventListener("dblclick",e=>{ const td=e.target.closest("td.filcol[data-bc]"); if(!td||!$("#tbl").contains(td))return; if(td.querySelector("input.tgtin"))return; const cur=td.getAttribute("data-tgt")||"0"; td.innerHTML='<input class="tgtin" type="number" min="0" value="'+cur+'" style="width:40px;padding:2px 4px;font-size:12px;background:var(--panel);border:1px solid var(--accent);color:var(--txt);border-radius:4px">'; const inp=td.querySelector("input"); inp.focus(); inp.select(); });
+document.addEventListener("dblclick",e=>{ if(editTarget)return; const td=e.target.closest("td.filcol[data-bc]"); if(!td||!$("#tbl").contains(td))return; if(td.querySelector("input.tgtin")){ draw(); return; } const cur=td.getAttribute("data-tgt")||"0"; td.innerHTML='<input class="tgtin" type="number" min="0" value="'+cur+'" style="width:40px;padding:2px 4px;font-size:12px;background:var(--panel);border:1px solid var(--accent);color:var(--txt);border-radius:4px">'; const inp=td.querySelector("input"); inp.focus(); inp.select(); });
+document.addEventListener("focusout",e=>{ if(editTarget)return; const inp=e.target.closest("input.tgtin"); if(!inp)return; setTimeout(()=>{ if(document.body.contains(inp))draw(); },150); });
 document.addEventListener("change",e=>{ const inp=e.target.closest("input.tgtin"); if(!inp)return; const td=inp.closest("td.filcol[data-bc]"); if(!td)return; saveTarget(td.getAttribute("data-bc"),td.getAttribute("data-fil"),inp.value); });
 $("#segFil").addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;[...$("#segFil").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");showExtra=b.dataset.x==="tutte";if(showExtra){b.textContent="Carico…";if(lastCells.length)await loadExtraStock();b.textContent="+ Deposito/tutte";view="matrice";[...$("#seg").children].forEach(x=>x.classList.toggle("on",x.dataset.v==="matrice"));}if(lastCells.length)draw();});
 $("#segTgt").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#segTgt").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");editTarget=b.dataset.e==="on";if(editTarget){view="matrice";[...$("#seg").children].forEach(x=>x.classList.toggle("on",x.dataset.v==="matrice"));}if(lastCells.length)draw();});
@@ -429,13 +430,14 @@ function filName(f){ const x=FIL[f]; return (x&&x.nome)?x.nome:f; }
 function filShort(f){ const x=FIL[f]; const n=(x&&x.nome)?x.nome:f; return n.length>10?n.slice(0,9)+"…":n; }
 async function loadExtraStock(){
   extraStock={}; extraFil=[];
-  const active={B:1,C:1,D:1,E:1,G:1,H:1,I:1};
   const bcs=[...new Set(lastCells.map(c=>c.barcode))];
   if(!bcs.length)return;
   const gi=await svFetchAll("giacenze","barcode,filiale,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo",bcs);
-  const filSet={};
-  gi.forEach(g=>{ if(active[g.filiale])return; const d=g.quantita_disponibile||0,m=g.quantita_magazzino||0,p=g.quantita_prenotata||0,a=g.quantita_in_arrivo||0; if(!(d||m||p||a))return; filSet[g.filiale]=1; (extraStock[g.barcode]=extraStock[g.barcode]||{})[g.filiale]={d:d,m:m,p:p,a:a}; });
-  extraFil=Object.keys(filSet).sort((a,b)=> a==="A"?-1:(b==="A"?1:String(a).localeCompare(String(b))) );
+  gi.forEach(g=>{ if(g.filiale!=="Z"&&g.filiale!=="A")return; const o=(extraStock[g.barcode]=extraStock[g.barcode]||{}); o[g.filiale]={d:g.quantita_disponibile||0,m:g.quantita_magazzino||0,p:g.quantita_prenotata||0,a:g.quantita_in_arrivo||0,v:0}; });
+  const sy=new Date().getFullYear()+"-01-01";
+  const ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,q=>q.gte("data",sy).in("filiale",["Z","A"]));
+  ve.forEach(x=>{ if(x.filiale!=="Z"&&x.filiale!=="A")return; const o=(extraStock[x.barcode]=extraStock[x.barcode]||{}); const f=(o[x.filiale]=o[x.filiale]||{d:0,m:0,p:0,a:0,v:0}); f.v+=(x.quantita||1); });
+  extraFil=["Z","A"];
 }
 function drawMatrix(cells,negozi){
   const refs=new Map();
@@ -444,7 +446,7 @@ function drawMatrix(cells,negozi){
   if(showMode==="mancanti") rows=rows.filter(r=>r._buchi>0);
   sortRows(rows);
   const xf=(showExtra&&extraFil.length)?extraFil:[];
-  let h="<tr><th class='mar'>Referenza</th>"+negozi.map(n=>`<th class="filcol">${esc(n)}</th>`).join("")+xf.map(f=>`<th class="filcol" style="opacity:.7" title="${esc(filName(f))} (fuori linea)">${esc(filShort(f))}</th>`).join("")+"<th class='tot'>Totali</th></tr>";
+  let h="<tr><th class='mar'>Referenza</th>"+negozi.map(n=>`<th class="filcol">${esc(n)}</th>`).join("")+xf.map(f=>`<th class="filcol" style="opacity:.75" title="${esc(filName(f))} (fuori linea)">${esc(filShort(f))}</th>`).join("")+"<th class='tot'>Totali</th></tr>";
   $("#tbl").tHead.innerHTML=h;
   const colTot={},colVend={}; negozi.forEach(n=>{colTot[n]=0;colVend[n]=0;}); let grand=0,grandVend=0;
   const TIN='<input class="tgtin" type="number" min="0" style="width:34px;padding:1px 3px;font-size:11px;margin-top:2px;background:var(--panel);border:1px solid var(--accent);color:var(--txt);border-radius:4px" value="';
@@ -461,13 +463,13 @@ function drawMatrix(cells,negozi){
       const tg=editTarget?(TIN+t+'">'):(t!==1?`<span style="position:absolute;bottom:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t}</span>`:"");
       tr+=`<td class="filcol ${cls}" data-bc="${esc(c.barcode)}" data-fil="${esc(c.filiale)}" data-tgt="${t}" title="obiettivo ${t} · disp ${c.disponibile} · mag ${c.magazzino} · pren ${c.prenotati} · in arrivo ${c.in_arrivo} · venduto ${c.venduto}"><div class="cg">${c.disponibile}</div><div class="cv" title="venduto anno">${c.venduto}</div>${tg}${extra?`<span class="bdgs">${extra}</span>`:""}</td>`;
     }
-    for(const f of xf){ const s=(extraStock[r.info.barcode]||{})[f]; const t=effTargetExtra(r.info.barcode,f); const disp=s?s.d:0;
+    for(const f of xf){ const s=(extraStock[r.info.barcode]||{})[f]; const t=effTargetExtra(r.info.barcode,f); const disp=s?s.d:0; const vend=s?(s.v||0):0;
       let cls; if(t>0&&disp<t)cls=(s&&s.a>0?"cellordered":"cell0"); else if(disp>0)cls="cellok"; else cls="cellna";
       let ex2="";
       if(s&&s.p>0)ex2+=`<span class="bdg pkg" title="${s.p} prenotati">📦${s.p}</span>`;
       if(s&&s.a>0)ex2+=`<span class="bdg truck" title="${s.a} in arrivo">🚚${s.a}</span>`;
       const tg=editTarget?(TIN+t+'">'):(t!==0?`<span style="position:absolute;bottom:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t}</span>`:"");
-      tr+=`<td class="filcol ${cls}" data-bc="${esc(r.info.barcode)}" data-fil="${esc(f)}" data-tgt="${t}" style="background:rgba(255,255,255,.02)" title="${esc(filName(f))} · obiettivo ${t} · disp ${disp} · mag ${s?s.m:0} · pren ${s?s.p:0} · in arrivo ${s?s.a:0}"><div class="cg">${disp}</div>${tg}${ex2?`<span class="bdgs">${ex2}</span>`:""}</td>`;
+      tr+=`<td class="filcol ${cls}" data-bc="${esc(r.info.barcode)}" data-fil="${esc(f)}" data-tgt="${t}" style="background:rgba(255,255,255,.02)" title="${esc(filName(f))} · obiettivo ${t} · disp ${disp} · mag ${s?s.m:0} · pren ${s?s.p:0} · in arrivo ${s?s.a:0} · venduto ${vend}"><div class="cg">${disp}</div><div class="cv" title="venduto anno">${vend}</div>${tg}${ex2?`<span class="bdgs">${ex2}</span>`:""}</td>`;
     }
     tr+=`<td class="tot"><div class="cg">${r._tot}</div><div class="cv">${r._vtot}</div></td></tr>`; return tr;
   });
