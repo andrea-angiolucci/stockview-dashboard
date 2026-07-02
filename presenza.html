@@ -149,6 +149,7 @@
         <div class="fcol"><span>Ordine manuale</span><div class="seg" id="segOrd"><button data-o="off" class="on">Off</button><button data-o="on">On</button></div></div>
         <div class="fcol"><span>Includi buchi</span><div class="seg" id="segIncl"><button data-i="si" class="on">Sì</button><button data-i="no">No</button></div></div>
         <div class="fcol"><span>Categorie da ordinare</span><div class="ms" id="msOrdCat"></div></div>
+        <div class="fcol"><span>PDV da ordinare</span><div class="ms" id="msOrdPdv"></div></div>
         <div class="fcol"><span>&nbsp;</span><button id="ordine" style="border:none;border-radius:8px;background:var(--accent);color:#04121f;font-weight:700;padding:9px 16px;font-size:13.5px">Lista ordine</button></div>
         <div class="fcol"><span>&nbsp;</span><button class="ghost" id="riepilogo" style="padding:9px 16px">Riepilogo buchi</button></div>
         <div class="fcol"><span>&nbsp;</span><button class="ghost" id="carrello" style="padding:9px 16px">🛒 Carrello (0)</button></div>
@@ -224,6 +225,7 @@ async function loadFilters(){
   await refreshCategorie();
   const vf=await sb.rpc("vendite_per_filiale"); (vf.data||[]).forEach(r=>vfiliale[r.filiale]=Number(r.pezzi));
   const ff=await sb.from("filiali").select("codice,nome,tipo,attiva"); (ff.data||[]).forEach(r=>FIL[r.codice]={nome:r.nome,tipo:r.tipo,attiva:r.attiva});
+  const PDVN=["Paternò","Acireale","Catania","Augusta","Giarre","Lentini","Portali","Viale Africa","Deposito"]; mkFilter("msOrdPdv","PDV da ordinare",PDVN,PDVN);
 }
 function optsFor(field,f,m,t){
   let rows=ASSORT;
@@ -256,7 +258,7 @@ function mkFilter(elId,label,items,preselected){
     '<div class="ms-pop"><input class="ms-search" placeholder="Cerca…"/><div class="ms-acts"><button data-a="all">Tutti</button><button data-a="none">Nessuno</button></div><div class="ms-list"></div></div>';
   const btn=host.querySelector(".ms-btn"),pop=host.querySelector(".ms-pop"),list=host.querySelector(".ms-list"),search=host.querySelector(".ms-search");
   const sel=new Set((preselected||[]).filter(x=>items.includes(x))); FILTERS[elId]={selected:sel,items};
-  function changed(){ if(elId==="msOrdCat")return; if(elId==="msFornitore")refreshCascade("msFornitore"); else if(elId==="msMarchio")refreshCascade("msMarchio"); if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo")refreshCategorie(); scheduleRun(); }
+  function changed(){ if(elId==="msOrdCat"||elId==="msOrdPdv")return; if(elId==="msFornitore")refreshCascade("msFornitore"); else if(elId==="msMarchio")refreshCascade("msMarchio"); if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo")refreshCategorie(); scheduleRun(); }
   function render(f){f=(f||"").toLowerCase();list.innerHTML="";items.filter(it=>!f||String(it).toLowerCase().includes(f)).forEach(it=>{
     const row=document.createElement("label");row.className="ms-item";const cb=document.createElement("input");cb.type="checkbox";cb.checked=sel.has(it);
     cb.onchange=()=>{cb.checked?sel.add(it):sel.delete(it);upd();changed();};const sp=document.createElement("span");sp.textContent=it;row.appendChild(cb);row.appendChild(sp);list.appendChild(row);});}
@@ -338,6 +340,7 @@ $("#ordine").addEventListener("click",async()=>{
       if(catOk){ ["B","C","D","E","G","H","I","Z","A"].forEach(fil=>{ const mo=ORD[bc+"|"+fil]||0; if(mo>0)addO(fil,filNome[fil]||fil,mo,true); }); }
       Object.keys(acc).forEach(fil=>{ const a=acc[fil]; rows.push(Object.assign({},m,{barcode:bc,negozio:a.neg,filiale:fil,qta:a.qta,manuale:a.manuale,buchi:totNeed,inarrivo:ia,deposito:dDisp,disp:dispMap[bc+"|"+fil]||0})); });
     });
+    if(FILTERS.msOrdPdv&&FILTERS.msOrdPdv.selected.size>0){ const ps=FILTERS.msOrdPdv.selected; for(let i=rows.length-1;i>=0;i--){ if(!ps.has(rows[i].negozio))rows.splice(i,1); } }
     rows.sort((a,b)=>String(a.fornitore+a.marchio+a.modello+a.negozio).localeCompare(String(b.fornitore+b.marchio+b.modello+b.negozio)));
     if(!rows.length){svOrdModal([]);ob.disabled=false;ob.textContent=lab;return;}
     svOrdModal(rows);
