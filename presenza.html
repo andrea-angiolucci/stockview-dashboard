@@ -159,7 +159,7 @@
         <div class="fcol"><span>Target (min stock)</span><div class="seg" id="segTgt"><button data-e="off" class="on">Blocca</button><button data-e="on">Modifica</button></div></div><div class="fcol"><span>Impostazioni</span><button class="ghost" id="saveViewDef" style="padding:6px 10px;white-space:nowrap">★ Salva vista predefinita</button></div>
       </div></div>
       <div class="tbgroup"><div class="tbglabel">Ordine</div><div class="tbrow">
-        <div class="fcol"><span>Ordine manuale</span><div class="seg" id="segOrd"><button data-o="off" class="on">Off</button><button data-o="on">On</button></div></div>
+        <div class="fcol"><span>Ordine manuale</span><div class="seg" id="segOrd"><button data-o="off" class="on">Off</button><button data-o="on">On</button></div></div><div class="fcol"><span>&nbsp;</span><button class="ghost" id="clearOrd" style="padding:6px 10px;white-space:nowrap;border-color:var(--bad);color:var(--bad)">Cancella ordini</button></div>
         <div class="fcol"><span>Includi buchi</span><div class="seg" id="segIncl"><button data-i="si" class="on">Sì</button><button data-i="no">No</button></div></div>
         <div class="fcol"><span>Categorie da ordinare</span><div class="ms" id="msOrdCat"></div></div>
         <div class="fcol"><span>PDV da ordinare</span><div class="ms" id="msOrdPdv"></div></div>
@@ -539,9 +539,8 @@ async function fillGhostCells(){
     const sy=new Date().getFullYear()+"-01-01";
     const ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,q=>q.in("filiale",active).gte("data",sy));
     const vmap={}; ve.forEach(x=>{ const k=x.barcode+"|"+x.filiale; vmap[k]=(vmap[k]||0)+(x.quantita||1); });
-    const keys=new Set(Object.keys(gmap).concat(Object.keys(vmap)));
-    keys.forEach(k=>{ if(have.has(k))return; const bc=k.split("|")[0], fil=k.split("|")[1]; if(!meta[bc]||active.indexOf(fil)<0)return; const g=gmap[k], v=vmap[k]||0; if(!(g&&(g.d||g.m||g.p||g.a))&&!v)return;
-      lastCells.push(Object.assign({},meta[bc],{barcode:bc,filiale:fil,negozio:(FIL[fil]?FIL[fil].nome:fil),disponibile:g?g.d:0,magazzino:g?g.m:0,prenotati:g?g.p:0,in_arrivo:g?g.a:0,presente:!!(g&&g.d>0),venduto:v,_x:true,_np:true})); });
+    bcs.forEach(bc=>{ active.forEach(fil=>{ const k=bc+"|"+fil; if(have.has(k))return; const g=gmap[k], v=vmap[k]||0;
+      lastCells.push(Object.assign({},meta[bc],{barcode:bc,filiale:fil,negozio:(FIL[fil]?FIL[fil].nome:fil),disponibile:g?g.d:0,magazzino:g?g.m:0,prenotati:g?g.p:0,in_arrivo:g?g.a:0,presente:!!(g&&g.d>0),venduto:v,_x:true,_np:true})); }); });
   }catch(e){ console.log("fillGhostCells err",e); }
 }
 
@@ -569,6 +568,10 @@ async function applyPrefs(){
 }
 function saveViewDefault(){ PREFS.viewDefault={sm:showMode,vw:view,fv:filView}; savePrefs(); try{alert("Vista predefinita salvata per il tuo account.");}catch(e){} }
 document.addEventListener("click",function(e){ if(e.target&&(e.target.id==="saveViewDef"||(e.target.closest&&e.target.closest("#saveViewDef"))))saveViewDefault(); });
+
+async function clearOrders(){ if(!confirm("Cancellare tutti gli ordini manuali selezionati?"))return; ORD={}; try{ await sb.from("ordine_manuale").delete().neq("barcode","___none___"); }catch(e){} draw(); }
+document.addEventListener("click",function(e){ if(e.target&&e.target.id==="clearOrd")clearOrders(); });
+document.addEventListener("input",function(e){ var i=e.target; if(i&&i.classList&&i.classList.contains("ordin")){ i.style.borderColor=(parseInt(i.value,10)>0)?"var(--ok)":"var(--truck)"; } });
 
 function scheduleRun(){ clearTimeout(runT); runT=setTimeout(run,300); }
 
@@ -668,7 +671,7 @@ function drawMatrix(cells,negozi){
       if(c.prenotati>0)extra+=`<span class="bdg pkg" title="${c.prenotati} prenotati">📦${c.prenotati}</span>`;
       if(c.in_arrivo>0)extra+=`<span class="bdg truck" title="${c.in_arrivo} in arrivo">🚚${c.in_arrivo}</span>`;
       const tg=editTarget?(TIN+t+'">'):(t!==1?`<span style="position:absolute;top:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t}</span>`:"");
-      const og=editOrder?(OIN+o+'">'):(o>0?`<span style="position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--truck);font-weight:700">✎${o}</span>`:"");
+      const og=editOrder?((OIN.replace("var(--truck)",o>0?"var(--ok)":"var(--truck)"))+o+'">'):(o>0?`<span style="position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--ok);font-weight:700">✎${o}</span>`:"");
       tr+=`<td class="filcol ${cls}" data-bc="${esc(c.barcode)}" data-fil="${esc(c.filiale)}" data-tgt="${t}" data-ord="${o}" title="obiettivo ${t} · disp ${c.disponibile} · mag ${c.magazzino} · pren ${c.prenotati} · in arrivo ${c.in_arrivo} · venduto ${c.venduto} · ord.man ${o}"><div class="cg">${c.disponibile}</div>${tg}<div class="cv" title="venduto anno">${c.venduto}</div>${og}${extra?`<span class="bdgs">${extra}</span>`:""}</td>`;
     }
     for(const f of xf){ const s=(extraStock[r.info.barcode]||{})[f]; const t=effTargetExtra(r.info.barcode,f); const disp=s?s.d:0; const vend=s?(s.v||0):0; const o=ORD[r.info.barcode+"|"+f]||0;
@@ -677,7 +680,7 @@ function drawMatrix(cells,negozi){
       if(s&&s.p>0)ex2+=`<span class="bdg pkg" title="${s.p} prenotati">📦${s.p}</span>`;
       if(s&&s.a>0)ex2+=`<span class="bdg truck" title="${s.a} in arrivo">🚚${s.a}</span>`;
       const tg=editTarget?(TIN+t+'">'):(t!==0?`<span style="position:absolute;top:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t}</span>`:"");
-      const og=editOrder?(OIN+o+'">'):(o>0?`<span style="position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--truck);font-weight:700">✎${o}</span>`:"");
+      const og=editOrder?((OIN.replace("var(--truck)",o>0?"var(--ok)":"var(--truck)"))+o+'">'):(o>0?`<span style="position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--ok);font-weight:700">✎${o}</span>`:"");
       tr+=`<td class="filcol ${cls}" data-bc="${esc(r.info.barcode)}" data-fil="${esc(f)}" data-tgt="${t}" data-ord="${o}" style="background:rgba(255,255,255,.02)" title="${esc(filName(f))} · obiettivo ${t} · disp ${disp} · mag ${s?s.m:0} · pren ${s?s.p:0} · in arrivo ${s?s.a:0} · venduto ${vend} · ord.man ${o}"><div class="cg">${disp}</div>${tg}<div class="cv" title="venduto anno">${vend}</div>${og}${ex2?`<span class="bdgs">${ex2}</span>`:""}</td>`;
     }
     tr+=`<td class="tot"><div class="cg">${r._tot}</div><div class="cv">${r._vtot}</div></td></tr>`; return tr;
