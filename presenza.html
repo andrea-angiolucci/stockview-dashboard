@@ -163,7 +163,7 @@
         <div class="fcol"><span>Includi buchi</span><div class="seg" id="segIncl"><button data-i="si" class="on">Sì</button><button data-i="no">No</button></div></div>
         <div class="fcol"><span>Categorie da ordinare</span><div class="ms" id="msOrdCat"></div></div>
         <div class="fcol"><span>PDV da ordinare</span><div class="ms" id="msOrdPdv"></div></div>
-        <div class="fcol"><span>&nbsp;</span><button id="ordine" style="border:none;border-radius:8px;background:var(--accent);color:#04121f;font-weight:700;padding:9px 16px;font-size:13.5px">Lista ordine</button></div>
+        <div class="fcol"><span>&nbsp;</span><button id="ordine" style="border:none;border-radius:8px;background:var(--accent);color:#04121f;font-weight:700;padding:9px 16px;font-size:13.5px">Lista ordine</button></div><div class="fcol"><span>&nbsp;</span><button class="ghost" id="ricircolo" style="padding:9px 14px;border-color:var(--accent);color:var(--accent)">🔄 Ricircolo</button></div>
         <div class="fcol"><span>&nbsp;</span><button class="ghost" id="riepilogo" style="padding:9px 16px">Riepilogo buchi</button></div>
         <div class="fcol"><span>&nbsp;</span><button class="ghost" id="carrello" style="padding:9px 16px">🛒 Carrello (0)</button></div>
       </div></div>
@@ -325,6 +325,7 @@ $("#ordine").addEventListener("click",async()=>{
   const ob=$("#ordine"),lab=ob.textContent; ob.disabled=true; ob.textContent="Calcolo…";
   try{
     // vendite del marchio per PDV (anno corrente) dalle celle correnti
+    const RC=computeRicircolo(lastCells);
     const msSales={};
     lastCells.forEach(c=>{ (msSales[c.marchio]=msSales[c.marchio]||{}); msSales[c.marchio][c.negozio]=(msSales[c.marchio][c.negozio]||0)+(c.venduto||0); });
     const needCells={}, meta={};
@@ -345,7 +346,7 @@ $("#ordine").addEventListener("click",async()=>{
       if(inclBuchi && catOk){
         const nc=(needCells[bc]||[]).slice();
         const zt=effTargetExtra(bc,"Z"), zN=Math.max(0,zt-(zDisp[bc]||0)); if(zN>0)nc.push({neg:"Viale Africa",fil:"Z",nd:zN});
-        let cov=ia+depoSurplus;
+        let cov=ia+depoSurplus+((RC.covered[bc])||0);
         nc.sort((a,b)=>(ms[b.neg]||0)-(ms[a.neg]||0) || (vfiliale[b.fil]||0)-(vfiliale[a.fil]||0) || String(a.neg).localeCompare(String(b.neg)));
         nc.forEach(x=>{ const use=Math.min(x.nd,cov); cov-=use; if(x.nd-use>0)addO(x.fil,x.neg,x.nd-use,false); });
         const depoOrder=Math.max(0,dTgt-dDisp); if(depoOrder>0)addO("A","Deposito",depoOrder,false);
@@ -572,6 +573,85 @@ document.addEventListener("click",function(e){ if(e.target&&(e.target.id==="save
 async function clearOrders(){ if(!confirm("Cancellare tutti gli ordini manuali selezionati?"))return; ORD={}; try{ await sb.from("ordine_manuale").delete().neq("barcode","___none___"); }catch(e){} draw(); }
 document.addEventListener("click",function(e){ if(e.target&&e.target.id==="clearOrd")clearOrders(); });
 document.addEventListener("input",function(e){ var i=e.target; if(i&&i.classList&&i.classList.contains("ordin")){ i.style.borderColor=(parseInt(i.value,10)>0)?"var(--ok)":"var(--truck)"; } });
+
+function computeRicircolo(cells){
+  var active={B:1,C:1,D:1,E:1,G:1,H:1,I:1,Z:1};
+  var byBc={};
+  cells.forEach(function(c){ if(!active[c.filiale])return; if(!byBc[c.barcode])byBc[c.barcode]={meta:c,cells:[]}; byBc[c.barcode].cells.push(c); });
+  var moves=[], covered={};
+  Object.keys(byBc).forEach(function(bc){
+    var arr=byBc[bc].cells, sources=[], needs=[];
+    arr.forEach(function(c){ var t=effTargetActive(c); var s=(c.disponibile||0)-t; if(s>0)sources.push({c:c,qty:s}); else if((c.disponibile||0)<t)needs.push({c:c,qty:t-(c.disponibile||0)}); });
+    if(!sources.length||!needs.length)return;
+    needs.sort(function(a,b){return (b.c.venduto||0)-(a.c.venduto||0);});
+    sources.sort(function(a,b){return (a.c.venduto||0)-(b.c.venduto||0);});
+    var si=0;
+    needs.forEach(function(nd){ var rem=nd.qty;
+      while(rem>0&&si<sources.length){ var src=sources[si]; if(src.qty<=0){si++;continue;} var mv=Math.min(rem,src.qty); src.qty-=mv; rem-=mv; var m=byBc[bc].meta;
+        moves.push({barcode:bc,marchio:m.marchio,modello:m.modello,colore:m.colore,calibro:m.calibro,categoria:m.categoria,tipo_lenti:m.tipo_lenti,fornitore:m.fornitore,fromFil:src.c.filiale,fromNeg:src.c.negozio,toFil:nd.c.filiale,toNeg:nd.c.negozio,qta:mv});
+        covered[bc]=(covered[bc]||0)+mv;
+      }
+    });
+  });
+  return {moves:moves,covered:covered};
+}
+function svRicircoloModal(){
+  var ex=document.getElementById("ovric"); if(ex)ex.remove();
+  if(!lastCells.length){ alert("Nessun dato: applica un filtro."); return; }
+  var R=computeRicircolo(lastCells); window.__RC=R.moves;
+  var ov=document.createElement("div"); ov.id="ovric";
+  ov.style.cssText="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px";
+  var box=document.createElement("div");
+  box.style.cssText="background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:1200px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow);overflow:hidden";
+  var negs=["Paternò","Acireale","Catania","Augusta","Giarre","Lentini","Portali","Viale Africa"];
+  var opts='<option value="">Tutti i negozi</option>'+negs.map(function(n){return '<option value="'+esc(n)+'">'+esc(n)+'</option>';}).join("");
+  var head='<div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="font-size:16px;font-weight:700">🔄 Ricircolo</div><div id="ricStat" style="color:var(--muted);font-size:13px"></div><div style="flex:1"></div><span style="color:var(--muted);font-size:12px">Vista negozio</span><select id="ricStore" style="padding:5px 8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--txt)">'+opts+'</select><button class="ghost" id="ricXls" style="border-color:var(--ok);color:var(--ok)">Esporta Excel</button><button class="ghost" id="ricClose">Chiudi</button></div>';
+  box.innerHTML=head+'<div id="ricBody" style="overflow:auto"></div>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  document.getElementById("ricClose").onclick=function(){ov.remove();};
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+  document.getElementById("ricStore").onchange=function(){renderRic(this.value);};
+  document.getElementById("ricXls").onclick=exportRic;
+  renderRic("");
+}
+function ricRefTxt(m){ return esc((m.marchio||"")+" "+(m.modello||"")+" · "+[m.colore,m.calibro,m.categoria,m.barcode].filter(Boolean).join(" · ")); }
+function renderRic(store){
+  var moves=window.__RC||[];
+  var stat=document.getElementById("ricStat");
+  var tot=moves.reduce(function(s,m){return s+m.qta;},0);
+  stat.innerHTML='<b style="color:var(--txt)">'+moves.length+'</b> movimenti · <b style="color:var(--accent)">'+tot+'</b> pezzi';
+  var body=document.getElementById("ricBody");
+  if(!moves.length){ body.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Nessun ricircolo possibile con i filtri attuali (nessun doppione da spostare sui buchi). ✅</div>'; return; }
+  function tbl(rows,cols,fields){
+    var th=cols.map(function(h){return '<th style="position:sticky;top:0;background:var(--panel2);color:var(--muted);text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase;white-space:nowrap">'+h+'</th>';}).join('');
+    var b=rows.map(function(r){ return '<tr style="border-bottom:1px solid var(--line)">'+fields.map(function(f){ var v=r[f]; if(f==="qta")return '<td style="padding:6px 10px;text-align:center;font-weight:700;color:var(--accent)">'+v+'</td>'; if(f==="_ref")return '<td style="padding:6px 10px">'+ricRefTxt(r)+'</td>'; if(f==="fromNeg")return '<td style="padding:6px 10px;color:var(--bad);font-weight:700">'+esc(v)+'</td>'; if(f==="toNeg")return '<td style="padding:6px 10px;color:var(--ok);font-weight:700">'+esc(v)+'</td>'; return '<td style="padding:6px 10px">'+esc(v==null?"":v)+'</td>'; }).join('')+'</tr>'; }).join('');
+    return '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+th+'</tr></thead><tbody>'+b+'</tbody></table>';
+  }
+  if(!store){
+    var rows=moves.slice().sort(function(a,b){return String(a.fromNeg+a.toNeg+a.marchio+a.modello).localeCompare(String(b.fromNeg+b.toNeg+b.marchio+b.modello));});
+    body.innerHTML=tbl(rows,['Da (invia)','A (riceve)','Referenza','Qta'],['fromNeg','toNeg','_ref','qta']);
+  } else {
+    var out=moves.filter(function(m){return m.fromNeg===store;}).sort(function(a,b){return String(a.toNeg+a.marchio).localeCompare(String(b.toNeg+b.marchio));});
+    var inc=moves.filter(function(m){return m.toNeg===store;}).sort(function(a,b){return String(a.fromNeg+a.marchio).localeCompare(String(b.fromNeg+b.marchio));});
+    var pOut=out.reduce(function(s,m){return s+m.qta;},0), pInc=inc.reduce(function(s,m){return s+m.qta;},0);
+    var h1='<div style="padding:12px 20px 4px;font-weight:700;color:var(--bad)">📤 Da inviare — '+esc(store)+' · '+pOut+' pezzi</div>';
+    var h2='<div style="padding:16px 20px 4px;font-weight:700;color:var(--ok)">📥 Da ricevere — '+esc(store)+' · '+pInc+' pezzi</div>';
+    var t1=out.length?tbl(out,['A (riceve)','Referenza','Qta'],['toNeg','_ref','qta']):'<div style="padding:10px 20px;color:var(--muted)">Niente da inviare.</div>';
+    var t2=inc.length?tbl(inc,['Da (invia)','Referenza','Qta'],['fromNeg','_ref','qta']):'<div style="padding:10px 20px;color:var(--muted)">Niente da ricevere.</div>';
+    body.innerHTML=h1+t1+h2+t2;
+  }
+}
+function exportRic(){
+  var moves=window.__RC||[]; if(!moves.length){alert("Nessun movimento da esportare.");return;}
+  var rows=moves.map(function(m){return {Marchio:m.marchio,Modello:m.modello,Colore:m.colore,Calibro:m.calibro,Categoria:m.categoria,Tipo:m.tipo_lenti,Barcode:m.barcode,Da:m.fromNeg,A:m.toNeg,Qta:m.qta};});
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Movimenti");
+  var byStore={};
+  moves.forEach(function(m){ (byStore[m.fromNeg]=byStore[m.fromNeg]||[]).push({Direzione:"INVIA a "+m.toNeg,Marchio:m.marchio,Modello:m.modello,Colore:m.colore,Barcode:m.barcode,Qta:m.qta}); (byStore[m.toNeg]=byStore[m.toNeg]||[]).push({Direzione:"RICEVI da "+m.fromNeg,Marchio:m.marchio,Modello:m.modello,Colore:m.colore,Barcode:m.barcode,Qta:m.qta}); });
+  Object.keys(byStore).sort().forEach(function(s){ XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(byStore[s]),s.slice(0,28)); });
+  XLSX.writeFile(wb,"ricircolo_"+new Date().toISOString().slice(0,10)+".xlsx");
+}
+document.addEventListener("click",function(e){ if(e.target&&(e.target.id==="ricircolo"||(e.target.closest&&e.target.closest("#ricircolo"))))svRicircoloModal(); });
 
 function scheduleRun(){ clearTimeout(runT); runT=setTimeout(run,300); }
 
