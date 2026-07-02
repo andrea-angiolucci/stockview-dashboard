@@ -125,8 +125,10 @@
       <div class="fcol"><span>Vista</span>
         <div class="seg" id="seg"><button data-v="lista" class="on">Elenco</button><button data-v="matrice">Matrice</button></div>
       </div>
-      <div class="fcol"><span>Filiali</span><div class="seg" id="segFil"><button data-x="attive" class="on">Attive</button><button data-x="tutte">+ Deposito/tutte</button></div></div>
+      <div class="fcol"><span>Filiali</span><div class="seg" id="segFil"><button data-fv="attive" class="on">Attive</button><button data-fv="giacenza">Con giacenza</button><button data-fv="tutte">Tutte</button></div></div>
       <div class="fcol"><span>Target (min stock)</span><div class="seg" id="segTgt"><button data-e="off" class="on">Blocca</button><button data-e="on">Modifica</button></div></div>
+      <div class="fcol"><span>Ordine manuale</span><div class="seg" id="segOrd"><button data-o="off" class="on">Off</button><button data-o="on">On</button></div></div>
+      <div class="fcol"><span>Includi buchi</span><div class="seg" id="segIncl"><button data-i="si" class="on">Sì</button><button data-i="no">No</button></div></div>
       <div class="fcol"><span>Ordina referenze</span>
         <select class="sort" id="sortRef"><option value="modello">Modello A-Z</option><option value="giacenza">Giacenza ↓</option><option value="venduto" selected>Venduto ↓</option></select>
       </div>
@@ -160,7 +162,7 @@ const SUPABASE_KEY="sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s);
 const LADDER=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9"];
-let view="lista", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], FIL={}, extraFil=[], extraStock={}, showExtra=false, TGT={}, editTarget=false, vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
+let view="lista", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], FIL={}, extraFil=[], extraStock={}, showExtra=false, TGT={}, ORD={}, editTarget=false, editOrder=false, inclBuchi=true, filView="attive", vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
 
 async function boot(){const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex";}
 async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; await loadFilters(); run(); checkDataFreshness();}
@@ -252,9 +254,11 @@ $("#sortRef").addEventListener("change",()=>{if(lastCells.length)draw();});
 $("#sortPdv").addEventListener("change",()=>{if(lastCells.length)draw();});
 document.addEventListener("dblclick",e=>{ if(editTarget)return; const td=e.target.closest("td.filcol[data-bc]"); if(!td||!$("#tbl").contains(td))return; if(td.querySelector("input.tgtin")){ draw(); return; } const cur=td.getAttribute("data-tgt")||"0"; td.innerHTML='<input class="tgtin" type="number" min="0" value="'+cur+'" style="width:40px;padding:2px 4px;font-size:12px;background:var(--panel);border:1px solid var(--accent);color:var(--txt);border-radius:4px">'; const inp=td.querySelector("input"); inp.focus(); inp.select(); });
 document.addEventListener("focusout",e=>{ if(editTarget)return; const inp=e.target.closest("input.tgtin"); if(!inp)return; setTimeout(()=>{ if(document.body.contains(inp))draw(); },150); });
-document.addEventListener("change",e=>{ const inp=e.target.closest("input.tgtin"); if(!inp)return; const td=inp.closest("td.filcol[data-bc]"); if(!td)return; saveTarget(td.getAttribute("data-bc"),td.getAttribute("data-fil"),inp.value); });
-$("#segFil").addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;[...$("#segFil").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");showExtra=b.dataset.x==="tutte";if(showExtra){b.textContent="Carico…";if(lastCells.length)await loadExtraStock();b.textContent="+ Deposito/tutte";view="matrice";[...$("#seg").children].forEach(x=>x.classList.toggle("on",x.dataset.v==="matrice"));}if(lastCells.length)draw();});
+document.addEventListener("change",e=>{ const ti=e.target.closest("input.tgtin"); if(ti){const td=ti.closest("td.filcol[data-bc]"); if(td)saveTarget(td.getAttribute("data-bc"),td.getAttribute("data-fil"),ti.value); return;} const oi=e.target.closest("input.ordin"); if(oi){const td=oi.closest("td.filcol[data-bc]"); if(td)saveOrder(td.getAttribute("data-bc"),td.getAttribute("data-fil"),oi.value);} });
+$("#segFil").addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;[...$("#segFil").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");filView=b.dataset.fv;showExtra=filView!=="attive";if(showExtra){if(lastCells.length)await loadExtraStock();view="matrice";[...$("#seg").children].forEach(x=>x.classList.toggle("on",x.dataset.v==="matrice"));}else{extraFil=[];}if(lastCells.length)draw();});
 $("#segTgt").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#segTgt").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");editTarget=b.dataset.e==="on";if(editTarget){view="matrice";[...$("#seg").children].forEach(x=>x.classList.toggle("on",x.dataset.v==="matrice"));}if(lastCells.length)draw();});
+$("#segOrd").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#segOrd").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");editOrder=b.dataset.o==="on";if(editOrder){view="matrice";[...$("#seg").children].forEach(x=>x.classList.toggle("on",x.dataset.v==="matrice"));}if(lastCells.length)draw();});
+$("#segIncl").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#segIncl").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");inclBuchi=b.dataset.i==="si";});
 function svSave(rows,suff){ const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Presenza"); XLSX.writeFile(wb,"controllo_presenza"+(suff||"")+"_"+new Date().toISOString().slice(0,10)+".xlsx"); }
 async function svFetchAll(table,sel,vals,extra){ let out=[]; const CH=150; for(let i=0;i<vals.length;i+=CH){ const part=vals.slice(i,i+CH); let from=0; while(true){ let q=sb.from(table).select(sel).in("barcode",part); if(extra)q=extra(q); const r=await q.range(from,from+999); const d=r.data||[]; out=out.concat(d); if(d.length<1000)break; from+=1000; } } return out; }
 $("#dl").addEventListener("click",async()=>{
@@ -264,6 +268,7 @@ $("#dl").addEventListener("click",async()=>{
   try{
     const bcs=[...new Set(lastCells.map(c=>c.barcode))];
   TGT={}; if(bcs.length){ const tg=await svFetchAll("stock_target","barcode,filiale,target_qty",bcs); tg.forEach(r=>TGT[r.barcode+"|"+r.filiale]=r.target_qty); }
+  ORD={}; if(bcs.length){ const om=await svFetchAll("ordine_manuale","barcode,filiale,qta",bcs); om.forEach(r=>ORD[r.barcode+"|"+r.filiale]=r.qta); }
     const gi=await svFetchAll("giacenze","*",bcs); const gm={}; gi.forEach(g=>{gm[g.barcode+"|"+g.filiale]=g;});
     const sy=new Date().getFullYear()+"-01-01";
     const ve=await svFetchAll("vendite","barcode,filiale,quantita,prezzo_vendita,costo,margine,data",bcs,q=>q.gte("data",sy));
@@ -283,24 +288,31 @@ $("#ordine").addEventListener("click",async()=>{
     // vendite del marchio per PDV (anno corrente) dalle celle correnti
     const msSales={};
     lastCells.forEach(c=>{ (msSales[c.marchio]=msSales[c.marchio]||{}); msSales[c.marchio][c.negozio]=(msSales[c.marchio][c.negozio]||0)+(c.venduto||0); });
-    // buchi (celle disponibile 0) raggruppati per barcode
     const needCells={}, meta={};
-    lastCells.forEach(c=>{ if(!meta[c.barcode])meta[c.barcode]={fornitore:c.fornitore,marchio:c.marchio,tipo_lenti:c.tipo_lenti,categoria:c.categoria,modello:c.modello,colore:c.colore,calibro:c.calibro}; if(!FILTERS.msOrdCat || FILTERS.msOrdCat.selected.has(c.categoria)){ const nd=Math.max(0,effTargetActive(c)-c.disponibile); if(nd>0)(needCells[c.barcode]=needCells[c.barcode]||[]).push({c:c,nd:nd}); } });
+    lastCells.forEach(c=>{ if(!meta[c.barcode])meta[c.barcode]={fornitore:c.fornitore,marchio:c.marchio,tipo_lenti:c.tipo_lenti,categoria:c.categoria,modello:c.modello,colore:c.colore,calibro:c.calibro}; if(inclBuchi && (!FILTERS.msOrdCat || FILTERS.msOrdCat.selected.has(c.categoria))){ const nd=Math.max(0,effTargetActive(c)-c.disponibile); if(nd>0)(needCells[c.barcode]=needCells[c.barcode]||[]).push({neg:c.negozio,fil:c.filiale,nd:nd}); } });
     const bcs=[...new Set(lastCells.map(c=>c.barcode))];
-    const inarr={}, depoDisp={};
+    const inarr={}, depoDisp={}, zDisp={};
     const gi=await svFetchAll("giacenze","barcode,filiale,quantita_disponibile,quantita_in_arrivo",bcs);
-    gi.forEach(g=>{ inarr[g.barcode]=(inarr[g.barcode]||0)+(g.quantita_in_arrivo||0); if(g.filiale==="A") depoDisp[g.barcode]=(depoDisp[g.barcode]||0)+(g.quantita_disponibile||0); });
+    gi.forEach(g=>{ inarr[g.barcode]=(inarr[g.barcode]||0)+(g.quantita_in_arrivo||0); if(g.filiale==="A")depoDisp[g.barcode]=(depoDisp[g.barcode]||0)+(g.quantita_disponibile||0); if(g.filiale==="Z")zDisp[g.barcode]=(zDisp[g.barcode]||0)+(g.quantita_disponibile||0); });
+    const filNome={B:"Paternò",C:"Acireale",D:"Catania",E:"Augusta",G:"Giarre",H:"Lentini",I:"Portali",Z:"Viale Africa",A:"Deposito"};
     const rows=[];
     bcs.forEach(bc=>{
       const m=meta[bc], ms=msSales[m.marchio]||{};
-      const dDisp=depoDisp[bc]||0, dTgt=effTargetExtra(bc,"A"), depoSurplus=Math.max(0,dDisp-dTgt), ia=inarr[bc]||0;
-      let cov=ia+depoSurplus;
-      const nc=(needCells[bc]||[]).slice();
-      const totNeed=nc.reduce((s,x)=>s+x.nd,0);
-      nc.sort((a,b)=>(ms[b.c.negozio]||0)-(ms[a.c.negozio]||0) || (vfiliale[b.c.filiale]||0)-(vfiliale[a.c.filiale]||0) || String(a.c.negozio).localeCompare(String(b.c.negozio)));
-      nc.forEach(x=>{ const use=Math.min(x.nd,cov); cov-=use; const toOrder=x.nd-use; if(toOrder>0)rows.push(Object.assign({},m,{barcode:bc,negozio:x.c.negozio,filiale:x.c.filiale,qta:toOrder,buchi:totNeed,inarrivo:ia,deposito:dDisp})); });
       const catOk=!FILTERS.msOrdCat || FILTERS.msOrdCat.selected.has(m.categoria);
-      if(catOk){ const depoOrder=Math.max(0,dTgt-dDisp); if(depoOrder>0)rows.push(Object.assign({},m,{barcode:bc,negozio:"Deposito",filiale:"A",qta:depoOrder,buchi:totNeed,inarrivo:ia,deposito:dDisp})); }
+      const dDisp=depoDisp[bc]||0, dTgt=effTargetExtra(bc,"A"), depoSurplus=Math.max(0,dDisp-dTgt), ia=inarr[bc]||0;
+      const totNeed=(needCells[bc]||[]).reduce((s,x)=>s+x.nd,0);
+      const acc={};
+      function addO(fil,neg,q,man){ if(q<=0)return; if(!acc[fil])acc[fil]={neg:neg,qta:0,manuale:0}; acc[fil].qta+=q; if(man)acc[fil].manuale+=q; }
+      if(inclBuchi && catOk){
+        const nc=(needCells[bc]||[]).slice();
+        const zt=effTargetExtra(bc,"Z"), zN=Math.max(0,zt-(zDisp[bc]||0)); if(zN>0)nc.push({neg:"Viale Africa",fil:"Z",nd:zN});
+        let cov=ia+depoSurplus;
+        nc.sort((a,b)=>(ms[b.neg]||0)-(ms[a.neg]||0) || (vfiliale[b.fil]||0)-(vfiliale[a.fil]||0) || String(a.neg).localeCompare(String(b.neg)));
+        nc.forEach(x=>{ const use=Math.min(x.nd,cov); cov-=use; if(x.nd-use>0)addO(x.fil,x.neg,x.nd-use,false); });
+        const depoOrder=Math.max(0,dTgt-dDisp); if(depoOrder>0)addO("A","Deposito",depoOrder,false);
+      }
+      if(catOk){ ["B","C","D","E","G","H","I","Z","A"].forEach(fil=>{ const mo=ORD[bc+"|"+fil]||0; if(mo>0)addO(fil,filNome[fil]||fil,mo,true); }); }
+      Object.keys(acc).forEach(fil=>{ const a=acc[fil]; rows.push(Object.assign({},m,{barcode:bc,negozio:a.neg,filiale:fil,qta:a.qta,manuale:a.manuale,buchi:totNeed,inarrivo:ia,deposito:dDisp})); });
     });
     rows.sort((a,b)=>String(a.fornitore+a.marchio+a.modello+a.negozio).localeCompare(String(b.fornitore+b.marchio+b.modello+b.negozio)));
     if(!rows.length){svOrdModal([]);ob.disabled=false;ob.textContent=lab;return;}
@@ -327,8 +339,8 @@ function svOrdModal(rows){
   if(!rows.length){ bodyH='<div style="padding:40px;text-align:center;color:var(--muted)">Nessun pezzo da ordinare: tutti i buchi sono coperti da quantità in arrivo o giacenza in deposito. ✅</div>'; }
   else {
     bodyH='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+
-    ['Fornitore','Marchio','Modello','Colore','Cal.','Categoria','Tipo','Barcode','Negozio','Qta','Buchi cod.','In arrivo cod.','In deposito'].map(h=>'<th style="position:sticky;top:0;background:var(--panel2);color:var(--muted);text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase">'+h+'</th>').join('')+'</tr></thead><tbody>'+
-    rows.map(r=>'<tr style="border-bottom:1px solid var(--line)"><td style="padding:6px 10px">'+esc(r.fornitore)+'</td><td style="padding:6px 10px">'+esc(r.marchio)+'</td><td style="padding:6px 10px">'+esc(r.modello||'')+'</td><td style="padding:6px 10px">'+esc(r.colore||'')+'</td><td style="padding:6px 10px">'+esc(r.calibro||'')+'</td><td style="padding:6px 10px">'+esc(r.categoria||'')+'</td><td style="padding:6px 10px">'+esc(r.tipo_lenti||'')+'</td><td style="padding:6px 10px">'+esc(r.barcode)+'</td><td style="padding:6px 10px;font-weight:700;color:var(--accent)">'+esc(r.negozio)+'</td><td style="padding:6px 10px;text-align:center;color:var(--ok);font-weight:700">'+r.qta+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.buchi+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.inarrivo+'</td><td style="padding:6px 10px;text-align:center;color:var(--truck)">'+(r.deposito||0)+'</td></tr>').join('')+
+    ['Fornitore','Marchio','Modello','Colore','Cal.','Categoria','Tipo','Barcode','Negozio','Qta','Manuale','Buchi cod.','In arrivo cod.','In deposito'].map(h=>'<th style="position:sticky;top:0;background:var(--panel2);color:var(--muted);text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase">'+h+'</th>').join('')+'</tr></thead><tbody>'+
+    rows.map(r=>'<tr style="border-bottom:1px solid var(--line)"><td style="padding:6px 10px">'+esc(r.fornitore)+'</td><td style="padding:6px 10px">'+esc(r.marchio)+'</td><td style="padding:6px 10px">'+esc(r.modello||'')+'</td><td style="padding:6px 10px">'+esc(r.colore||'')+'</td><td style="padding:6px 10px">'+esc(r.calibro||'')+'</td><td style="padding:6px 10px">'+esc(r.categoria||'')+'</td><td style="padding:6px 10px">'+esc(r.tipo_lenti||'')+'</td><td style="padding:6px 10px">'+esc(r.barcode)+'</td><td style="padding:6px 10px;font-weight:700;color:var(--accent)">'+esc(r.negozio)+'</td><td style="padding:6px 10px;text-align:center;color:var(--ok);font-weight:700">'+r.qta+'</td><td style="padding:6px 10px;text-align:center;color:var(--truck)">'+(r.manuale||0)+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.buchi+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.inarrivo+'</td><td style="padding:6px 10px;text-align:center;color:var(--truck)">'+(r.deposito||0)+'</td></tr>').join('')+
     '</tbody></table></div>';
   }
   box.innerHTML=head+bodyH;
@@ -336,7 +348,7 @@ function svOrdModal(rows){
   document.getElementById("ordclose").onclick=()=>ov.remove();
   ov.onclick=e=>{if(e.target===ov)ov.remove();};
   const xbtn=document.getElementById("ordxls");
-  if(xbtn)xbtn.onclick=()=>{ const ws=XLSX.utils.json_to_sheet(rows.map(r=>({Fornitore:r.fornitore,Marchio:r.marchio,Modello:r.modello,Colore:r.colore,Calibro:r.calibro,Categoria:r.categoria,Tipo:r.tipo_lenti,Barcode:r.barcode,Negozio:r.negozio,Qta:r.qta,BuchiCodice:r.buchi,InArrivoCodice:r.inarrivo,InDeposito:(r.deposito||0)}))); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Ordine"); XLSX.writeFile(wb,"lista_ordine_"+new Date().toISOString().slice(0,10)+".xlsx"); };
+  if(xbtn)xbtn.onclick=()=>{ const ws=XLSX.utils.json_to_sheet(rows.map(r=>({Fornitore:r.fornitore,Marchio:r.marchio,Modello:r.modello,Colore:r.colore,Calibro:r.calibro,Categoria:r.categoria,Tipo:r.tipo_lenti,Barcode:r.barcode,Negozio:r.negozio,Qta:r.qta,Manuale:(r.manuale||0),BuchiCodice:r.buchi,InArrivoCodice:r.inarrivo,InDeposito:(r.deposito||0)}))); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Ordine"); XLSX.writeFile(wb,"lista_ordine_"+new Date().toISOString().slice(0,10)+".xlsx"); };
 }
 
 $("#riepilogo").addEventListener("click",()=>{
@@ -370,6 +382,7 @@ function refreshOrdCat(){
 function effTargetActive(c){ const v=TGT[c.barcode+"|"+c.filiale]; return v===undefined?1:v; }
 function effTargetExtra(bc,fil){ const v=TGT[bc+"|"+fil]; return v===undefined?0:v; }
 async function saveTarget(bc,fil,val){ val=Math.max(0,parseInt(val,10)||0); TGT[bc+"|"+fil]=val; try{ await sb.from("stock_target").upsert({barcode:bc,filiale:fil,target_qty:val},{onConflict:"barcode,filiale"}); }catch(e){ alert("Errore salvataggio target: "+e); } draw(); }
+async function saveOrder(bc,fil,val){ val=Math.max(0,parseInt(val,10)||0); if(val>0)ORD[bc+"|"+fil]=val; else delete ORD[bc+"|"+fil]; try{ if(val>0)await sb.from("ordine_manuale").upsert({barcode:bc,filiale:fil,qta:val},{onConflict:"barcode,filiale"}); else await sb.from("ordine_manuale").delete().eq("barcode",bc).eq("filiale",fil); }catch(e){ alert("Errore ordine manuale: "+e); } draw(); }
 function scheduleRun(){ clearTimeout(runT); runT=setTimeout(run,300); }
 
 async function run(){
@@ -437,7 +450,9 @@ async function loadExtraStock(){
   const sy=new Date().getFullYear()+"-01-01";
   const ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,q=>q.gte("data",sy).in("filiale",["Z","A"]));
   ve.forEach(x=>{ if(x.filiale!=="Z"&&x.filiale!=="A")return; const o=(extraStock[x.barcode]=extraStock[x.barcode]||{}); const f=(o[x.filiale]=o[x.filiale]||{d:0,m:0,p:0,a:0,v:0}); f.v+=(x.quantita||1); });
-  extraFil=["Z","A"];
+  if(filView==="tutte") extraFil=["Z","A"];
+  else if(filView==="giacenza"){ const has=f=>Object.keys(extraStock).some(bc=>{const e=extraStock[bc][f]; return e&&(e.d||e.m||e.p||e.a);}); extraFil=["Z","A"].filter(has); }
+  else extraFil=[];
 }
 function drawMatrix(cells,negozi){
   const refs=new Map();
@@ -449,27 +464,30 @@ function drawMatrix(cells,negozi){
   let h="<tr><th class='mar'>Referenza</th>"+negozi.map(n=>`<th class="filcol">${esc(n)}</th>`).join("")+xf.map(f=>`<th class="filcol" style="opacity:.75" title="${esc(filName(f))} (fuori linea)">${esc(filShort(f))}</th>`).join("")+"<th class='tot'>Totali</th></tr>";
   $("#tbl").tHead.innerHTML=h;
   const colTot={},colVend={}; negozi.forEach(n=>{colTot[n]=0;colVend[n]=0;}); let grand=0,grandVend=0;
-  const TIN='<input class="tgtin" type="number" min="0" style="width:34px;padding:1px 3px;font-size:11px;margin-top:2px;background:var(--panel);border:1px solid var(--accent);color:var(--txt);border-radius:4px" value="';
+  const TIN='<input class="tgtin" type="number" min="0" style="width:34px;padding:1px 3px;font-size:11px;background:var(--panel);border:1px solid var(--accent);color:var(--txt);border-radius:4px" value="';
+  const OIN='<input class="ordin" type="number" min="0" style="width:34px;padding:1px 3px;font-size:11px;margin-top:2px;background:var(--panel);border:1px solid var(--truck);color:var(--txt);border-radius:4px" value="';
   const body=rows.map(r=>{
     let tr=`<tr><td class="mar ref"><b>${esc(r.info.marchio)} ${esc(r.info.modello||"")}</b><small>${[r.info.tipo_lenti,r.info.categoria,r.info.colore,r.info.calibro,r.info.barcode].filter(Boolean).map(esc).join(" · ")}</small></td>`;
     for(const n of negozi){const c=r.by[n];
       if(!c){tr+='<td class="filcol cellna">·</td>';continue;}
       colTot[n]+=c.disponibile; grand+=c.disponibile; colVend[n]+=c.venduto; grandVend+=c.venduto;
-      const t=effTargetActive(c);
+      const t=effTargetActive(c), o=ORD[c.barcode+"|"+c.filiale]||0;
       let cls; if(t===0)cls="cellna"; else if(c.disponibile<t)cls=(c.in_arrivo>0?"cellordered":"cell0"); else cls="cellok";
       let extra="";
       if(c.prenotati>0)extra+=`<span class="bdg pkg" title="${c.prenotati} prenotati">📦${c.prenotati}</span>`;
       if(c.in_arrivo>0)extra+=`<span class="bdg truck" title="${c.in_arrivo} in arrivo">🚚${c.in_arrivo}</span>`;
       const tg=editTarget?(TIN+t+'">'):(t!==1?`<span style="position:absolute;bottom:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t}</span>`:"");
-      tr+=`<td class="filcol ${cls}" data-bc="${esc(c.barcode)}" data-fil="${esc(c.filiale)}" data-tgt="${t}" title="obiettivo ${t} · disp ${c.disponibile} · mag ${c.magazzino} · pren ${c.prenotati} · in arrivo ${c.in_arrivo} · venduto ${c.venduto}"><div class="cg">${c.disponibile}</div><div class="cv" title="venduto anno">${c.venduto}</div>${tg}${extra?`<span class="bdgs">${extra}</span>`:""}</td>`;
+      const og=editOrder?(OIN+o+'">'):(o>0?`<span style="position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--truck);font-weight:700">✎${o}</span>`:"");
+      tr+=`<td class="filcol ${cls}" data-bc="${esc(c.barcode)}" data-fil="${esc(c.filiale)}" data-tgt="${t}" data-ord="${o}" title="obiettivo ${t} · disp ${c.disponibile} · mag ${c.magazzino} · pren ${c.prenotati} · in arrivo ${c.in_arrivo} · venduto ${c.venduto} · ord.man ${o}"><div class="cg">${c.disponibile}</div>${tg}<div class="cv" title="venduto anno">${c.venduto}</div>${og}${extra?`<span class="bdgs">${extra}</span>`:""}</td>`;
     }
-    for(const f of xf){ const s=(extraStock[r.info.barcode]||{})[f]; const t=effTargetExtra(r.info.barcode,f); const disp=s?s.d:0; const vend=s?(s.v||0):0;
+    for(const f of xf){ const s=(extraStock[r.info.barcode]||{})[f]; const t=effTargetExtra(r.info.barcode,f); const disp=s?s.d:0; const vend=s?(s.v||0):0; const o=ORD[r.info.barcode+"|"+f]||0;
       let cls; if(t>0&&disp<t)cls=(s&&s.a>0?"cellordered":"cell0"); else if(disp>0)cls="cellok"; else cls="cellna";
       let ex2="";
       if(s&&s.p>0)ex2+=`<span class="bdg pkg" title="${s.p} prenotati">📦${s.p}</span>`;
       if(s&&s.a>0)ex2+=`<span class="bdg truck" title="${s.a} in arrivo">🚚${s.a}</span>`;
       const tg=editTarget?(TIN+t+'">'):(t!==0?`<span style="position:absolute;bottom:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t}</span>`:"");
-      tr+=`<td class="filcol ${cls}" data-bc="${esc(r.info.barcode)}" data-fil="${esc(f)}" data-tgt="${t}" style="background:rgba(255,255,255,.02)" title="${esc(filName(f))} · obiettivo ${t} · disp ${disp} · mag ${s?s.m:0} · pren ${s?s.p:0} · in arrivo ${s?s.a:0} · venduto ${vend}"><div class="cg">${disp}</div><div class="cv" title="venduto anno">${vend}</div>${tg}${ex2?`<span class="bdgs">${ex2}</span>`:""}</td>`;
+      const og=editOrder?(OIN+o+'">'):(o>0?`<span style="position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--truck);font-weight:700">✎${o}</span>`:"");
+      tr+=`<td class="filcol ${cls}" data-bc="${esc(r.info.barcode)}" data-fil="${esc(f)}" data-tgt="${t}" data-ord="${o}" style="background:rgba(255,255,255,.02)" title="${esc(filName(f))} · obiettivo ${t} · disp ${disp} · mag ${s?s.m:0} · pren ${s?s.p:0} · in arrivo ${s?s.a:0} · venduto ${vend} · ord.man ${o}"><div class="cg">${disp}</div>${tg}<div class="cv" title="venduto anno">${vend}</div>${og}${ex2?`<span class="bdgs">${ex2}</span>`:""}</td>`;
     }
     tr+=`<td class="tot"><div class="cg">${r._tot}</div><div class="cv">${r._vtot}</div></td></tr>`; return tr;
   });
