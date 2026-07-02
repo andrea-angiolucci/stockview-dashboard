@@ -111,6 +111,7 @@
   .toolbar .ms-btn{min-width:150px;max-width:230px;font-size:12px}
   .toolbar .fcol>span{font-size:11px}
 
+  #tbl thead th{position:sticky;top:0;background:var(--panel2);z-index:5}
 </style>
 </head>
 <body>
@@ -155,7 +156,7 @@
         <div class="fcol"><span>Mostra</span><div class="seg" id="segShow"><button data-s="mancanti" class="on">Solo con mancanti</button><button data-s="tutte">Tutte</button></div></div>
         <div class="fcol"><span>Vista</span><div class="seg" id="seg"><button data-v="lista">Elenco</button><button data-v="matrice" class="on">Matrice</button></div></div>
         <div class="fcol"><span>Filiali</span><div class="seg" id="segFil"><button data-fv="attive" class="on">Attive</button><button data-fv="giacenza">Movimentate</button><button data-fv="tutte">Tutte</button></div></div>
-        <div class="fcol"><span>Target (min stock)</span><div class="seg" id="segTgt"><button data-e="off" class="on">Blocca</button><button data-e="on">Modifica</button></div></div>
+        <div class="fcol"><span>Target (min stock)</span><div class="seg" id="segTgt"><button data-e="off" class="on">Blocca</button><button data-e="on">Modifica</button></div></div><div class="fcol"><span>Impostazioni</span><button class="ghost" id="saveViewDef" style="padding:6px 10px;white-space:nowrap">★ Salva vista predefinita</button></div>
       </div></div>
       <div class="tbgroup"><div class="tbglabel">Ordine</div><div class="tbrow">
         <div class="fcol"><span>Ordine manuale</span><div class="seg" id="segOrd"><button data-o="off" class="on">Off</button><button data-o="on">On</button></div></div>
@@ -199,7 +200,7 @@ const LADDER=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9"];
 let view="matrice", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], FIL={}, extraFil=[], extraStock={}, showExtra=false, TGT={}, ORD={}, editTarget=false, editOrder=false, inclBuchi=true, filView="attive", CART=[], ORDROWS=[], ORDSORT={k:null,dir:1}, vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
 
 async function boot(){const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex";}
-async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; await loadFilters(); run(); checkDataFreshness(); loadCart();}
+async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; curUser=session.user.id; await loadFilters(); PREFS=await loadPrefs(); await applyPrefs(); run(); checkDataFreshness(); loadCart();}
 $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();const b=$("#loginBtn"),er=$("#loginErr");er.textContent="";b.disabled=true;b.textContent="Accesso…";
   const {data,error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pwd").value});
   b.disabled=false;b.textContent="Accedi"; if(error){er.textContent=error.message.includes("Invalid")?"Email o password non corretti.":error.message;return;} showApp(data.session);});
@@ -270,7 +271,7 @@ function mkFilter(elId,label,items,preselected){
     '<div class="ms-pop"><input class="ms-search" placeholder="Cerca…"/><div class="ms-acts"><button data-a="all">Tutti</button><button data-a="none">Nessuno</button></div><div class="ms-list"></div></div>';
   const btn=host.querySelector(".ms-btn"),pop=host.querySelector(".ms-pop"),list=host.querySelector(".ms-list"),search=host.querySelector(".ms-search");
   const sel=new Set((preselected||[]).filter(x=>items.includes(x))); FILTERS[elId]={selected:sel,items};
-  function changed(){ if(elId==="msOrdCat"||elId==="msOrdPdv")return; if(elId==="msFornitore")refreshCascade("msFornitore"); else if(elId==="msMarchio")refreshCascade("msMarchio"); if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo")refreshCategorie(); scheduleRun(); }
+  function changed(){ if(elId==="msOrdCat"||elId==="msOrdPdv")return; if(elId==="msFornitore")refreshCascade("msFornitore"); else if(elId==="msMarchio")refreshCascade("msMarchio"); if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo")refreshCategorie(); scheduleRun(); savePrefs(); }
   function render(f){f=(f||"").toLowerCase();list.innerHTML="";items.filter(it=>!f||String(it).toLowerCase().includes(f)).forEach(it=>{
     const row=document.createElement("label");row.className="ms-item";const cb=document.createElement("input");cb.type="checkbox";cb.checked=sel.has(it);
     cb.onchange=()=>{cb.checked?sel.add(it):sel.delete(it);upd();changed();};const sp=document.createElement("span");sp.textContent=it;row.appendChild(cb);row.appendChild(sp);list.appendChild(row);});}
@@ -543,6 +544,31 @@ async function fillGhostCells(){
       lastCells.push(Object.assign({},meta[bc],{barcode:bc,filiale:fil,negozio:(FIL[fil]?FIL[fil].nome:fil),disponibile:g?g.d:0,magazzino:g?g.m:0,prenotati:g?g.p:0,in_arrivo:g?g.a:0,presente:!!(g&&g.d>0),venduto:v,_x:true,_np:true})); });
   }catch(e){ console.log("fillGhostCells err",e); }
 }
+
+var PREFS={}, curUser=null, savePrefsT=null;
+function applyView(sm,vw,fv){
+  showMode=sm; view=vw; filView=fv; showExtra=(fv!=="attive");
+  var sS=document.getElementById("segShow"); if(sS)Array.from(sS.children).forEach(function(x){x.classList.toggle("on",x.dataset.s===sm);});
+  var sV=document.getElementById("seg"); if(sV)Array.from(sV.children).forEach(function(x){x.classList.toggle("on",x.dataset.v===vw);});
+  var sF=document.getElementById("segFil"); if(sF)Array.from(sF.children).forEach(function(x){x.classList.toggle("on",x.dataset.fv===fv);});
+}
+async function loadPrefs(){ try{ if(!curUser)return {}; var r=await sb.from("user_prefs").select("prefs").eq("user_id",curUser).maybeSingle(); return (r.data&&r.data.prefs)||{}; }catch(e){ return {}; } }
+function savePrefs(){ if(!curUser)return; clearTimeout(savePrefsT); savePrefsT=setTimeout(async function(){ try{ PREFS.filters={msFornitore:Array.from(FILTERS.msFornitore?FILTERS.msFornitore.selected:[]),msMarchio:Array.from(FILTERS.msMarchio?FILTERS.msMarchio.selected:[]),msTipo:Array.from(FILTERS.msTipo?FILTERS.msTipo.selected:[]),msCategoria:Array.from(FILTERS.msCategoria?FILTERS.msCategoria.selected:[])}; await sb.from("user_prefs").upsert({user_id:curUser,prefs:PREFS,updated_at:new Date().toISOString()},{onConflict:"user_id"}); }catch(e){} },700); }
+async function applyPrefs(){
+  var vd=PREFS.viewDefault||{sm:"tutte",vw:"matrice",fv:"tutte"};
+  applyView(vd.sm||"tutte",vd.vw||"matrice",vd.fv||"tutte");
+  var f=PREFS.filters;
+  if(f&&FILTERS.msFornitore){
+    mkFilter("msFornitore","Fornitore",FILTERS.msFornitore.items,(f.msFornitore||[]));
+    if(FILTERS.msMarchio)FILTERS.msMarchio.selected=new Set(f.msMarchio||[]);
+    if(FILTERS.msTipo)FILTERS.msTipo.selected=new Set(f.msTipo||[]);
+    if(FILTERS.msCategoria)FILTERS.msCategoria.selected=new Set(f.msCategoria||[]);
+    refreshCascade("msFornitore");
+    await refreshCategorie();
+  }
+}
+function saveViewDefault(){ PREFS.viewDefault={sm:showMode,vw:view,fv:filView}; savePrefs(); try{alert("Vista predefinita salvata per il tuo account.");}catch(e){} }
+document.addEventListener("click",function(e){ if(e.target&&(e.target.id==="saveViewDef"||(e.target.closest&&e.target.closest("#saveViewDef"))))saveViewDefault(); });
 
 function scheduleRun(){ clearTimeout(runT); runT=setTimeout(run,300); }
 
