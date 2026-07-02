@@ -248,7 +248,7 @@ async function refreshCategorie(){
   const f=[...(FILTERS.msFornitore?FILTERS.msFornitore.selected:[])],m=[...(FILTERS.msMarchio?FILTERS.msMarchio.selected:[])],t=[...(FILTERS.msTipo?FILTERS.msTipo.selected:[])];
   const prev=FILTERS.msCategoria?[...FILTERS.msCategoria.selected]:[];
   const r=await sb.rpc("sv_cat",{p_fornitori:f,p_marchi:m,p_tipi:t});
-  const VC=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9","SN","SR","SE","SV"]; const raw=(r.data||[]).map(x=>x.categoria); const cats=VC.filter(x=>raw.includes(x));
+  const VC=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9","SN","SR","SE","SV"]; const raw=(r.data||[]).map(x=>x.categoria); const cats=VC.filter(x=>raw.includes(x)).concat(raw.filter(x=>VC.indexOf(x)<0).sort());
   mkFilter("msCategoria","Categoria",cats,prev);
 }
 function trunc(s){s=String(s);return s.length>18?s.slice(0,17)+"…":s;}
@@ -407,7 +407,7 @@ function refreshOrdCat(){
   const prevAll=FILTERS.msOrdCat?(FILTERS.msOrdCat.selected.size===FILTERS.msOrdCat.items.length):true;
   mkFilter("msOrdCat","Categorie da ordinare",cats,prevAll?cats:[...FILTERS.msOrdCat.selected]);
 }
-function effTargetActive(c){ const v=TGT[c.barcode+"|"+c.filiale]; return v===undefined?1:v; }
+function effTargetActive(c){ const v=TGT[c.barcode+"|"+c.filiale]; return v===undefined?(c._x?0:1):v; }
 function effTargetExtra(bc,fil){ const v=TGT[bc+"|"+fil]; return v===undefined?0:v; }
 async function saveTarget(bc,fil,val){ val=Math.max(0,parseInt(val,10)||0); TGT[bc+"|"+fil]=val; try{ await sb.from("stock_target").upsert({barcode:bc,filiale:fil,target_qty:val},{onConflict:"barcode,filiale"}); }catch(e){ alert("Errore salvataggio target: "+e); } draw(); }
 async function saveOrder(bc,fil,val){ val=Math.max(0,parseInt(val,10)||0); if(val>0)ORD[bc+"|"+fil]=val; else delete ORD[bc+"|"+fil]; try{ if(val>0)await sb.from("ordine_manuale").upsert({barcode:bc,filiale:fil,qta:val},{onConflict:"barcode,filiale"}); else await sb.from("ordine_manuale").delete().eq("barcode",bc).eq("filiale",fil); }catch(e){ alert("Errore ordine manuale: "+e); } draw(); }
@@ -468,6 +468,36 @@ function checkout(){
   });
 }
 
+async function loadExtraCats(){
+  try{
+  const ladder={ST:1,P1:1,P2:1,P3:1,P4:1,P5:1,P6:1,P7:1,P8:1,P9:1};
+  const f=[...(FILTERS.msFornitore?FILTERS.msFornitore.selected:[])], m=[...(FILTERS.msMarchio?FILTERS.msMarchio.selected:[])], tp=[...(FILTERS.msTipo?FILTERS.msTipo.selected:[])];
+  if(!f.length && !m.length) return; // troppo ampio senza fornitore/marchio
+  let rowsA=ASSORT;
+  if(f.length)rowsA=rowsA.filter(r=>f.includes(r.fornitore));
+  if(m.length)rowsA=rowsA.filter(r=>m.includes(r.marchio));
+  if(tp.length)rowsA=rowsA.filter(r=>tp.includes(r.tipo_lenti));
+  const norm=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  const normMap={}, fornMap={};
+  rowsA.forEach(r=>{ normMap[norm(r.marchio)]=r.marchio; fornMap[r.marchio]=r.fornitore; });
+  const norms=Object.keys(normMap);
+  if(!norms.length)return;
+  const oc=[...(FILTERS.msCategoria?FILTERS.msCategoria.selected:[])];
+  const tset=tp.map(x=>String(x).toLowerCase());
+  let gi=[];
+  for(let i=0;i<norms.length;i+=100){ const part=norms.slice(i,i+100); let from=0; while(true){ const r=await sb.from("giacenze").select("barcode,filiale,marchio_norm,categoria,tipo_lenti,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo,modello,colore,calibro").in("marchio_norm",part).in("filiale",["B","C","D","E","G","H","I"]).range(from,from+999); const d=r.data||[]; gi=gi.concat(d); if(d.length<1000)break; from+=1000; } }
+  gi=gi.filter(g=>{ const cat=(g.categoria||"").toUpperCase(); if(ladder[cat])return false; if(oc.length && !oc.includes(cat))return false; if(tset.length && !tset.includes((g.tipo_lenti||"").toLowerCase()))return false; return true; });
+  if(!gi.length)return;
+  const bcs=[...new Set(gi.map(g=>g.barcode))];
+  const vmap={}; const sy=(new Date().getFullYear()-1)+"-01-01";
+  for(let i=0;i<bcs.length;i+=150){ const part=bcs.slice(i,i+150); let from=0; while(true){ const r=await sb.from("vendite").select("barcode,filiale,quantita,data").in("barcode",part).gte("data",sy).range(from,from+999); const d=r.data||[]; d.forEach(x=>{ const k=x.barcode+"|"+x.filiale; vmap[k]=(vmap[k]||0)+(x.quantita||1); }); if(d.length<1000)break; from+=1000; } }
+  const agg={};
+  gi.forEach(g=>{ const k=g.barcode+"|"+g.filiale; if(!agg[k])agg[k]={g:g,d:0,mag:0,pren:0,arr:0}; agg[k].d+=g.quantita_disponibile||0; agg[k].mag+=g.quantita_magazzino||0; agg[k].pren+=g.quantita_prenotata||0; agg[k].arr+=g.quantita_in_arrivo||0; });
+  Object.keys(agg).forEach(k=>{ const a=agg[k], g=a.g; const marchio=normMap[g.marchio_norm]||g.marchio_norm;
+    lastCells.push({fornitore:(fornMap[marchio]||""), marchio:marchio, tipo_lenti:g.tipo_lenti, categoria:(g.categoria||"").toUpperCase(), barcode:g.barcode, modello:g.modello, colore:g.colore, calibro:g.calibro, filiale:g.filiale, negozio:(FIL[g.filiale]?FIL[g.filiale].nome:g.filiale), disponibile:a.d, magazzino:a.mag, prenotati:a.pren, in_arrivo:a.arr, presente:a.d>0, venduto:(vmap[k]||0), _x:true }); });
+  }catch(e){ console.log("loadExtraCats err",e); }
+}
+
 function scheduleRun(){ clearTimeout(runT); runT=setTimeout(run,300); }
 
 async function run(){
@@ -479,6 +509,8 @@ async function run(){
   const bcs=[...new Set(lastCells.map(c=>c.barcode))];
   if(bcs.length){const vb=await sb.rpc("vendite_per_barcode",{p_barcodes:bcs});(vb.data||[]).forEach(r=>vbarcode[r.barcode]=Number(r.pezzi));}
   if(showExtra)await loadExtraStock();
+  await loadExtraCats();
+  refreshOrdCat();
   draw();
 }
 
