@@ -82,6 +82,13 @@
   tfoot td.mar{text-align:left}
   .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:7px}
   @keyframes sp{to{transform:rotate(360deg)}}
+  .tbtoggle{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:5px 12px;font-size:12.5px;margin:0 0 8px;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+  .tbtoggle:hover{border-color:var(--accent);color:var(--accent)}
+  .toolbar{align-items:flex-start}
+  .toolbar.collapsed{display:none}
+  .tbgroup{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:rgba(255,255,255,.02)}
+  .tbglabel{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);font-weight:700}
+  .tbrow{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
 </style>
 </head>
 <body>
@@ -114,32 +121,35 @@
   </header>
 
   <div class="wrap">
-    <div class="toolbar">
-      <div class="fcol"><span>Fornitore</span><div class="ms" id="msFornitore"></div></div>
-      <div class="fcol"><span>Marchio</span><div class="ms" id="msMarchio"></div></div>
-      <div class="fcol"><span>Tipo lenti</span><div class="ms" id="msTipo"></div></div>
-      <div class="fcol"><span>Categoria (profondità)</span><div class="ms" id="msCategoria"></div></div>
-      <div class="fcol"><span>Mostra</span>
-        <div class="seg" id="segShow"><button data-s="mancanti" class="on">Solo con mancanti</button><button data-s="tutte">Tutte</button></div>
-      </div>
-      <div class="fcol"><span>Vista</span>
-        <div class="seg" id="seg"><button data-v="lista" class="on">Elenco</button><button data-v="matrice">Matrice</button></div>
-      </div>
-      <div class="fcol"><span>Filiali</span><div class="seg" id="segFil"><button data-fv="attive" class="on">Attive</button><button data-fv="giacenza">Con giacenza</button><button data-fv="tutte">Tutte</button></div></div>
-      <div class="fcol"><span>Target (min stock)</span><div class="seg" id="segTgt"><button data-e="off" class="on">Blocca</button><button data-e="on">Modifica</button></div></div>
-      <div class="fcol"><span>Ordine manuale</span><div class="seg" id="segOrd"><button data-o="off" class="on">Off</button><button data-o="on">On</button></div></div>
-      <div class="fcol"><span>Includi buchi</span><div class="seg" id="segIncl"><button data-i="si" class="on">Sì</button><button data-i="no">No</button></div></div>
-      <div class="fcol"><span>Ordina referenze</span>
-        <select class="sort" id="sortRef"><option value="modello">Modello A-Z</option><option value="giacenza">Giacenza ↓</option><option value="venduto" selected>Venduto ↓</option></select>
-      </div>
-      <div class="fcol"><span>Ordina negozi</span>
-        <select class="sort" id="sortPdv"><option value="nome">Nome A-Z</option><option value="venduto" selected>Venduto ↓</option></select>
-      </div>
-      <div class="fcol"><span>Categorie da ordinare</span><div class="ms" id="msOrdCat"></div></div>
-      <div class="fcol"><span>Esporta</span><div style="display:flex;gap:6px"><select class="sort" id="dlmode"><option value="sint">Sintetico</option><option value="full">Completo</option></select><button class="ghost" id="dl" style="padding:9px 14px">Scarica Excel</button></div></div>
-      <div class="fcol"><span>Ordine</span><button id="ordine" style="border:none;border-radius:8px;background:var(--accent);color:#04121f;font-weight:700;padding:9px 16px;font-size:13.5px">Lista ordine</button></div>
-      <div class="fcol"><span>Riepilogo</span><button class="ghost" id="riepilogo" style="padding:9px 16px">Riepilogo buchi</button></div>
-      <div class="fcol"><span>Carrello</span><button class="ghost" id="carrello" style="padding:9px 16px">🛒 Carrello (0)</button></div>
+    <button class="tbtoggle" id="tbToggle"><span id="tbArrow">▾</span> Strumenti (mostra/nascondi)</button>
+    <div class="toolbar" id="toolbar">
+      <div class="tbgroup"><div class="tbglabel">Filtri</div><div class="tbrow">
+        <div class="fcol"><span>Fornitore</span><div class="ms" id="msFornitore"></div></div>
+        <div class="fcol"><span>Marchio</span><div class="ms" id="msMarchio"></div></div>
+        <div class="fcol"><span>Tipo lenti</span><div class="ms" id="msTipo"></div></div>
+        <div class="fcol"><span>Categoria (profondità)</span><div class="ms" id="msCategoria"></div></div>
+      </div></div>
+      <div class="tbgroup"><div class="tbglabel">Viste</div><div class="tbrow">
+        <div class="fcol"><span>Mostra</span><div class="seg" id="segShow"><button data-s="mancanti" class="on">Solo con mancanti</button><button data-s="tutte">Tutte</button></div></div>
+        <div class="fcol"><span>Vista</span><div class="seg" id="seg"><button data-v="lista">Elenco</button><button data-v="matrice" class="on">Matrice</button></div></div>
+        <div class="fcol"><span>Filiali</span><div class="seg" id="segFil"><button data-fv="attive" class="on">Attive</button><button data-fv="giacenza">Movimentate</button><button data-fv="tutte">Tutte</button></div></div>
+        <div class="fcol"><span>Target (min stock)</span><div class="seg" id="segTgt"><button data-e="off" class="on">Blocca</button><button data-e="on">Modifica</button></div></div>
+      </div></div>
+      <div class="tbgroup"><div class="tbglabel">Ordine</div><div class="tbrow">
+        <div class="fcol"><span>Ordine manuale</span><div class="seg" id="segOrd"><button data-o="off" class="on">Off</button><button data-o="on">On</button></div></div>
+        <div class="fcol"><span>Includi buchi</span><div class="seg" id="segIncl"><button data-i="si" class="on">Sì</button><button data-i="no">No</button></div></div>
+        <div class="fcol"><span>Categorie da ordinare</span><div class="ms" id="msOrdCat"></div></div>
+        <div class="fcol"><span>&nbsp;</span><button id="ordine" style="border:none;border-radius:8px;background:var(--accent);color:#04121f;font-weight:700;padding:9px 16px;font-size:13.5px">Lista ordine</button></div>
+        <div class="fcol"><span>&nbsp;</span><button class="ghost" id="riepilogo" style="padding:9px 16px">Riepilogo buchi</button></div>
+        <div class="fcol"><span>&nbsp;</span><button class="ghost" id="carrello" style="padding:9px 16px">🛒 Carrello (0)</button></div>
+      </div></div>
+      <div class="tbgroup"><div class="tbglabel">Ordinamento</div><div class="tbrow">
+        <div class="fcol"><span>Ordina referenze</span><select class="sort" id="sortRef"><option value="modello">Modello A-Z</option><option value="giacenza">Giacenza ↓</option><option value="venduto" selected>Venduto ↓</option></select></div>
+        <div class="fcol"><span>Ordina negozi</span><select class="sort" id="sortPdv"><option value="nome">Nome A-Z</option><option value="venduto" selected>Venduto ↓</option></select></div>
+      </div></div>
+      <div class="tbgroup"><div class="tbglabel">Esporta</div><div class="tbrow">
+        <div class="fcol"><span>Excel selezione</span><div style="display:flex;gap:6px"><select class="sort" id="dlmode"><option value="sint">Sintetico</option><option value="full">Completo</option></select><button class="ghost" id="dl" style="padding:9px 14px">Scarica Excel</button></div></div>
+      </div></div>
     </div>
     <div class="legend">
       <span><span class="pill bad">0</span> 0 da riordinare (buco)</span>
@@ -163,7 +173,7 @@ const SUPABASE_KEY="sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s);
 const LADDER=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9"];
-let view="lista", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], FIL={}, extraFil=[], extraStock={}, showExtra=false, TGT={}, ORD={}, editTarget=false, editOrder=false, inclBuchi=true, filView="attive", CART=[], vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
+let view="matrice", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], FIL={}, extraFil=[], extraStock={}, showExtra=false, TGT={}, ORD={}, editTarget=false, editOrder=false, inclBuchi=true, filView="attive", CART=[], vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
 
 async function boot(){const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex";}
 async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; await loadFilters(); run(); checkDataFreshness(); loadCart();}
@@ -186,13 +196,13 @@ async function checkDataFreshness(){
     const vState=vBehind<=1?2:(vBehind===2?1:0);
     const st=Math.min(gState,vState);
     const col=st===2?"var(--ok)":(st===1?"var(--truck)":"var(--bad)");
-    const word=st===2?"Dati aggiornati":(st===1?"Dati da verificare":"Dati non aggiornati");
+    const parts=[]; if(gState<2)parts.push("giacenze"); if(vState<2)parts.push("vendite"); const word=st===2?"Dati aggiornati":(st===1?("Verifica: "+parts.join(" e ")):("Vecchi: "+parts.join(" e ")));
     const fmtDT=d=>d?d.toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
     const fmtD=s=>{ if(!s)return "—"; const p=String(s).split("-"); return p[2]+"/"+p[1]+"/"+p[0]; };
     const dot=document.getElementById("dataDot"),txt=document.getElementById("dataTxt"),wrap=document.getElementById("dataLight");
     if(dot){dot.style.background=col;dot.style.boxShadow="0 0 6px "+col;}
     if(txt){txt.textContent=word;txt.style.color=col;}
-    if(wrap)wrap.title="Giacenze: aggiornate il "+fmtDT(gAgg)+"  •  Vendite: fino al "+fmtD(vDat);
+    if(wrap)wrap.title="Giacenze: aggiornate il "+fmtDT(gAgg)+(gState<2?"  ⚠ da aggiornare":"  ✓")+"\nVendite: fino al "+fmtD(vDat)+(vState<2?"  ⚠ in ritardo":"  ✓");
   }catch(e){ const txt=document.getElementById("dataTxt"); if(txt)txt.textContent="dati ?"; }
 }
 async function loadFilters(){
@@ -261,6 +271,7 @@ $("#segTgt").addEventListener("click",e=>{const b=e.target.closest("button");if(
 $("#segOrd").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#segOrd").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");editOrder=b.dataset.o==="on";if(editOrder){view="matrice";[...$("#seg").children].forEach(x=>x.classList.toggle("on",x.dataset.v==="matrice"));}if(lastCells.length)draw();});
 $("#segIncl").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#segIncl").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");inclBuchi=b.dataset.i==="si";});
 $("#carrello").addEventListener("click",svCartModal);
+$("#tbToggle").addEventListener("click",()=>{const tb=$("#toolbar");if(!tb)return;tb.classList.toggle("collapsed");const a=$("#tbArrow");if(a)a.textContent=tb.classList.contains("collapsed")?"▸":"▾";});
 function svSave(rows,suff){ const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Presenza"); XLSX.writeFile(wb,"controllo_presenza"+(suff||"")+"_"+new Date().toISOString().slice(0,10)+".xlsx"); }
 async function svFetchAll(table,sel,vals,extra){ let out=[]; const CH=150; for(let i=0;i<vals.length;i+=CH){ const part=vals.slice(i,i+CH); let from=0; while(true){ let q=sb.from(table).select(sel).in("barcode",part); if(extra)q=extra(q); const r=await q.range(from,from+999); const d=r.data||[]; out=out.concat(d); if(d.length<1000)break; from+=1000; } } return out; }
 $("#dl").addEventListener("click",async()=>{
@@ -510,7 +521,7 @@ async function loadExtraStock(){
   const ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,q=>q.gte("data",sy).in("filiale",["Z","A"]));
   ve.forEach(x=>{ if(x.filiale!=="Z"&&x.filiale!=="A")return; const o=(extraStock[x.barcode]=extraStock[x.barcode]||{}); const f=(o[x.filiale]=o[x.filiale]||{d:0,m:0,p:0,a:0,v:0}); f.v+=(x.quantita||1); });
   if(filView==="tutte") extraFil=["Z","A"];
-  else if(filView==="giacenza"){ const has=f=>Object.keys(extraStock).some(bc=>{const e=extraStock[bc][f]; return e&&(e.d||e.m||e.p||e.a);}); extraFil=["Z","A"].filter(has); }
+  else if(filView==="giacenza"){ const has=f=>Object.keys(extraStock).some(bc=>{const e=extraStock[bc][f]; return e&&(e.d||e.m||e.p||e.a||e.v);}); extraFil=["Z","A"].filter(has); }
   else extraFil=[];
 }
 function drawMatrix(cells,negozi){
