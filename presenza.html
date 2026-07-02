@@ -89,6 +89,16 @@
   .tbgroup{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:rgba(255,255,255,.02)}
   .tbglabel{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);font-weight:700}
   .tbrow{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .toolbar{gap:8px;padding:8px}
+  .tbgroup{padding:5px 8px;gap:3px}
+  .tbglabel{font-size:9px}
+  .toolbar .tbrow{gap:6px}
+  .toolbar .fcol{gap:2px}
+  .toolbar .fcol>span{font-size:10px}
+  .toolbar .ms-btn{min-width:110px;max-width:150px;padding:5px 8px;font-size:12px}
+  .toolbar .seg button{padding:5px 8px;font-size:11.5px}
+  .toolbar select.sort{padding:5px 7px;font-size:11.5px}
+  .toolbar #ordine,.toolbar #riepilogo,.toolbar #carrello,.toolbar #dl{padding:6px 10px;font-size:12px}
 </style>
 </head>
 <body>
@@ -173,7 +183,7 @@ const SUPABASE_KEY="sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s);
 const LADDER=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9"];
-let view="matrice", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], FIL={}, extraFil=[], extraStock={}, showExtra=false, TGT={}, ORD={}, editTarget=false, editOrder=false, inclBuchi=true, filView="attive", CART=[], vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
+let view="matrice", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], FIL={}, extraFil=[], extraStock={}, showExtra=false, TGT={}, ORD={}, editTarget=false, editOrder=false, inclBuchi=true, filView="attive", CART=[], ORDROWS=[], ORDSORT={k:null,dir:1}, vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
 
 async function boot(){const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex";}
 async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; await loadFilters(); run(); checkDataFreshness(); loadCart();}
@@ -236,7 +246,7 @@ async function refreshCategorie(){
   const f=[...(FILTERS.msFornitore?FILTERS.msFornitore.selected:[])],m=[...(FILTERS.msMarchio?FILTERS.msMarchio.selected:[])],t=[...(FILTERS.msTipo?FILTERS.msTipo.selected:[])];
   const prev=FILTERS.msCategoria?[...FILTERS.msCategoria.selected]:[];
   const r=await sb.rpc("sv_cat",{p_fornitori:f,p_marchi:m,p_tipi:t});
-  const cats=(r.data||[]).map(x=>x.categoria);
+  const VC=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9","SN","SR","SE","SV"]; const raw=(r.data||[]).map(x=>x.categoria); const cats=VC.filter(x=>raw.includes(x));
   mkFilter("msCategoria","Categoria",cats,prev);
 }
 function trunc(s){s=String(s);return s.length>18?s.slice(0,17)+"…":s;}
@@ -305,9 +315,9 @@ $("#ordine").addEventListener("click",async()=>{
     const needCells={}, meta={};
     lastCells.forEach(c=>{ if(!meta[c.barcode])meta[c.barcode]={fornitore:c.fornitore,marchio:c.marchio,tipo_lenti:c.tipo_lenti,categoria:c.categoria,modello:c.modello,colore:c.colore,calibro:c.calibro}; if(inclBuchi && (!FILTERS.msOrdCat || FILTERS.msOrdCat.selected.has(c.categoria))){ const nd=Math.max(0,effTargetActive(c)-c.disponibile); if(nd>0)(needCells[c.barcode]=needCells[c.barcode]||[]).push({neg:c.negozio,fil:c.filiale,nd:nd}); } });
     const bcs=[...new Set(lastCells.map(c=>c.barcode))];
-    const inarr={}, depoDisp={}, zDisp={};
+    const inarr={}, depoDisp={}, zDisp={}, dispMap={};
     const gi=await svFetchAll("giacenze","barcode,filiale,quantita_disponibile,quantita_in_arrivo",bcs);
-    gi.forEach(g=>{ inarr[g.barcode]=(inarr[g.barcode]||0)+(g.quantita_in_arrivo||0); if(g.filiale==="A")depoDisp[g.barcode]=(depoDisp[g.barcode]||0)+(g.quantita_disponibile||0); if(g.filiale==="Z")zDisp[g.barcode]=(zDisp[g.barcode]||0)+(g.quantita_disponibile||0); });
+    gi.forEach(g=>{ inarr[g.barcode]=(inarr[g.barcode]||0)+(g.quantita_in_arrivo||0); if(g.filiale==="A")depoDisp[g.barcode]=(depoDisp[g.barcode]||0)+(g.quantita_disponibile||0); if(g.filiale==="Z")zDisp[g.barcode]=(zDisp[g.barcode]||0)+(g.quantita_disponibile||0); dispMap[g.barcode+"|"+g.filiale]=(g.quantita_disponibile||0); });
     const filNome={B:"Paternò",C:"Acireale",D:"Catania",E:"Augusta",G:"Giarre",H:"Lentini",I:"Portali",Z:"Viale Africa",A:"Deposito"};
     const rows=[];
     bcs.forEach(bc=>{
@@ -326,7 +336,7 @@ $("#ordine").addEventListener("click",async()=>{
         const depoOrder=Math.max(0,dTgt-dDisp); if(depoOrder>0)addO("A","Deposito",depoOrder,false);
       }
       if(catOk){ ["B","C","D","E","G","H","I","Z","A"].forEach(fil=>{ const mo=ORD[bc+"|"+fil]||0; if(mo>0)addO(fil,filNome[fil]||fil,mo,true); }); }
-      Object.keys(acc).forEach(fil=>{ const a=acc[fil]; rows.push(Object.assign({},m,{barcode:bc,negozio:a.neg,filiale:fil,qta:a.qta,manuale:a.manuale,buchi:totNeed,inarrivo:ia,deposito:dDisp})); });
+      Object.keys(acc).forEach(fil=>{ const a=acc[fil]; rows.push(Object.assign({},m,{barcode:bc,negozio:a.neg,filiale:fil,qta:a.qta,manuale:a.manuale,buchi:totNeed,inarrivo:ia,deposito:dDisp,disp:dispMap[bc+"|"+fil]||0})); });
     });
     rows.sort((a,b)=>String(a.fornitore+a.marchio+a.modello+a.negozio).localeCompare(String(b.fornitore+b.marchio+b.modello+b.negozio)));
     if(!rows.length){svOrdModal([]);ob.disabled=false;ob.textContent=lab;return;}
@@ -334,35 +344,36 @@ $("#ordine").addEventListener("click",async()=>{
   }catch(e){alert("Errore lista ordine: "+e);}
   ob.disabled=false; ob.textContent=lab;
 });
-function svOrdModal(rows){
+function svOrdModal(rows){ ORDROWS=(rows||[]).slice(); ORDSORT={k:null,dir:1}; renderOrd(); }
+function renderOrd(){
   const ex=document.getElementById("ovord"); if(ex)ex.remove();
+  const rows=ORDROWS;
   const tot=rows.reduce((s,r)=>s+r.qta,0);
   const refs=new Set(rows.map(r=>r.barcode)).size;
   const pdvs=new Set(rows.map(r=>r.negozio)).size;
   const ov=document.createElement("div"); ov.id="ovord";
   ov.style.cssText="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px";
   const box=document.createElement("div");
-  box.style.cssText="background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:1220px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow);overflow:hidden";
-  const head='<div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;flex-wrap:wrap">'+
-    '<div style="font-size:16px;font-weight:700">Lista ordine</div>'+
-    '<div style="color:var(--muted);font-size:13px"><b style="color:var(--txt)">'+refs+'</b> referenze · <b style="color:var(--accent)">'+tot+'</b> pezzi da ordinare · <b style="color:var(--txt)">'+pdvs+'</b> PDV</div>'+
-    '<div style="flex:1"></div>'+
-    '<button class="ghost" id="ordcart" style="border-color:var(--accent);color:var(--accent)">🛒 Aggiungi al carrello</button><button class="ghost" id="ordxls" style="border-color:var(--ok);color:var(--ok)">Esporta Excel</button>'+
-    '<button class="ghost" id="ordclose">Chiudi</button></div>';
+  box.style.cssText="background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:1320px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow);overflow:hidden";
+  const head='<div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="font-size:16px;font-weight:700">Lista ordine</div><div style="color:var(--muted);font-size:13px"><b style="color:var(--txt)">'+refs+'</b> referenze · <b style="color:var(--accent)">'+tot+'</b> pezzi da ordinare · <b style="color:var(--txt)">'+pdvs+'</b> PDV</div><div style="flex:1"></div><button class="ghost" id="ordcart" style="border-color:var(--accent);color:var(--accent)">🛒 Aggiungi al carrello</button><button class="ghost" id="ordxls" style="border-color:var(--ok);color:var(--ok)">Esporta Excel</button><button class="ghost" id="ordclose">Chiudi</button></div>';
+  const cols=['Fornitore','Marchio','Modello','Colore','Cal.','Categoria','Tipo','Barcode','Negozio','Giacenza','Qta','Manuale','Buchi cod.','In arrivo cod.','In deposito'];
+  const fields=['fornitore','marchio','modello','colore','calibro','categoria','tipo_lenti','barcode','negozio','disp','qta','manuale','buchi','inarrivo','deposito'];
+  const numF={disp:1,qta:1,manuale:1,buchi:1,inarrivo:1,deposito:1};
   let bodyH;
-  if(!rows.length){ bodyH='<div style="padding:40px;text-align:center;color:var(--muted)">Nessun pezzo da ordinare: tutti i buchi sono coperti da quantità in arrivo o giacenza in deposito. ✅</div>'; }
+  if(!rows.length){ bodyH='<div style="padding:40px;text-align:center;color:var(--muted)">Nessun pezzo da ordinare.</div>'; }
   else {
-    bodyH='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+
-    ['Fornitore','Marchio','Modello','Colore','Cal.','Categoria','Tipo','Barcode','Negozio','Qta','Manuale','Buchi cod.','In arrivo cod.','In deposito'].map(h=>'<th style="position:sticky;top:0;background:var(--panel2);color:var(--muted);text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase">'+h+'</th>').join('')+'</tr></thead><tbody>'+
-    rows.map(r=>'<tr style="border-bottom:1px solid var(--line)"><td style="padding:6px 10px">'+esc(r.fornitore)+'</td><td style="padding:6px 10px">'+esc(r.marchio)+'</td><td style="padding:6px 10px">'+esc(r.modello||'')+'</td><td style="padding:6px 10px">'+esc(r.colore||'')+'</td><td style="padding:6px 10px">'+esc(r.calibro||'')+'</td><td style="padding:6px 10px">'+esc(r.categoria||'')+'</td><td style="padding:6px 10px">'+esc(r.tipo_lenti||'')+'</td><td style="padding:6px 10px">'+esc(r.barcode)+'</td><td style="padding:6px 10px;font-weight:700;color:var(--accent)">'+esc(r.negozio)+'</td><td style="padding:6px 10px;text-align:center;color:var(--ok);font-weight:700">'+r.qta+'</td><td style="padding:6px 10px;text-align:center;color:var(--truck)">'+(r.manuale||0)+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.buchi+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.inarrivo+'</td><td style="padding:6px 10px;text-align:center;color:var(--truck)">'+(r.deposito||0)+'</td></tr>').join('')+
-    '</tbody></table></div>';
+    const th=cols.map((h,i)=>'<th data-si="'+i+'" style="cursor:pointer;position:sticky;top:0;background:var(--panel2);color:var(--muted);text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase;white-space:nowrap">'+h+(ORDSORT.k===i?(ORDSORT.dir>0?" ▲":" ▼"):"")+'</th>').join('')+'<th style="position:sticky;top:0;background:var(--panel2)"></th>';
+    const body=rows.map((r,idx)=>'<tr style="border-bottom:1px solid var(--line)"><td style="padding:6px 10px">'+esc(r.fornitore)+'</td><td style="padding:6px 10px">'+esc(r.marchio)+'</td><td style="padding:6px 10px">'+esc(r.modello||'')+'</td><td style="padding:6px 10px">'+esc(r.colore||'')+'</td><td style="padding:6px 10px">'+esc(r.calibro||'')+'</td><td style="padding:6px 10px">'+esc(r.categoria||'')+'</td><td style="padding:6px 10px">'+esc(r.tipo_lenti||'')+'</td><td style="padding:6px 10px">'+esc(r.barcode)+'</td><td style="padding:6px 10px;font-weight:700;color:var(--accent)">'+esc(r.negozio)+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+(r.disp||0)+'</td><td style="padding:6px 10px;text-align:center;color:var(--ok);font-weight:700">'+r.qta+'</td><td style="padding:6px 10px;text-align:center;color:var(--truck)">'+(r.manuale||0)+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.buchi+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+r.inarrivo+'</td><td style="padding:6px 10px;text-align:center;color:var(--muted)">'+(r.deposito||0)+'</td><td style="padding:6px 10px;text-align:center"><span data-rm="'+idx+'" title="rimuovi dalla lista" style="cursor:pointer;color:var(--bad);font-weight:700">✕</span></td></tr>').join('');
+    bodyH='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+th+'</tr></thead><tbody>'+body+'</tbody></table></div>';
   }
-  box.innerHTML=head+bodyH;
-  ov.appendChild(box); document.body.appendChild(ov);
-  document.getElementById("ordclose").onclick=()=>ov.remove(); { const _ocb=document.getElementById("ordcart"); if(_ocb)_ocb.onclick=()=>addToCart(rows); }
+  box.innerHTML=head+bodyH; ov.appendChild(box); document.body.appendChild(ov);
+  document.getElementById("ordclose").onclick=()=>ov.remove();
   ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  { const _ocb=document.getElementById("ordcart"); if(_ocb)_ocb.onclick=()=>addToCart(ORDROWS); }
   const xbtn=document.getElementById("ordxls");
-  if(xbtn)xbtn.onclick=()=>{ const ws=XLSX.utils.json_to_sheet(rows.map(r=>({Fornitore:r.fornitore,Marchio:r.marchio,Modello:r.modello,Colore:r.colore,Calibro:r.calibro,Categoria:r.categoria,Tipo:r.tipo_lenti,Barcode:r.barcode,Negozio:r.negozio,Qta:r.qta,Manuale:(r.manuale||0),BuchiCodice:r.buchi,InArrivoCodice:r.inarrivo,InDeposito:(r.deposito||0)}))); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Ordine"); XLSX.writeFile(wb,"lista_ordine_"+new Date().toISOString().slice(0,10)+".xlsx"); };
+  if(xbtn)xbtn.onclick=()=>{ const ws=XLSX.utils.json_to_sheet(ORDROWS.map(r=>({Fornitore:r.fornitore,Marchio:r.marchio,Modello:r.modello,Colore:r.colore,Calibro:r.calibro,Categoria:r.categoria,Tipo:r.tipo_lenti,Barcode:r.barcode,Negozio:r.negozio,Giacenza:(r.disp||0),Qta:r.qta,Manuale:(r.manuale||0),BuchiCodice:r.buchi,InArrivoCodice:r.inarrivo,InDeposito:(r.deposito||0)}))); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Ordine"); XLSX.writeFile(wb,"lista_ordine_"+new Date().toISOString().slice(0,10)+".xlsx"); };
+  [...box.querySelectorAll('th[data-si]')].forEach(th=>{ th.onclick=()=>{ const i=+th.getAttribute('data-si'); ORDSORT.dir=(ORDSORT.k===i)?-ORDSORT.dir:1; ORDSORT.k=i; const f=fields[i]; ORDROWS.sort((a,b)=>{ if(numF[f])return (((a[f]||0)-(b[f]||0)))*ORDSORT.dir; return String(a[f]==null?"":a[f]).localeCompare(String(b[f]==null?"":b[f]))*ORDSORT.dir; }); renderOrd(); }; });
+  [...box.querySelectorAll('span[data-rm]')].forEach(sp=>{ sp.onclick=()=>{ const idx=+sp.getAttribute('data-rm'); ORDROWS.splice(idx,1); renderOrd(); }; });
 }
 
 $("#riepilogo").addEventListener("click",()=>{
