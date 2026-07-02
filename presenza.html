@@ -634,7 +634,7 @@ function drawMatrix(cells,negozi){
     const q=esc((r.info.marchio||"")+" "+(r.info.modello||"")+" "+(r.info.colore||"")+" occhiali");
     let tr=`<tr><td class="mar ref" data-img="${q}" style="cursor:pointer" title="Cerca immagini Google"><b>${esc(r.info.marchio)} ${esc(r.info.modello||"")}</b><small>${[r.info.tipo_lenti,r.info.categoria,r.info.colore,r.info.calibro,r.info.barcode].filter(Boolean).map(esc).join(" · ")}</small></td>`;
     for(const n of negozi){const c=r.by[n];
-      if(!c){tr+='<td class="filcol cellna" title="non previsto">0</td>';continue;}
+      if(!c){tr+='<td class="filcol cellna" title="non previsto"><div class="cg">0</div><div class="cv">0</div></td>';continue;}
       colTot[n]+=c.disponibile; grand+=c.disponibile; colVend[n]+=c.venduto; grandVend+=c.venduto;
       const t=effTargetActive(c), o=ORD[c.barcode+"|"+c.filiale]||0;
       let cls; if(t===0)cls="cellna"; else if(c.disponibile<t)cls=(c.in_arrivo>0?"cellordered":"cell0"); else cls="cellok";
