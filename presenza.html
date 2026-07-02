@@ -139,6 +139,7 @@
       <div class="fcol"><span>Esporta</span><div style="display:flex;gap:6px"><select class="sort" id="dlmode"><option value="sint">Sintetico</option><option value="full">Completo</option></select><button class="ghost" id="dl" style="padding:9px 14px">Scarica Excel</button></div></div>
       <div class="fcol"><span>Ordine</span><button id="ordine" style="border:none;border-radius:8px;background:var(--accent);color:#04121f;font-weight:700;padding:9px 16px;font-size:13.5px">Lista ordine</button></div>
       <div class="fcol"><span>Riepilogo</span><button class="ghost" id="riepilogo" style="padding:9px 16px">Riepilogo buchi</button></div>
+      <div class="fcol"><span>Carrello</span><button class="ghost" id="carrello" style="padding:9px 16px">🛒 Carrello (0)</button></div>
     </div>
     <div class="legend">
       <span><span class="pill bad">0</span> 0 da riordinare (buco)</span>
@@ -162,10 +163,10 @@ const SUPABASE_KEY="sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s);
 const LADDER=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9"];
-let view="lista", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], FIL={}, extraFil=[], extraStock={}, showExtra=false, TGT={}, ORD={}, editTarget=false, editOrder=false, inclBuchi=true, filView="attive", vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
+let view="lista", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], FIL={}, extraFil=[], extraStock={}, showExtra=false, TGT={}, ORD={}, editTarget=false, editOrder=false, inclBuchi=true, filView="attive", CART=[], vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
 
 async function boot(){const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex";}
-async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; await loadFilters(); run(); checkDataFreshness();}
+async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; await loadFilters(); run(); checkDataFreshness(); loadCart();}
 $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();const b=$("#loginBtn"),er=$("#loginErr");er.textContent="";b.disabled=true;b.textContent="Accesso…";
   const {data,error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pwd").value});
   b.disabled=false;b.textContent="Accedi"; if(error){er.textContent=error.message.includes("Invalid")?"Email o password non corretti.":error.message;return;} showApp(data.session);});
@@ -259,6 +260,7 @@ $("#segFil").addEventListener("click",async e=>{const b=e.target.closest("button
 $("#segTgt").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#segTgt").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");editTarget=b.dataset.e==="on";if(editTarget){view="matrice";[...$("#seg").children].forEach(x=>x.classList.toggle("on",x.dataset.v==="matrice"));}if(lastCells.length)draw();});
 $("#segOrd").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#segOrd").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");editOrder=b.dataset.o==="on";if(editOrder){view="matrice";[...$("#seg").children].forEach(x=>x.classList.toggle("on",x.dataset.v==="matrice"));}if(lastCells.length)draw();});
 $("#segIncl").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#segIncl").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");inclBuchi=b.dataset.i==="si";});
+$("#carrello").addEventListener("click",svCartModal);
 function svSave(rows,suff){ const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Presenza"); XLSX.writeFile(wb,"controllo_presenza"+(suff||"")+"_"+new Date().toISOString().slice(0,10)+".xlsx"); }
 async function svFetchAll(table,sel,vals,extra){ let out=[]; const CH=150; for(let i=0;i<vals.length;i+=CH){ const part=vals.slice(i,i+CH); let from=0; while(true){ let q=sb.from(table).select(sel).in("barcode",part); if(extra)q=extra(q); const r=await q.range(from,from+999); const d=r.data||[]; out=out.concat(d); if(d.length<1000)break; from+=1000; } } return out; }
 $("#dl").addEventListener("click",async()=>{
@@ -333,7 +335,7 @@ function svOrdModal(rows){
     '<div style="font-size:16px;font-weight:700">Lista ordine</div>'+
     '<div style="color:var(--muted);font-size:13px"><b style="color:var(--txt)">'+refs+'</b> referenze · <b style="color:var(--accent)">'+tot+'</b> pezzi da ordinare · <b style="color:var(--txt)">'+pdvs+'</b> PDV</div>'+
     '<div style="flex:1"></div>'+
-    '<button class="ghost" id="ordxls" style="border-color:var(--ok);color:var(--ok)">Esporta Excel</button>'+
+    '<button class="ghost" id="ordcart" style="border-color:var(--accent);color:var(--accent)">🛒 Aggiungi al carrello</button><button class="ghost" id="ordxls" style="border-color:var(--ok);color:var(--ok)">Esporta Excel</button>'+
     '<button class="ghost" id="ordclose">Chiudi</button></div>';
   let bodyH;
   if(!rows.length){ bodyH='<div style="padding:40px;text-align:center;color:var(--muted)">Nessun pezzo da ordinare: tutti i buchi sono coperti da quantità in arrivo o giacenza in deposito. ✅</div>'; }
@@ -345,7 +347,7 @@ function svOrdModal(rows){
   }
   box.innerHTML=head+bodyH;
   ov.appendChild(box); document.body.appendChild(ov);
-  document.getElementById("ordclose").onclick=()=>ov.remove();
+  document.getElementById("ordclose").onclick=()=>ov.remove(); { const _ocb=document.getElementById("ordcart"); if(_ocb)_ocb.onclick=()=>addToCart(rows); }
   ov.onclick=e=>{if(e.target===ov)ov.remove();};
   const xbtn=document.getElementById("ordxls");
   if(xbtn)xbtn.onclick=()=>{ const ws=XLSX.utils.json_to_sheet(rows.map(r=>({Fornitore:r.fornitore,Marchio:r.marchio,Modello:r.modello,Colore:r.colore,Calibro:r.calibro,Categoria:r.categoria,Tipo:r.tipo_lenti,Barcode:r.barcode,Negozio:r.negozio,Qta:r.qta,Manuale:(r.manuale||0),BuchiCodice:r.buchi,InArrivoCodice:r.inarrivo,InDeposito:(r.deposito||0)}))); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Ordine"); XLSX.writeFile(wb,"lista_ordine_"+new Date().toISOString().slice(0,10)+".xlsx"); };
@@ -383,6 +385,63 @@ function effTargetActive(c){ const v=TGT[c.barcode+"|"+c.filiale]; return v===un
 function effTargetExtra(bc,fil){ const v=TGT[bc+"|"+fil]; return v===undefined?0:v; }
 async function saveTarget(bc,fil,val){ val=Math.max(0,parseInt(val,10)||0); TGT[bc+"|"+fil]=val; try{ await sb.from("stock_target").upsert({barcode:bc,filiale:fil,target_qty:val},{onConflict:"barcode,filiale"}); }catch(e){ alert("Errore salvataggio target: "+e); } draw(); }
 async function saveOrder(bc,fil,val){ val=Math.max(0,parseInt(val,10)||0); if(val>0)ORD[bc+"|"+fil]=val; else delete ORD[bc+"|"+fil]; try{ if(val>0)await sb.from("ordine_manuale").upsert({barcode:bc,filiale:fil,qta:val},{onConflict:"barcode,filiale"}); else await sb.from("ordine_manuale").delete().eq("barcode",bc).eq("filiale",fil); }catch(e){ alert("Errore ordine manuale: "+e); } draw(); }
+async function loadCart(){ try{ const r=await sb.from("carrello").select("*"); CART=r.data||[]; }catch(e){ CART=[]; } updateCartBtn(); }
+function updateCartBtn(){ const b=document.getElementById("carrello"); if(b)b.textContent="🛒 Carrello ("+CART.length+")"; }
+async function addToCart(rows){ if(!rows||!rows.length){alert("Niente da aggiungere.");return;}
+  const payload=rows.map(r=>({barcode:r.barcode,filiale:r.filiale,negozio:r.negozio,fornitore:r.fornitore,marchio:r.marchio,tipo_lenti:r.tipo_lenti,categoria:r.categoria,modello:r.modello,colore:r.colore,calibro:r.calibro,qta:r.qta,manuale:r.manuale||0}));
+  try{ await sb.from("carrello").upsert(payload,{onConflict:"barcode,filiale"}); }catch(e){ alert("Errore carrello: "+e); return; }
+  await loadCart(); const ov=document.getElementById("ovord"); if(ov)ov.remove();
+  alert("Aggiunte "+payload.length+" righe al carrello. Totale: "+CART.length+" righe."); }
+async function remCart(bc,fil){ try{ await sb.from("carrello").delete().eq("barcode",bc).eq("filiale",fil); }catch(e){} await loadCart(); svCartModal(); }
+async function svuotaCart(){ if(!confirm("Svuotare tutto il carrello?"))return; try{ await sb.from("carrello").delete().neq("barcode","___none___"); }catch(e){} await loadCart(); svCartModal(); }
+function svCartModal(){
+  const ex=document.getElementById("ovcart"); if(ex)ex.remove();
+  const ov=document.createElement("div"); ov.id="ovcart";
+  ov.style.cssText="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px";
+  const box=document.createElement("div");
+  box.style.cssText="background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:1150px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow);overflow:hidden";
+  const totPezzi=CART.reduce((s,r)=>s+(r.qta||0),0);
+  const forns=[...new Set(CART.map(r=>r.fornitore))].sort();
+  const head='<div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="font-size:16px;font-weight:700">Carrello ordini</div><div style="color:var(--muted);font-size:13px"><b style="color:var(--txt)">'+CART.length+'</b> righe · <b style="color:var(--accent)">'+totPezzi+'</b> pezzi · <b style="color:var(--txt)">'+forns.length+'</b> fornitori</div><div style="flex:1"></div><button class="ghost" id="cartCheckout" style="border-color:var(--ok);color:var(--ok)">Checkout (file per fornitore)</button><button class="ghost" id="cartClear" style="border-color:var(--bad);color:var(--bad)">Svuota</button><button class="ghost" id="cartClose">Chiudi</button></div>';
+  let body;
+  if(!CART.length){ body='<div style="padding:40px;text-align:center;color:var(--muted)">Carrello vuoto. Genera una Lista ordine e premi "Aggiungi al carrello".</div>'; }
+  else {
+    body='<div style="overflow:auto;padding:8px 0">';
+    forns.forEach(fn=>{
+      const rowsF=CART.filter(r=>r.fornitore===fn); const pz=rowsF.reduce((s,r)=>s+(r.qta||0),0);
+      body+='<div style="padding:10px 20px 4px;font-weight:700;color:var(--accent)">'+esc(fn||"(senza fornitore)")+' · '+rowsF.length+' righe · '+pz+' pezzi</div>';
+      body+='<table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>';
+      rowsF.slice().sort((a,b)=>String((a.marchio||"")+(a.modello||"")+(a.negozio||"")).localeCompare(String((b.marchio||"")+(b.modello||"")+(b.negozio||"")))).forEach(r=>{
+        body+='<tr style="border-bottom:1px solid var(--line)"><td style="padding:4px 20px">'+esc(r.marchio||"")+'</td><td style="padding:4px 8px">'+esc(r.modello||"")+'</td><td style="padding:4px 8px;color:var(--muted)">'+esc(r.colore||"")+' · '+esc(r.calibro||"")+'</td><td style="padding:4px 8px">'+esc(r.barcode)+'</td><td style="padding:4px 8px;color:var(--accent)">'+esc(r.negozio||r.filiale)+'</td><td style="padding:4px 8px;text-align:center;font-weight:700">'+r.qta+'</td><td style="padding:4px 20px 4px 8px;text-align:right"><span title="rimuovi" style="cursor:pointer;color:var(--bad)" onclick="remCart(\''+r.barcode+'\',\''+r.filiale+'\')">✕</span></td></tr>';
+      });
+      body+='</tbody></table>';
+    });
+    body+='</div>';
+  }
+  box.innerHTML=head+body; ov.appendChild(box); document.body.appendChild(ov);
+  document.getElementById("cartClose").onclick=()=>ov.remove();
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  const cc=document.getElementById("cartClear"); if(cc)cc.onclick=svuotaCart;
+  const co=document.getElementById("cartCheckout"); if(co)co.onclick=checkout;
+}
+function checkout(){
+  if(!CART.length){alert("Carrello vuoto.");return;}
+  const forns=[...new Set(CART.map(r=>r.fornitore))];
+  const today=new Date().toISOString().slice(0,10);
+  forns.forEach(fn=>{
+    const rowsF=CART.filter(r=>r.fornitore===fn);
+    const agg={};
+    rowsF.forEach(r=>{ const k=r.barcode; if(!agg[k])agg[k]={Marchio:r.marchio,Modello:r.modello,Colore:r.colore,Calibro:r.calibro,Categoria:r.categoria,Tipo:r.tipo_lenti,Barcode:r.barcode,Qta:0}; agg[k].Qta+=(r.qta||0); });
+    const riep=Object.keys(agg).map(k=>agg[k]).sort((a,b)=>String((a.Marchio||"")+(a.Modello||"")).localeCompare(String((b.Marchio||"")+(b.Modello||""))));
+    const dett=rowsF.map(r=>({Marchio:r.marchio,Modello:r.modello,Colore:r.colore,Calibro:r.calibro,Categoria:r.categoria,Tipo:r.tipo_lenti,Barcode:r.barcode,Negozio:r.negozio,Qta:r.qta,Manuale:r.manuale})).sort((a,b)=>String((a.Marchio||"")+(a.Modello||"")+(a.Negozio||"")).localeCompare(String((b.Marchio||"")+(b.Modello||"")+(b.Negozio||""))));
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(riep),"Riepilogo");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(dett),"Per negozio");
+    const safe=String(fn||"fornitore").replace(/[^a-zA-Z0-9]+/g,"_");
+    XLSX.writeFile(wb,"ordine_"+safe+"_"+today+".xlsx");
+  });
+}
+
 function scheduleRun(){ clearTimeout(runT); runT=setTimeout(run,300); }
 
 async function run(){
