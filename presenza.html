@@ -68,7 +68,7 @@
   .cell0{color:var(--bad);font-weight:700;background:rgba(255,107,107,.1)}
   .cellordered{color:var(--ok);font-weight:700;background:rgba(54,201,141,.13)}
   .cellok{color:var(--ok);font-weight:600}
-  .cellna{color:#3a4d63}
+  .cellna{color:var(--muted);background:rgba(255,255,255,.045)}
   .cg{line-height:1.25}
   .cv{margin-top:2px;padding-top:2px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;font-weight:600;line-height:1.1}
   .bdgs{position:absolute;top:1px;right:2px;display:flex;flex-direction:column;gap:1px;align-items:flex-end;line-height:1}
@@ -525,6 +525,24 @@ async function injectVialeAfrica(){
   }catch(e){ console.log("injectVialeAfrica err",e); }
 }
 
+async function fillGhostCells(){
+  try{
+    const active=["B","C","D","E","G","H","I","Z"];
+    const have=new Set(lastCells.map(c=>c.barcode+"|"+c.filiale));
+    const meta={};
+    lastCells.forEach(c=>{ if(!meta[c.barcode])meta[c.barcode]={fornitore:c.fornitore,marchio:c.marchio,tipo_lenti:c.tipo_lenti,categoria:c.categoria,modello:c.modello,colore:c.colore,calibro:c.calibro}; });
+    const bcs=Object.keys(meta);
+    if(!bcs.length||bcs.length>900)return;
+    const gi=await svFetchAll("giacenze","barcode,filiale,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo",bcs,q=>q.in("filiale",active));
+    const gmap={}; gi.forEach(g=>{ const k=g.barcode+"|"+g.filiale; const o=gmap[k]=gmap[k]||{d:0,m:0,p:0,a:0}; o.d+=g.quantita_disponibile||0; o.m+=g.quantita_magazzino||0; o.p+=g.quantita_prenotata||0; o.a+=g.quantita_in_arrivo||0; });
+    const sy=new Date().getFullYear()+"-01-01";
+    const ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,q=>q.in("filiale",active).gte("data",sy));
+    const vmap={}; ve.forEach(x=>{ const k=x.barcode+"|"+x.filiale; vmap[k]=(vmap[k]||0)+(x.quantita||1); });
+    bcs.forEach(bc=>{ active.forEach(fil=>{ const k=bc+"|"+fil; if(have.has(k))return; const g=gmap[k], v=vmap[k]||0;
+      lastCells.push(Object.assign({},meta[bc],{barcode:bc,filiale:fil,negozio:(FIL[fil]?FIL[fil].nome:fil),disponibile:g?g.d:0,magazzino:g?g.m:0,prenotati:g?g.p:0,in_arrivo:g?g.a:0,presente:!!(g&&g.d>0),venduto:v,_x:true,_np:true})); }); });
+  }catch(e){ console.log("fillGhostCells err",e); }
+}
+
 function scheduleRun(){ clearTimeout(runT); runT=setTimeout(run,300); }
 
 async function run(){
@@ -537,7 +555,7 @@ async function run(){
   if(bcs.length){const vb=await sb.rpc("vendite_per_barcode",{p_barcodes:bcs});(vb.data||[]).forEach(r=>vbarcode[r.barcode]=Number(r.pezzi));}
   if(showExtra)await loadExtraStock();
   await loadExtraCats();
-  await injectVialeAfrica();
+  await fillGhostCells();
   refreshOrdCat();
   draw();
 }
