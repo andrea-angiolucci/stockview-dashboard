@@ -272,6 +272,7 @@ $("#segOrd").addEventListener("click",e=>{const b=e.target.closest("button");if(
 $("#segIncl").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#segIncl").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");inclBuchi=b.dataset.i==="si";});
 $("#carrello").addEventListener("click",svCartModal);
 $("#tbToggle").addEventListener("click",()=>{const tb=$("#toolbar");if(!tb)return;tb.classList.toggle("collapsed");const a=$("#tbArrow");if(a)a.textContent=tb.classList.contains("collapsed")?"▸":"▾";});
+document.addEventListener("click",e=>{const m=e.target.closest("#tbl td.mar[data-img]");if(m){const q=m.getAttribute("data-img");if(q)window.open("https://www.google.com/search?tbm=isch&q="+encodeURIComponent(q),"_blank");}});
 function svSave(rows,suff){ const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Presenza"); XLSX.writeFile(wb,"controllo_presenza"+(suff||"")+"_"+new Date().toISOString().slice(0,10)+".xlsx"); }
 async function svFetchAll(table,sel,vals,extra){ let out=[]; const CH=150; for(let i=0;i<vals.length;i+=CH){ const part=vals.slice(i,i+CH); let from=0; while(true){ let q=sb.from(table).select(sel).in("barcode",part); if(extra)q=extra(q); const r=await q.range(from,from+999); const d=r.data||[]; out=out.concat(d); if(d.length<1000)break; from+=1000; } } return out; }
 $("#dl").addEventListener("click",async()=>{
@@ -537,9 +538,10 @@ function drawMatrix(cells,negozi){
   const TIN='<input class="tgtin" type="number" min="0" style="width:34px;padding:1px 3px;font-size:11px;background:var(--panel);border:1px solid var(--accent);color:var(--txt);border-radius:4px" value="';
   const OIN='<input class="ordin" type="number" min="0" style="width:34px;padding:1px 3px;font-size:11px;margin-top:2px;background:var(--panel);border:1px solid var(--truck);color:var(--txt);border-radius:4px" value="';
   const body=rows.map(r=>{
-    let tr=`<tr><td class="mar ref"><b>${esc(r.info.marchio)} ${esc(r.info.modello||"")}</b><small>${[r.info.tipo_lenti,r.info.categoria,r.info.colore,r.info.calibro,r.info.barcode].filter(Boolean).map(esc).join(" · ")}</small></td>`;
+    const q=esc((r.info.marchio||"")+" "+(r.info.modello||"")+" "+(r.info.colore||"")+" occhiali");
+    let tr=`<tr><td class="mar ref" data-img="${q}" style="cursor:pointer" title="Cerca immagini Google"><b>${esc(r.info.marchio)} ${esc(r.info.modello||"")}</b><small>${[r.info.tipo_lenti,r.info.categoria,r.info.colore,r.info.calibro,r.info.barcode].filter(Boolean).map(esc).join(" · ")}</small></td>`;
     for(const n of negozi){const c=r.by[n];
-      if(!c){tr+='<td class="filcol cellna">·</td>';continue;}
+      if(!c){tr+='<td class="filcol cellna" title="non previsto">0</td>';continue;}
       colTot[n]+=c.disponibile; grand+=c.disponibile; colVend[n]+=c.venduto; grandVend+=c.venduto;
       const t=effTargetActive(c), o=ORD[c.barcode+"|"+c.filiale]||0;
       let cls; if(t===0)cls="cellna"; else if(c.disponibile<t)cls=(c.in_arrivo>0?"cellordered":"cell0"); else cls="cellok";
