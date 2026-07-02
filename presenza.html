@@ -99,6 +99,14 @@
   .toolbar .seg button{padding:5px 8px;font-size:11.5px}
   .toolbar select.sort{padding:5px 7px;font-size:11.5px}
   .toolbar #ordine,.toolbar #riepilogo,.toolbar #carrello,.toolbar #dl{padding:6px 10px;font-size:12px}
+
+  /* toolbar una riga */
+  .toolbar{flex-wrap:nowrap!important;overflow-x:auto;gap:10px;align-items:stretch}
+  .toolbar .tbgroup{flex:0 0 auto}
+  .toolbar .tbrow{flex-wrap:nowrap}
+  .toolbar .ms-btn{min-width:84px;max-width:150px;font-size:12px}
+  .toolbar .fcol>span{font-size:11px}
+  .toolbar .fcol{gap:3px}
 </style>
 </head>
 <body>
@@ -485,7 +493,7 @@ async function loadExtraCats(){
   const oc=[...(FILTERS.msCategoria?FILTERS.msCategoria.selected:[])];
   const tset=tp.map(x=>String(x).toLowerCase());
   let gi=[];
-  for(let i=0;i<norms.length;i+=100){ const part=norms.slice(i,i+100); let from=0; while(true){ const r=await sb.from("giacenze").select("barcode,filiale,marchio_norm,categoria,tipo_lenti,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo,modello,colore,calibro").in("marchio_norm",part).in("filiale",["B","C","D","E","G","H","I"]).range(from,from+999); const d=r.data||[]; gi=gi.concat(d); if(d.length<1000)break; from+=1000; } }
+  for(let i=0;i<norms.length;i+=100){ const part=norms.slice(i,i+100); let from=0; while(true){ const r=await sb.from("giacenze").select("barcode,filiale,marchio_norm,categoria,tipo_lenti,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo,modello,colore,calibro").in("marchio_norm",part).in("filiale",["B","C","D","E","G","H","I","Z"]).range(from,from+999); const d=r.data||[]; gi=gi.concat(d); if(d.length<1000)break; from+=1000; } }
   gi=gi.filter(g=>{ const cat=(g.categoria||"").toUpperCase(); if(ladder[cat])return false; if(oc.length && !oc.includes(cat))return false; if(tset.length && !tset.includes((g.tipo_lenti||"").toLowerCase()))return false; return true; });
   if(!gi.length)return;
   const bcs=[...new Set(gi.map(g=>g.barcode))];
@@ -496,6 +504,21 @@ async function loadExtraCats(){
   Object.keys(agg).forEach(k=>{ const a=agg[k], g=a.g; const marchio=normMap[g.marchio_norm]||g.marchio_norm;
     lastCells.push({fornitore:(fornMap[marchio]||""), marchio:marchio, tipo_lenti:g.tipo_lenti, categoria:(g.categoria||"").toUpperCase(), barcode:g.barcode, modello:g.modello, colore:g.colore, calibro:g.calibro, filiale:g.filiale, negozio:(FIL[g.filiale]?FIL[g.filiale].nome:g.filiale), disponibile:a.d, magazzino:a.mag, prenotati:a.pren, in_arrivo:a.arr, presente:a.d>0, venduto:(vmap[k]||0), _x:true }); });
   }catch(e){ console.log("loadExtraCats err",e); }
+}
+
+async function injectVialeAfrica(){
+  try{
+    const meta={}, seenZ=new Set();
+    lastCells.forEach(c=>{ if(c.filiale==="Z")seenZ.add(c.barcode); if(!c._x && !meta[c.barcode])meta[c.barcode]={fornitore:c.fornitore,marchio:c.marchio,tipo_lenti:c.tipo_lenti,categoria:c.categoria,modello:c.modello,colore:c.colore,calibro:c.calibro}; });
+    const bcs=Object.keys(meta).filter(bc=>!seenZ.has(bc));
+    if(!bcs.length)return;
+    const gi=await svFetchAll("giacenze","barcode,filiale,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo",bcs,q=>q.eq("filiale","Z"));
+    const gz={}; gi.forEach(g=>{ if(g.filiale!=="Z")return; const o=gz[g.barcode]=gz[g.barcode]||{d:0,m:0,p:0,a:0}; o.d+=g.quantita_disponibile||0; o.m+=g.quantita_magazzino||0; o.p+=g.quantita_prenotata||0; o.a+=g.quantita_in_arrivo||0; });
+    const sy=new Date().getFullYear()+"-01-01";
+    const ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,q=>q.eq("filiale","Z").gte("data",sy));
+    const vz={}; ve.forEach(x=>{ if(x.filiale!=="Z")return; vz[x.barcode]=(vz[x.barcode]||0)+(x.quantita||1); });
+    bcs.forEach(bc=>{ const s=gz[bc]; lastCells.push(Object.assign({},meta[bc],{barcode:bc,filiale:"Z",negozio:"Viale Africa",disponibile:s?s.d:0,magazzino:s?s.m:0,prenotati:s?s.p:0,in_arrivo:s?s.a:0,presente:!!(s&&s.d>0),venduto:vz[bc]||0,_x:true})); });
+  }catch(e){ console.log("injectVialeAfrica err",e); }
 }
 
 function scheduleRun(){ clearTimeout(runT); runT=setTimeout(run,300); }
@@ -510,6 +533,7 @@ async function run(){
   if(bcs.length){const vb=await sb.rpc("vendite_per_barcode",{p_barcodes:bcs});(vb.data||[]).forEach(r=>vbarcode[r.barcode]=Number(r.pezzi));}
   if(showExtra)await loadExtraStock();
   await loadExtraCats();
+  await injectVialeAfrica();
   refreshOrdCat();
   draw();
 }
@@ -567,8 +591,8 @@ async function loadExtraStock(){
   const sy=new Date().getFullYear()+"-01-01";
   const ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,q=>q.gte("data",sy).in("filiale",["Z","A"]));
   ve.forEach(x=>{ if(x.filiale!=="Z"&&x.filiale!=="A")return; const o=(extraStock[x.barcode]=extraStock[x.barcode]||{}); const f=(o[x.filiale]=o[x.filiale]||{d:0,m:0,p:0,a:0,v:0}); f.v+=(x.quantita||1); });
-  if(filView==="tutte") extraFil=["Z","A"];
-  else if(filView==="giacenza"){ const has=f=>Object.keys(extraStock).some(bc=>{const e=extraStock[bc][f]; return e&&(e.d||e.m||e.p||e.a||e.v);}); extraFil=["Z","A"].filter(has); }
+  if(filView==="tutte") extraFil=["A"];
+  else if(filView==="giacenza"){ const has=f=>Object.keys(extraStock).some(bc=>{const e=extraStock[bc][f]; return e&&(e.d||e.m||e.p||e.a||e.v);}); extraFil=["A"].filter(has); }
   else extraFil=[];
 }
 function drawMatrix(cells,negozi){
@@ -594,7 +618,7 @@ function drawMatrix(cells,negozi){
       let extra="";
       if(c.prenotati>0)extra+=`<span class="bdg pkg" title="${c.prenotati} prenotati">📦${c.prenotati}</span>`;
       if(c.in_arrivo>0)extra+=`<span class="bdg truck" title="${c.in_arrivo} in arrivo">🚚${c.in_arrivo}</span>`;
-      const tg=editTarget?(TIN+t+'">'):(t!==1?`<span style="position:absolute;bottom:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t}</span>`:"");
+      const tg=editTarget?(TIN+t+'">'):(t!==1?`<span style="position:absolute;top:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t}</span>`:"");
       const og=editOrder?(OIN+o+'">'):(o>0?`<span style="position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--truck);font-weight:700">✎${o}</span>`:"");
       tr+=`<td class="filcol ${cls}" data-bc="${esc(c.barcode)}" data-fil="${esc(c.filiale)}" data-tgt="${t}" data-ord="${o}" title="obiettivo ${t} · disp ${c.disponibile} · mag ${c.magazzino} · pren ${c.prenotati} · in arrivo ${c.in_arrivo} · venduto ${c.venduto} · ord.man ${o}"><div class="cg">${c.disponibile}</div>${tg}<div class="cv" title="venduto anno">${c.venduto}</div>${og}${extra?`<span class="bdgs">${extra}</span>`:""}</td>`;
     }
@@ -603,7 +627,7 @@ function drawMatrix(cells,negozi){
       let ex2="";
       if(s&&s.p>0)ex2+=`<span class="bdg pkg" title="${s.p} prenotati">📦${s.p}</span>`;
       if(s&&s.a>0)ex2+=`<span class="bdg truck" title="${s.a} in arrivo">🚚${s.a}</span>`;
-      const tg=editTarget?(TIN+t+'">'):(t!==0?`<span style="position:absolute;bottom:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t}</span>`:"");
+      const tg=editTarget?(TIN+t+'">'):(t!==0?`<span style="position:absolute;top:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t}</span>`:"");
       const og=editOrder?(OIN+o+'">'):(o>0?`<span style="position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--truck);font-weight:700">✎${o}</span>`:"");
       tr+=`<td class="filcol ${cls}" data-bc="${esc(r.info.barcode)}" data-fil="${esc(f)}" data-tgt="${t}" data-ord="${o}" style="background:rgba(255,255,255,.02)" title="${esc(filName(f))} · obiettivo ${t} · disp ${disp} · mag ${s?s.m:0} · pren ${s?s.p:0} · in arrivo ${s?s.a:0} · venduto ${vend} · ord.man ${o}"><div class="cg">${disp}</div>${tg}<div class="cv" title="venduto anno">${vend}</div>${og}${ex2?`<span class="bdgs">${ex2}</span>`:""}</td>`;
     }
