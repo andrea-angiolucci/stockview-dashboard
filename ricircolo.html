@@ -134,7 +134,7 @@ function exportRic(){
 }
 async function run(){
   $("#body").innerHTML='<div class="empty">Calcolo ricircolo su tutte le linee…</div>';
-  const {data,error}=await sb.rpc("presenza_celle2",{p_marchi:null,p_tipi:null,p_categorie:null,p_frnitori:null}).range(0,49999);
+  const {data,error}=await sb.rpc("presenza_celle2",{p_marchi:null,p_tipi:null,p_categorie:null,p_fornitori:null}).range(0,49999);
   if(error){ $("#body").innerHTML='<div class="empty" style="color:var(--bad)">Errore: '+esc(error.message)+'</div>'; return; }
   let TGT={};
   try{ const r=await sb.from("stock_target").select("barcode,filiale,target_qty"); (r.data||[]).forEach(x=>TGT[x.barcode+"|"+x.filiale]=x.target_qty); }catch(e){}
