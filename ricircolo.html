@@ -134,11 +134,19 @@ function exportRic(){
 }
 async function run(){
   $("#body").innerHTML='<div class="empty">Calcolo ricircolo su tutte le linee…</div>';
-  const {data,error}=await sb.rpc("presenza_celle2",{p_marchi:null,p_tipi:null,p_categorie:null,p_fornitori:null}).range(0,49999);
-  if(error){ $("#body").innerHTML='<div class="empty" style="color:var(--bad)">Errore: '+esc(error.message)+'</div>'; return; }
+  let marchi=[];
+  try{ const r=await sb.from("assortimento_marchio").select("marchio").limit(50000); const set={}; (r.data||[]).forEach(x=>{ if(x.marchio)set[x.marchio]=1; }); marchi=Object.keys(set).sort(); }catch(e){}
+  if(!marchi.length){ $("#body").innerHTML='<div class="empty" style="color:var(--bad)">Nessuna linea trovata negli assortimenti ideali.</div>'; return; }
   let TGT={};
   try{ const r=await sb.from("stock_target").select("barcode,filiale,target_qty"); (r.data||[]).forEach(x=>TGT[x.barcode+"|"+x.filiale]=x.target_qty); }catch(e){}
-  MOVES=computeRicircolo(data||[],TGT);
+  let all=[], done=0;
+  for(const m of marchi){
+    const {data,error}=await sb.rpc("presenza_celle2",{p_marchi:[m],p_tipi:null,p_categorie:null,p_fornitori:null}).range(0,49999);
+    if(!error&&data) all.push.apply(all,data);
+    done++;
+    $("#body").innerHTML='<div class="empty">Calcolo ricircolo… <b>'+done+'/'+marchi.length+'</b> linee</div>';
+  }
+  MOVES=computeRicircolo(all,TGT);
   buildStoreOptions();
   render($("#store").value||"");
 }
