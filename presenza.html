@@ -730,7 +730,8 @@ async function loadExtraStock(){
 }
 function drawMatrix(cells,negozi){
   const refs=new Map();
-  for(const c of cells){ if(!refs.has(c.barcode))refs.set(c.barcode,{info:c,by:{},_tot:0,_vtot:0,_buchi:0}); const r=refs.get(c.barcode); r.by[c.negozio]=c; r._tot+=c.disponibile; r._vtot+=c.venduto; if(c.disponibile<effTargetActive(c))r._buchi++; }
+  for(const c of cells){ if(!refs.has(c.barcode))refs.set(c.barcode,{info:c,by:{},_tot:0,_vtot:0,_buchi:0}); const r=refs.get(c.barcode); r.by[c.negozio]=c; }
+  for(const r of refs.values()){ for(const k in r.by){ const c=r.by[k]; r._tot+=c.disponibile; r._vtot+=c.venduto; if(c.disponibile<effTargetActive(c))r._buchi++; } }
   let rows=[...refs.values()];
   if(showMode==="mancanti") rows=rows.filter(r=>r._buchi>0);
   sortRows(rows);
