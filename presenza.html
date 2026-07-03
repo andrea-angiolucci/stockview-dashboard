@@ -274,7 +274,7 @@ function mkFilter(elId,label,items,preselected){
     '<div class="ms-pop"><input class="ms-search" placeholder="Cerca…"/><div class="ms-acts"><button data-a="all">Tutti</button><button data-a="none">Nessuno</button></div><div class="ms-list"></div></div>';
   const btn=host.querySelector(".ms-btn"),pop=host.querySelector(".ms-pop"),list=host.querySelector(".ms-list"),search=host.querySelector(".ms-search");
   const sel=new Set((preselected||[]).filter(x=>items.includes(x))); FILTERS[elId]={selected:sel,items};
-  function changed(){ if(elId==="msOrdCat"||elId==="msOrdPdv")return; if(elId==="msFornitore")refreshCascade("msFornitore"); else if(elId==="msMarchio")refreshCascade("msMarchio"); if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo")refreshCategorie(); scheduleRun(); savePrefs(); }
+  async function changed(){ if(elId==="msOrdCat"||elId==="msOrdPdv")return; if(elId==="msFornitore")refreshCascade("msFornitore"); else if(elId==="msMarchio")refreshCascade("msMarchio"); if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo")await refreshCategorie(); scheduleRun(); savePrefs(); }
   function render(f){f=(f||"").toLowerCase();list.innerHTML="";items.filter(it=>!f||String(it).toLowerCase().includes(f)).forEach(it=>{
     const row=document.createElement("label");row.className="ms-item";const cb=document.createElement("input");cb.type="checkbox";cb.checked=sel.has(it);
     cb.onchange=()=>{cb.checked?sel.add(it):sel.delete(it);upd();changed();};const sp=document.createElement("span");sp.textContent=it;row.appendChild(cb);row.appendChild(sp);list.appendChild(row);});}
@@ -434,7 +434,7 @@ function updateCartBtn(){ const b=document.getElementById("carrello"); if(b)b.te
 async function addToCart(rows){ if(!rows||!rows.length){alert("Niente da aggiungere.");return;}
   const payload=rows.map(r=>({barcode:r.barcode,filiale:r.filiale,negozio:r.negozio,fornitore:r.fornitore,marchio:r.marchio,tipo_lenti:r.tipo_lenti,categoria:r.categoria,modello:r.modello,colore:r.colore,calibro:r.calibro,qta:r.qta,manuale:r.manuale||0}));
   try{ await sb.from("carrello").upsert(payload,{onConflict:"barcode,filiale"}); }catch(e){ alert("Errore carrello: "+e); return; }
-  await loadCart(); const ov=document.getElementById("ovord"); if(ov)ov.remove();
+  for(const _r of rows){ const _k=_r.barcode+"|"+_r.filiale; if(ORD[_k]!==undefined){ try{ await sb.from("ordine_manuale").delete().eq("barcode",_r.barcode).eq("filiale",_r.filiale); }catch(e){} delete ORD[_k]; } } await loadCart(); draw(); const ov=document.getElementById("ovord"); if(ov)ov.remove();
   alert("Aggiunte "+payload.length+" righe al carrello. Totale: "+CART.length+" righe."); }
 async function remCart(bc,fil){ try{ await sb.from("carrello").delete().eq("barcode",bc).eq("filiale",fil); }catch(e){} await loadCart(); svCartModal(); }
 async function svuotaCart(){ if(!confirm("Svuotare tutto il carrello?"))return; try{ await sb.from("carrello").delete().neq("barcode","___none___"); }catch(e){} await loadCart(); svCartModal(); }
