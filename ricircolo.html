@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockView — Ricircolo</title>
+<style>
+  :root{--bg:#0f1720;--panel:#16212e;--panel2:#1c2a3a;--line:#26384c;--txt:#e8eef5;--muted:#8aa0b6;--accent:#3da9fc;--ok:#36c98d;--bad:#ff6b6b;--truck:#f5a524;--shadow:0 10px 30px rgba(0,0,0,.35)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+  header{display:flex;align-items:center;gap:18px;padding:12px 22px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:20}
+  .brand{display:flex;align-items:center;gap:10px}
+  .dot{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#7c3aed);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff}
+  h1{font-size:17px;margin:0}
+  nav{display:flex;gap:6px}
+  nav a{color:var(--muted);text-decoration:none;padding:7px 12px;border-radius:8px;font-weight:600}
+  nav a:hover{background:var(--panel2);color:var(--txt)}
+  nav a.cur{background:var(--accent);color:#04121f}
+  .spacer{flex:1}
+  .who{color:var(--muted);font-size:13px}
+  .wrap{max-width:1500px;margin:0 auto;padding:18px 22px}
+  .bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .stat b{color:var(--txt)}
+  select,button{font-family:inherit}
+  select{padding:6px 9px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);color:var(--txt)}
+  .btn{padding:7px 13px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);cursor:pointer;font-weight:600}
+  .btn.ok{border-color:var(--ok);color:var(--ok)}
+  .btn.acc{border-color:var(--accent);color:var(--accent)}
+  table{width:100%;border-collapse:collapse;font-size:13px;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th{position:sticky;top:56px;background:var(--panel2);color:var(--muted);text-align:left;padding:9px 12px;font-size:11px;text-transform:uppercase;white-space:nowrap}
+  td{padding:7px 12px;border-top:1px solid var(--line)}
+  .qta{text-align:center;font-weight:700;color:var(--accent)}
+  .from{color:var(--bad);font-weight:700}
+  .to{color:var(--ok);font-weight:700}
+  .sec{font-weight:700;padding:14px 2px 6px}
+  .muted{color:var(--muted)}
+  .empty{padding:50px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="dot">S</div><h1>StockView</h1></div>
+  <nav>
+    <a href="index.html">Giacenze</a>
+    <a href="presenza.html">Controllo presenza</a>
+    <a href="assortimento.html">Assortimento ideale</a>
+    <a href="ricircolo.html" class="cur">Ricircolo</a>
+  </nav>
+  <div class="spacer"></div>
+  <span class="who" id="who"></span>
+  <button class="btn" id="logout" style="display:none">Esci</button>
+</header>
+<div class="wrap">
+  <div class="bar">
+    <div style="font-size:18px;font-weight:700">🔄 Ricircolo automatico</div>
+    <div class="stat muted" id="stat"></div>
+    <div class="spacer"></div>
+    <span class="muted" style="font-size:12px">Vista negozio</span>
+    <select id="store"><option value="">Tutti i negozi</option></select>
+    <button class="btn acc" id="reload">Aggiorna</button>
+    <button class="btn ok" id="xls">Esporta Excel</button>
+  </div>
+  <div id="body"><div class="empty">Caricamento…</div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://exrlurfvydxrqfzjdobp.supabase.co";
+const SUPABASE_KEY="sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=s=>document.querySelector(s);
+const NEGS=["Paternò","Acireale","Catania","Augusta","Giarre","Lentini","Portali","Viale Africa"];
+let MOVES=[];
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function tget(c,TGT){const v=TGT[c.barcode+"|"+c.filiale];return v===undefined?1:v;}
+function computeRicircolo(cells,TGT){
+  const active={B:1,C:1,D:1,E:1,G:1,H:1,I:1,Z:1};
+  const byBc={};
+  cells.forEach(c=>{ if(!active[c.filiale])return; if(!byBc[c.barcode])byBc[c.barcode]={meta:c,cells:[]}; byBc[c.barcode].cells.push(c); });
+  const moves=[];
+  Object.keys(byBc).forEach(bc=>{
+    const arr=byBc[bc].cells, sources=[], needs=[];
+    arr.forEach(c=>{ const t=tget(c,TGT); const s=(c.disponibile||0)-t; if(s>0)sources.push({c:c,qty:s}); else if((c.disponibile||0)<t)needs.push({c:c,qty:t-(c.disponibile||0)}); });
+    if(!sources.length||!needs.length)return;
+    needs.sort((a,b)=>(b.c.venduto||0)-(a.c.venduto||0));
+    sources.sort((a,b)=>(a.c.venduto||0)-(b.c.venduto||0));
+    let si=0;
+    needs.forEach(nd=>{ let rem=nd.qty;
+      while(rem>0&&si<sources.length){ const src=sources[si]; if(src.qty<=0){si++;continue;} const mv=Math.min(rem,src.qty); src.qty-=mv; rem-=mv; const m=byBc[bc].meta;
+        moves.push({barcode:bc,marchio:m.marchio,modello:m.modello,colore:m.colore,calibro:m.calibro,categoria:m.categoria,tipo_lenti:m.tipo_lenti,fornitore:m.fornitore,fromNeg:src.c.negozio,toNeg:nd.c.negozio,qta:mv});
+      }
+    });
+  });
+  return moves;
+}
+function refTxt(m){return esc((m.marchio||"")+" "+(m.modello||"")+" · "+[m.colore,m.calibro,m.categoria,m.barcode].filter(Boolean).join(" · "));}
+function tbl(rows,cols,fields){
+  const th=cols.map(h=>'<th>'+h+'</th>').join('');
+  const b=rows.map(r=>'<tr>'+fields.map(f=>{const v=r[f]; if(f==="qta")return '<td class="qta">'+v+'</td>'; if(f==="_ref")return '<td>'+refTxt(r)+'</td>'; if(f==="fromNeg")return '<td class="from">'+esc(v)+'</td>'; if(f==="toNeg")return '<td class="to">'+esc(v)+'</td>'; return '<td>'+esc(v)+'</td>';}).join('')+'</tr>').join('');
+  return '<table><thead><tr>'+th+'</tr></thead><tbody>'+b+'</tbody></table>';
+}
+function render(store){
+  const tot=MOVES.reduce((s,m)=>s+m.qta,0);
+  $("#stat").innerHTML='<b>'+MOVES.length+'</b> movimenti · <b style="color:var(--accent)">'+tot+'</b> pezzi · <b>'+(new Set(MOVES.map(m=>m.marchio)).size)+'</b> marchi';
+  const body=$("#body");
+  if(!MOVES.length){ body.innerHTML='<div class="empty">Nessun ricircolo da fare: nessun doppione da spostare sui buchi. ✅</div>'; return; }
+  if(!store){
+    const rows=MOVES.slice().sort((a,b)=>String((a.marchio||"")+a.fromNeg+a.toNeg).localeCompare(String((b.marchio||"")+b.fromNeg+b.toNeg)));
+    body.innerHTML=tbl(rows,["Marchio","Da (invia)","A (riceve)","Referenza","Qta"],["marchio","fromNeg","toNeg","_ref","qta"]);
+  } else {
+    const out=MOVES.filter(m=>m.fromNeg===store).sort((a,b)=>String(a.toNeg+a.marchio).localeCompare(String(b.toNeg+b.marchio)));
+    const inc=MOVES.filter(m=>m.toNeg===store).sort((a,b)=>String(a.fromNeg+a.marchio).localeCompare(String(b.fromNeg+b.marchio)));
+    const pOut=out.reduce((s,m)=>s+m.qta,0), pInc=inc.reduce((s,m)=>s+m.qta,0);
+    body.innerHTML='<div class="sec" style="color:var(--bad)">📤 Da inviare — '+esc(store)+' · '+pOut+' pezzi</div>'+
+      (out.length?tbl(out,["A (riceve)","Referenza","Qta"],["toNeg","_ref","qta"]):'<div class="muted" style="padding:8px 2px">Niente da inviare.</div>')+
+      '<div class="sec" style="color:var(--ok)">📥 Da ricevere — '+esc(store)+' · '+pInc+' pezzi</div>'+
+      (inc.length?tbl(inc,["Da (invia)","Referenza","Qta"],["fromNeg","_ref","qta"]):'<div class="muted" style="padding:8px 2px">Niente da ricevere.</div>');
+  }
+}
+function buildStoreOptions(){
+  const sel=$("#store"); const cur=sel.value;
+  sel.innerHTML='<option value="">Tutti i negozi</option>'+NEGS.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
+  sel.value=cur;
+}
+function exportRic(){
+  if(!MOVES.length){alert("Nessun movimento da esportare.");return;}
+  const rows=MOVES.map(m=>({Marchio:m.marchio,Modello:m.modello,Colore:m.colore,Calibro:m.calibro,Categoria:m.categoria,Tipo:m.tipo_lenti,Barcode:m.barcode,Da:m.fromNeg,A:m.toNeg,Qta:m.qta}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Movimenti");
+  const byS={};
+  MOVES.forEach(m=>{ (byS[m.fromNeg]=byS[m.fromNeg]||[]).push({Direzione:"INVIA a "+m.toNeg,Marchio:m.marchio,Modello:m.modello,Colore:m.colore,Barcode:m.barcode,Qta:m.qta}); (byS[m.toNeg]=byS[m.toNeg]||[]).push({Direzione:"RICEVI da "+m.fromNeg,Marchio:m.marchio,Modello:m.modello,Colore:m.colore,Barcode:m.barcode,Qta:m.qta}); });
+  Object.keys(byS).sort().forEach(s=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(byS[s]),s.slice(0,28)));
+  XLSX.writeFile(wb,"ricircolo_"+new Date().toISOString().slice(0,10)+".xlsx");
+}
+async function run(){
+  $("#body").innerHTML='<div class="empty">Calcolo ricircolo su tutte le linee…</div>';
+  const {data,error}=await sb.rpc("presenza_celle2",{p_marchi:null,p_tipi:null,p_categorie:null,p_frnitori:null}).range(0,49999);
+  if(error){ $("#body").innerHTML='<div class="empty" style="color:var(--bad)">Errore: '+esc(error.message)+'</div>'; return; }
+  let TGT={};
+  try{ const r=await sb.from("stock_target").select("barcode,filiale,target_qty"); (r.data||[]).forEach(x=>TGT[x.barcode+"|"+x.filiale]=x.target_qty); }catch(e){}
+  MOVES=computeRicircolo(data||[],TGT);
+  buildStoreOptions();
+  render($("#store").value||"");
+}
+async function boot(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){ $("#body").innerHTML='<div class="empty">Devi accedere. <a href="presenza.html" style="color:var(--accent)">Vai a Controllo presenza</a> per il login, poi torna qui.</div>'; return; }
+  $("#who").textContent=session.user.email;
+  $("#logout").style.display="";
+  run();
+}
+$("#store").addEventListener("change",function(){render(this.value);});
+$("#reload").addEventListener("click",run);
+$("#xls").addEventListener("click",exportRic);
+$("#logout").addEventListener("click",async()=>{await sb.auth.signOut();location.href="presenza.html";});
+// XLSX for export
+(function(){var s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";document.head.appendChild(s);})();
+boot();
+</script>
+</body>
+</html>
