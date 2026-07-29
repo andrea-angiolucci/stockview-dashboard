@@ -694,7 +694,7 @@ async function loadNoIdeal(){
   var list=Object.keys(mset);
   var FN={B:"Paternò",C:"Acireale",D:"Catania",E:"Augusta",G:"Giarre",H:"Lentini",I:"Portali",Z:"Viale Africa"};
   for(var i=0;i<list.length;i++){
-    var g=await sb.from("giacenze").select("barcode,filiale,marchio,modello,colore,calibro,categoria,tipo_lenti,fornitore,quantita_disponibile").eq("marchio",list[i]).in("filiale",ACTIVEFIL).gt("quantita_disponibile",0).range(0,49999);
+    var g=await sb.from("giacenze").select("barcode,filiale,marchio,modello,colore,calibro,categoria,tipo_lenti,quantita_disponibile").eq("marchio",list[i]).in("filiale",ACTIVEFIL).gt("quantita_disponibile",0).range(0,49999);
     (g.data||[]).forEach(function(r){
       lastCells.push({barcode:r.barcode,filiale:r.filiale,negozio:FN[r.filiale]||r.filiale,marchio:r.marchio,modello:r.modello,colore:r.colore,calibro:r.calibro,categoria:r.categoria,tipo_lenti:r.tipo_lenti,fornitore:r.fornitore,disponibile:r.quantita_disponibile||0,magazzino:0,prenotati:0,in_arrivo:0,presente:(r.quantita_disponibile||0)>0,venduto:0,_x:true,_noideal:true});
     });
