@@ -114,7 +114,7 @@
   #tbl thead th{position:sticky;top:0;background:var(--panel2);z-index:5}
   #tbl tbody tr.selrow td{background:rgba(61,169,252,.14)!important}
   #tbl tbody tr.selrow td.mar{box-shadow:inset 3px 0 0 var(--accent)}
-  .cellage{font-size:9px;color:var(--muted)}
+  .cellage{position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--muted);line-height:1;pointer-events:none}
   .cv2{font-size:10px;color:var(--muted);border-top:1px dashed var(--line);margin-top:2px;padding-top:1px;text-align:center}
   .ageavg{font-size:10px;color:var(--muted);margin-top:2px}
   .badge-noideal{font-size:9px;background:var(--line);color:var(--muted);border-radius:4px;padding:0 4px;margin-left:4px}
@@ -687,18 +687,29 @@ async function loadAgePrev(){
     ve.forEach(function(r){ var k=r.barcode+"|"+r.filiale; PREV[k]=(PREV[k]||0)+(r.quantita||1); });
   }
 }
-async function loadNoIdeal(){
+var NOIDEAL_ROWS=null;
+async function ensureNoIdealCache(){
+  if(NOIDEAL_ROWS) return;
   var idealM={}; ASSORT.forEach(function(r){ idealM[r.marchio]=1; });
-  var gm=await sb.from("giacenze").select("marchio").in("filiale",ACTIVEFIL).limit(50000);
-  var mset={}; (gm.data||[]).forEach(function(r){ if(r.marchio&&!idealM[r.marchio])mset[r.marchio]=1; });
-  var list=Object.keys(mset);
-  var FN={B:"Paternò",C:"Acireale",D:"Catania",E:"Augusta",G:"Giarre",H:"Lentini",I:"Portali",Z:"Viale Africa"};
-  for(var i=0;i<list.length;i++){
-    var g=await sb.from("giacenze").select("barcode,filiale,marchio,modello,colore,calibro,categoria,tipo_lenti,quantita_disponibile").eq("marchio",list[i]).in("filiale",ACTIVEFIL).gt("quantita_disponibile",0).range(0,49999);
-    (g.data||[]).forEach(function(r){
-      lastCells.push({barcode:r.barcode,filiale:r.filiale,negozio:FN[r.filiale]||r.filiale,marchio:r.marchio,modello:r.modello,colore:r.colore,calibro:r.calibro,categoria:r.categoria,tipo_lenti:r.tipo_lenti,fornitore:r.fornitore,disponibile:r.quantita_disponibile||0,magazzino:0,prenotati:0,in_arrivo:0,presente:(r.quantita_disponibile||0)>0,venduto:0,_x:true,_noideal:true});
-    });
+  var acc=[], from=0, page=1000, guard=0;
+  while(guard<60){ guard++;
+    var g=await sb.from("giacenze").select("barcode,filiale,marchio,modello,colore,calibro,categoria,tipo_lenti,quantita_disponibile").in("filiale",ACTIVEFIL).gt("quantita_disponibile",0).order("barcode").range(from,from+page-1);
+    var d=g.data||[]; for(var j=0;j<d.length;j++){ if(!idealM[d[j].marchio]) acc.push(d[j]); }
+    if(d.length<page) break; from+=page;
   }
+  NOIDEAL_ROWS=acc;
+}
+function allMarchiList(){
+  var s={}; ASSORT.forEach(function(r){ if(r.marchio)s[r.marchio]=1; });
+  if(NOIDEAL_ROWS) NOIDEAL_ROWS.forEach(function(r){ if(r.marchio)s[r.marchio]=1; });
+  return Object.keys(s).sort();
+}
+async function loadNoIdeal(){
+  await ensureNoIdealCache();
+  var have={}; lastCells.forEach(function(c){ have[c.barcode+"|"+c.filiale]=1; });
+  var FN={B:"Paternò",C:"Acireale",D:"Catania",E:"Augusta",G:"Giarre",H:"Lentini",I:"Portali",Z:"Viale Africa"};
+  var sel=(FILTERS.msMarchio&&FILTERS.msMarchio.selected&&FILTERS.msMarchio.selected.size)?FILTERS.msMarchio.selected:null;
+  NOIDEAL_ROWS.forEach(function(r){ if(sel&&!sel.has(r.marchio))return; var k=r.barcode+"|"+r.filiale; if(have[k])return; have[k]=1; lastCells.push({barcode:r.barcode,filiale:r.filiale,negozio:FN[r.filiale]||r.filiale,marchio:r.marchio,modello:r.modello,colore:r.colore,calibro:r.calibro,categoria:r.categoria,tipo_lenti:r.tipo_lenti,disponibile:r.quantita_disponibile||0,magazzino:0,prenotati:0,in_arrivo:0,presente:true,venduto:0,_x:true,_noideal:true}); });
 }
 function clusterDepthMap(){
   var mset={}; lastCells.forEach(function(c){ if(!c._noideal)mset[c.marchio]=1; });
@@ -720,7 +731,7 @@ function decorate(){
     [].slice.call(td.querySelectorAll(".cellage,.cv2")).forEach(function(x){x.remove();});
     if(!ageOn&&!prevOn) return;
     var k=td.getAttribute("data-bc")+"|"+td.getAttribute("data-fil");
-    if(ageOn&&AGE[k]!==undefined){ var cg=td.querySelector(".cg"); if(cg){ var s=document.createElement("span"); s.className="cellage"; s.textContent=" "+AGE[k]+"g"; cg.appendChild(s); } }
+    if(ageOn&&AGE[k]!==undefined){ var s=document.createElement("span"); s.className="cellage"; s.textContent=AGE[k]+"g"; td.appendChild(s); }
     if(prevOn&&PREV[k]!==undefined){ var d=document.createElement("div"); d.className="cv2"; d.title="venduto 2025"; d.textContent=PREV[k]; td.appendChild(d); }
   });
   var rows=[].slice.call(tbl.querySelectorAll("tbody tr"));
@@ -739,7 +750,7 @@ function decorate(){
 }
 function wireDati(){
   function seg(id,attr,cb){ var el=$(id); if(!el)return; el.addEventListener("click",async function(e){ var b=e.target.closest("button"); if(!b)return; [].slice.call(el.children).forEach(function(x){x.classList.remove("on");}); b.classList.add("on"); await cb(b.getAttribute(attr)); }); }
-  seg("#segMarchi","data-dm",function(v){ dataMarchi=v; saveDati(); scheduleRun(); });
+  seg("#segMarchi","data-dm",async function(v){ dataMarchi=v; saveDati(); var selNow=(FILTERS.msMarchio&&FILTERS.msMarchio.selected)?[...FILTERS.msMarchio.selected]:[]; if(v==="tutti"){ await ensureNoIdealCache(); mkFilter("msMarchio","Marchio",allMarchiList(),selNow); } else { var ff=(FILTERS.msFornitore&&FILTERS.msFornitore.selected)?[...FILTERS.msFornitore.selected]:[]; mkFilter("msMarchio","Marchio",optsFor("marchio",ff,[],[]),selNow); } scheduleRun(); });
   seg("#segAge","data-da",async function(v){ ageOn=(v==="on"); saveDati(); await loadAgePrev(); draw(); });
   seg("#segPrev","data-dp",async function(v){ prevOn=(v==="on"); saveDati(); await loadAgePrev(); draw(); });
   seg("#segDead","data-dd",function(v){ deadOn=(v==="on"); saveDati(); decorate(); });
