@@ -760,10 +760,11 @@ function wireDati(){
 }
 wireDati();
 
-async function run(){
+let runSeq=0;
+async function run(){ const _seq=++runSeq;
   const f=[...FILTERS.msFornitore.selected],m=[...FILTERS.msMarchio.selected],t=[...FILTERS.msTipo.selected],c=[...FILTERS.msCategoria.selected];
   $("#status").innerHTML='<span class="spin"></span>Calcolo presenza…';
-  const {data,error}=await sb.rpc("presenza_celle2",{p_marchi:m,p_tipi:t,p_categorie:c,p_fornitori:f}).range(0,49999); window.__rpcN=(data||[]).length;
+  const {data,error}=await sb.rpc("presenza_celle2",{p_marchi:m,p_tipi:t,p_categorie:c,p_fornitori:f}).range(0,49999); window.__rpcN=(data||[]).length; if(_seq!==runSeq)return;
   if(error){$("#status").innerHTML='<span style="color:var(--bad)">Errore: '+error.message+'</span>';$("#tablewrap").style.display="none";return;}
   lastCells=data||[]; vbarcode={}; refreshOrdCat();
   const bcs=[...new Set(lastCells.map(c=>c.barcode))];
@@ -772,6 +773,7 @@ async function run(){
   await loadExtraCats();
   await fillGhostCells(); if(dataMarchi==="tutti")await loadNoIdeal(); if(ageOn||prevOn)await loadAgePrev();
   refreshOrdCat();
+  if(_seq!==runSeq)return;
   draw();
 }
 
