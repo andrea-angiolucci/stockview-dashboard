@@ -284,7 +284,7 @@ function mkFilter(elId,label,items,preselected){
     '<div class="ms-pop"><input class="ms-search" placeholder="Cerca…"/><div class="ms-acts"><button data-a="all">Tutti</button><button data-a="none">Nessuno</button></div><div class="ms-list"></div></div>';
   const btn=host.querySelector(".ms-btn"),pop=host.querySelector(".ms-pop"),list=host.querySelector(".ms-list"),search=host.querySelector(".ms-search");
   const sel=new Set((preselected||[]).filter(x=>items.includes(x))); FILTERS[elId]={selected:sel,items};
-  async function changed(){ if(elId==="msOrdCat"||elId==="msOrdPdv")return; if(elId==="msFornitore")refreshCascade("msFornitore"); else if(elId==="msMarchio")refreshCascade("msMarchio"); if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo")await refreshCategorie(); scheduleRun(); savePrefs(); }
+  async function changed(){ if(elId==="msOrdCat"||elId==="msOrdPdv")return; if(elId==="msFornitore")refreshCascade("msFornitore"); else if(elId==="msMarchio")refreshCascade("msMarchio"); if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo"){ if(FILTERS.msCategoria&&FILTERS.msCategoria.selected)FILTERS.msCategoria.selected.clear(); await refreshCategorie(); } scheduleRun(); savePrefs(); }
   function render(f){f=(f||"").toLowerCase();list.innerHTML="";items.filter(it=>!f||String(it).toLowerCase().includes(f)).forEach(it=>{
     const row=document.createElement("label");row.className="ms-item";const cb=document.createElement("input");cb.type="checkbox";cb.checked=sel.has(it);
     cb.onchange=()=>{cb.checked?sel.add(it):sel.delete(it);upd();changed();};const sp=document.createElement("span");sp.textContent=it;row.appendChild(cb);row.appendChild(sp);list.appendChild(row);});}
