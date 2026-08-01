@@ -760,11 +760,12 @@ function wireDati(){
 }
 wireDati();
 
-let runSeq=0;
-async function run(){ const _seq=++runSeq;
+let _running=false,_rerun=false;
+async function run(){ if(_running){_rerun=true;return;} _running=true; try{ do{ _rerun=false; await _runOnce(); }while(_rerun); }finally{ _running=false; } }
+async function _runOnce(){
   const f=[...FILTERS.msFornitore.selected],m=[...FILTERS.msMarchio.selected],t=[...FILTERS.msTipo.selected],c=[...FILTERS.msCategoria.selected];
   $("#status").innerHTML='<span class="spin"></span>Calcolo presenza…';
-  const {data,error}=await sb.rpc("presenza_celle2",{p_marchi:m,p_tipi:t,p_categorie:c,p_fornitori:f}).range(0,49999); window.__rpcN=(data||[]).length; if(_seq!==runSeq)return;
+  const {data,error}=await sb.rpc("presenza_celle2",{p_marchi:m,p_tipi:t,p_categorie:c,p_fornitori:f}).range(0,49999); window.__rpcN=(data||[]).length;
   if(error){$("#status").innerHTML='<span style="color:var(--bad)">Errore: '+error.message+'</span>';$("#tablewrap").style.display="none";return;}
   lastCells=data||[]; vbarcode={}; refreshOrdCat();
   const bcs=[...new Set(lastCells.map(c=>c.barcode))];
@@ -773,7 +774,6 @@ async function run(){ const _seq=++runSeq;
   await loadExtraCats();
   await fillGhostCells(); if(dataMarchi==="tutti")await loadNoIdeal(); if(ageOn||prevOn)await loadAgePrev();
   refreshOrdCat();
-  if(_seq!==runSeq)return;
   draw();
 }
 
