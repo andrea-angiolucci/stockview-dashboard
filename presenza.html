@@ -209,6 +209,7 @@ const SUPABASE_KEY="sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s);
 const LADDER=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9"];
+const NONORD={SE:1,SR:1,SV:1,FS:1};
 let view="matrice", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], FIL={}, extraFil=[], extraStock={}, showExtra=false, TGT={}, ORD={}, editTarget=false, editOrder=false, inclBuchi=true, filView="attive", CART=[], ORDROWS=[], ORDSORT={k:null,dir:1}, vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
 
 async function boot(){const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex";}
@@ -351,7 +352,7 @@ $("#ordine").addEventListener("click",async()=>{
     const rows=[];
     bcs.forEach(bc=>{
       const m=meta[bc], ms=msSales[m.marchio]||{};
-      const catOk=!FILTERS.msOrdCat || FILTERS.msOrdCat.selected.has(m.categoria);
+      const catOk=(!FILTERS.msOrdCat || FILTERS.msOrdCat.selected.has(m.categoria)) && !NONORD[m.categoria];
       const dDisp=depoDisp[bc]||0, dTgt=effTargetExtra(bc,"A"), depoSurplus=Math.max(0,dDisp-dTgt), ia=inarr[bc]||0;
       const totNeed=(needCells[bc]||[]).reduce((s,x)=>s+x.nd,0);
       const acc={};
@@ -437,10 +438,10 @@ function refreshOrdCat(){
 function effTargetActive(c){ const v=TGT[c.barcode+"|"+c.filiale]; return v===undefined?(c._x?0:1):v; }
 function effTargetExtra(bc,fil){ const v=TGT[bc+"|"+fil]; return v===undefined?0:v; }
 async function saveTarget(bc,fil,val){ val=Math.max(0,parseInt(val,10)||0); TGT[bc+"|"+fil]=val; try{ await sb.from("stock_target").upsert({barcode:bc,filiale:fil,target_qty:val},{onConflict:"barcode,filiale"}); }catch(e){ alert("Errore salvataggio target: "+e); } draw(); }
-async function saveOrder(bc,fil,val){ val=Math.max(0,parseInt(val,10)||0); if(val>0)ORD[bc+"|"+fil]=val; else delete ORD[bc+"|"+fil]; try{ if(val>0)await sb.from("ordine_manuale").upsert({barcode:bc,filiale:fil,qta:val},{onConflict:"barcode,filiale"}); else await sb.from("ordine_manuale").delete().eq("barcode",bc).eq("filiale",fil); }catch(e){ alert("Errore ordine manuale: "+e); } draw(); }
+async function saveOrder(bc,fil,val){ val=Math.max(0,parseInt(val,10)||0); var _c=lastCells.find(function(x){return x.barcode===bc&&x.filiale===fil;}); if(val>0&&_c&&NONORD[_c.categoria]){ alert("Categoria "+_c.categoria+" — articolo non riordinabile."); draw(); return; } if(val>0)ORD[bc+"|"+fil]=val; else delete ORD[bc+"|"+fil]; try{ if(val>0)await sb.from("ordine_manuale").upsert({barcode:bc,filiale:fil,qta:val},{onConflict:"barcode,filiale"}); else await sb.from("ordine_manuale").delete().eq("barcode",bc).eq("filiale",fil); }catch(e){ alert("Errore ordine manuale: "+e); } draw(); }
 async function loadCart(){ try{ const r=await sb.from("carrello").select("*"); CART=r.data||[]; }catch(e){ CART=[]; } updateCartBtn(); }
 function updateCartBtn(){ const b=document.getElementById("carrello"); if(b)b.textContent="🛒 Carrello ("+CART.length+")"; }
-async function addToCart(rows){ if(!rows||!rows.length){alert("Niente da aggiungere.");return;}
+async function addToCart(rows){ if(!rows||!rows.length){alert("Niente da aggiungere.");return;} var _blk=rows.filter(function(r){return NONORD[r.categoria];}); rows=rows.filter(function(r){return !NONORD[r.categoria];}); if(_blk.length)alert("Categoria "+_blk[0].categoria+" — articolo non riordinabile."); if(!rows.length)return;
   const payload=rows.map(r=>({barcode:r.barcode,filiale:r.filiale,negozio:r.negozio,fornitore:r.fornitore,marchio:r.marchio,tipo_lenti:r.tipo_lenti,categoria:r.categoria,modello:r.modello,colore:r.colore,calibro:r.calibro,qta:r.qta,manuale:r.manuale||0}));
   try{ await sb.from("carrello").upsert(payload,{onConflict:"barcode,filiale"}); }catch(e){ alert("Errore carrello: "+e); return; }
   for(const _r of rows){ const _k=_r.barcode+"|"+_r.filiale; if(ORD[_k]!==undefined){ try{ await sb.from("ordine_manuale").delete().eq("barcode",_r.barcode).eq("filiale",_r.filiale); }catch(e){} delete ORD[_k]; } } await loadCart(); draw(); const ov=document.getElementById("ovord"); if(ov)ov.remove();
