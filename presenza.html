@@ -118,6 +118,11 @@
   .cv2{font-size:10px;color:var(--muted);border-top:1px dashed var(--line);margin-top:2px;padding-top:1px;text-align:center}
   .ageavg{font-size:10px;color:var(--muted);margin-top:2px}
   .badge-noideal{font-size:9px;background:var(--line);color:var(--muted);border-radius:4px;padding:0 4px;margin-left:4px}
+  #tablewrap{position:relative}
+  #matOverlay{position:absolute;inset:0;background:rgba(15,23,32,.55);display:flex;align-items:center;justify-content:center;z-index:6}
+  #matOverlay .spin{width:26px;height:26px;border-width:3px}
+  #toolbar.filters-locked .ms{pointer-events:none;opacity:.5}
+  .ms.ms-loading .ms-btn{border-color:var(--accent)!important;box-shadow:0 0 0 2px rgba(61,169,252,.45)}
 </style>
 </head>
 <body>
@@ -284,7 +289,7 @@ function mkFilter(elId,label,items,preselected){
     '<div class="ms-pop"><input class="ms-search" placeholder="Cerca…"/><div class="ms-acts"><button data-a="all">Tutti</button><button data-a="none">Nessuno</button></div><div class="ms-list"></div></div>';
   const btn=host.querySelector(".ms-btn"),pop=host.querySelector(".ms-pop"),list=host.querySelector(".ms-list"),search=host.querySelector(".ms-search");
   const sel=new Set((preselected||[]).filter(x=>items.includes(x))); FILTERS[elId]={selected:sel,items};
-  async function changed(){ if(elId==="msOrdCat"||elId==="msOrdPdv")return; if(elId==="msFornitore")refreshCascade("msFornitore"); else if(elId==="msMarchio")refreshCascade("msMarchio"); if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo"){ if(FILTERS.msCategoria&&FILTERS.msCategoria.selected)FILTERS.msCategoria.selected.clear(); await refreshCategorie(); } scheduleRun(); savePrefs(); }
+  async function changed(){ if(elId==="msOrdCat"||elId==="msOrdPdv")return; window.__lastFilter=elId; if(elId==="msFornitore")refreshCascade("msFornitore"); else if(elId==="msMarchio"){ if(FILTERS.msTipo&&FILTERS.msTipo.selected)FILTERS.msTipo.selected.clear(); refreshCascade("msMarchio"); } if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo"){ if(FILTERS.msCategoria&&FILTERS.msCategoria.selected)FILTERS.msCategoria.selected.clear(); await refreshCategorie(); } scheduleRun(); savePrefs(); }
   function render(f){f=(f||"").toLowerCase();list.innerHTML="";items.filter(it=>!f||String(it).toLowerCase().includes(f)).forEach(it=>{
     const row=document.createElement("label");row.className="ms-item";const cb=document.createElement("input");cb.type="checkbox";cb.checked=sel.has(it);
     cb.onchange=()=>{cb.checked?sel.add(it):sel.delete(it);upd();changed();};const sp=document.createElement("span");sp.textContent=it;row.appendChild(cb);row.appendChild(sp);list.appendChild(row);});}
@@ -411,13 +416,15 @@ $("#riepilogo").addEventListener("click",()=>{
   if(!lastCells.length){alert("Nessun dato: applica un filtro.");return;}
   svBuchiModal(lastCells);
 });
-function svBuchiModal(cells){
+async function svBuchiModal(cells){
   const ex=document.getElementById("ovbuchi"); if(ex)ex.remove();
   const buchi=cells.filter(c=>c.disponibile<effTargetActive(c));
   const totB=buchi.length, totRef=new Set(buchi.map(c=>c.barcode)).size, inArr=buchi.filter(c=>c.in_arrivo>0).length;
-  function grp(key){ const m={}; buchi.forEach(c=>{ const k=c[key]||"—"; if(!m[k])m[k]={buchi:0,refs:new Set(),arr:0}; m[k].buchi++; m[k].refs.add(c.barcode); if(c.in_arrivo>0)m[k].arr++; }); return Object.entries(m).map(([k,v])=>({k,buchi:v.buchi,refs:v.refs.size,arr:v.arr})).sort((a,b)=>b.buchi-a.buchi); }
+  const _bbcs=[...new Set(buchi.map(c=>c.barcode))]; const depo={};
+  try{ const _dg=await svFetchAll("giacenze","barcode,quantita_disponibile",_bbcs,function(q){return q.eq("filiale","A");}); _dg.forEach(function(g){ depo[g.barcode]=(depo[g.barcode]||0)+(g.quantita_disponibile||0); }); }catch(e){}
+  function grp(key){ const m={}; buchi.forEach(c=>{ const k=c[key]||"—"; if(!m[k])m[k]={buchi:0,refs:new Set(),arr:0,depoCov:0}; m[k].buchi++; m[k].refs.add(c.barcode); if(c.in_arrivo>0)m[k].arr++; if(depo[c.barcode]>0)m[k].depoCov++; }); return Object.entries(m).map(([k,v])=>({k,buchi:v.buchi,refs:v.refs.size,arr:v.arr,depoCov:v.depoCov})).sort((a,b)=>b.buchi-a.buchi); }
   const byNeg=grp("negozio"), byMar=grp("marchio"), byTipo=grp("tipo_lenti");
-  function tbl(title,rows,label){ return '<div style="flex:1;min-width:280px"><div style="font-weight:700;margin:0 0 8px;font-size:14px">'+title+'</div><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+[label,'Buchi','Codici','In arr.'].map((h,i)=>'<th style="text-align:'+(i===0?'left':'center')+';padding:6px 8px;border-bottom:1px solid var(--line);color:var(--muted);font-size:11px;text-transform:uppercase">'+h+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr><td style="padding:5px 8px;border-bottom:1px solid var(--line)">'+esc(r.k)+'</td><td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--line);color:var(--bad);font-weight:700">'+r.buchi+'</td><td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--line);color:var(--muted)">'+r.refs+'</td><td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--line);color:var(--truck)">'+r.arr+'</td></tr>').join('')+'</tbody></table></div>'; }
+  function tbl(title,rows,label){ return '<div style="flex:1;min-width:280px"><div style="font-weight:700;margin:0 0 8px;font-size:14px">'+title+'</div><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+[label,'Buchi','Da dep.','Da ordinare','Codici','In arr.'].map((h,i)=>'<th style="text-align:'+(i===0?'left':'center')+';padding:6px 8px;border-bottom:1px solid var(--line);color:var(--muted);font-size:11px;text-transform:uppercase">'+h+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr><td style="padding:5px 8px;border-bottom:1px solid var(--line)">'+esc(r.k)+'</td><td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--line);color:var(--txt);font-weight:700">'+r.buchi+'</td><td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--line);color:var(--truck);font-weight:700">'+r.depoCov+'</td><td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--line);color:var(--bad);font-weight:700">'+(r.buchi-r.depoCov)+'</td><td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--line);color:var(--muted)">'+r.refs+'</td><td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--line);color:var(--truck)">'+r.arr+'</td></tr>').join('')+'</tbody></table></div>'; }
   const ov=document.createElement("div"); ov.id="ovbuchi";
   ov.style.cssText="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px";
   const box=document.createElement("div");
@@ -761,7 +768,10 @@ function wireDati(){
 wireDati();
 
 let _running=false,_rerun=false;
-async function run(){ if(_running){_rerun=true;return;} _running=true; try{ do{ _rerun=false; await _runOnce(); }while(_rerun); }finally{ _running=false; } }
+let _busyT=null;
+function _showBusy(){ var tw=document.getElementById("tablewrap"); if(tw&&!document.getElementById("matOverlay")){ var o=document.createElement("div"); o.id="matOverlay"; o.innerHTML='<span class="spin"></span>'; tw.appendChild(o); } var tb=document.getElementById("toolbar"); if(tb)tb.classList.add("filters-locked"); if(window.__lastFilter){ var el=document.getElementById(window.__lastFilter); if(el)el.classList.add("ms-loading"); } }
+function _hideBusy(){ var o=document.getElementById("matOverlay"); if(o)o.remove(); var tb=document.getElementById("toolbar"); if(tb)tb.classList.remove("filters-locked"); document.querySelectorAll(".ms.ms-loading").forEach(function(e){e.classList.remove("ms-loading");}); }
+async function run(){ if(_running){_rerun=true;return;} _running=true; _busyT=setTimeout(_showBusy,300); try{ do{ _rerun=false; await _runOnce(); }while(_rerun); }finally{ _running=false; clearTimeout(_busyT); _hideBusy(); } }
 async function _runOnce(){
   const f=[...FILTERS.msFornitore.selected],m=[...FILTERS.msMarchio.selected],t=[...FILTERS.msTipo.selected],c=[...FILTERS.msCategoria.selected];
   $("#status").innerHTML='<span class="spin"></span>Calcolo presenza…';
