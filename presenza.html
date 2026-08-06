@@ -249,6 +249,11 @@ async function checkDataFreshness(){
 }
 function marchiForFornitori(f){ if(!f||!f.length)return null; var s={}; ASSORT.forEach(function(r){ if(f.indexOf(r.fornitore)>=0&&r.marchio)s[r.marchio]=1; }); return Object.keys(s); }
 function _tcT(s){ s=String(s||""); return s?s.charAt(0).toUpperCase()+s.slice(1).toLowerCase():s; }
+async function _svCollect(fn,sets){var out=new Set();for(var i=0;i<sets.length;i++){var r=await sb.rpc(fn,sets[i]);(r.data||[]).forEach(function(row){var v=Object.values(row)[0];if(v!=null&&v!=="")out.add(v);});}return [...out];}
+async function svFornitori(){var r=await sb.rpc("sv_g_fornitori");return (r.data||[]).map(function(x){return x.fornitore;}).filter(Boolean).sort();}
+async function svMarchi(f){var sets=(f&&f.length)?f.map(function(x){return {p_fornitore:x};}):[{p_fornitore:null}];return (await _svCollect("sv_g_marchi",sets)).sort();}
+async function svTipi(f,m){var sets;if(m&&m.length)sets=m.map(function(x){return {p_fornitore:null,p_marchio:x};});else if(f&&f.length)sets=f.map(function(x){return {p_fornitore:x,p_marchio:null};});else sets=[{p_fornitore:null,p_marchio:null}];var vals=await _svCollect("sv_g_tipi",sets);return [...new Set(vals.map(_tcT))].filter(Boolean).sort();}
+async function svCategorie(f,m,t){var tl=(t&&t.length)?t.map(function(x){return String(x).toLowerCase();}):[null];var base;if(m&&m.length)base=m.map(function(x){return {p_fornitore:null,p_marchio:x};});else if(f&&f.length)base=f.map(function(x){return {p_fornitore:x,p_marchio:null};});else base=[{p_fornitore:null,p_marchio:null}];var sets=[];base.forEach(function(b){tl.forEach(function(tt){sets.push(Object.assign({},b,{p_tipo:tt}));});});var vals=await _svCollect("sv_g_categorie",sets);return [...new Set(vals)].filter(Boolean).sort();}
 async function gDistinctG(field,f,m,t){
   var marchi=(m&&m.length)?m:((f&&f.length)?marchiForFornitori(f):null);
   var cols=[field,"marchio","tipo_lenti"].filter(function(c,ix,a){return a.indexOf(c)===ix;}).join(","); var q=sb.from("giacenze").select(cols).in("filiale",["B","C","D","E","G","H","I","Z"]);
@@ -264,9 +269,9 @@ async function gCatList(f,m,t){ var cats=await gDistinctG("categoria",f,m,t); va
 async function loadFilters(){
   const {data}=await sb.from("assortimento_marchio").select("fornitore,marchio,tipo_lenti");
   const A=data||[]; ASSORT=A;
-  mkFilter("msFornitore","Fornitore",optsFor("fornitore",[],[],[]));
-  mkFilter("msMarchio","Marchio",optsFor("marchio",[],[],[]));
-  mkFilter("msTipo","Tipo lenti",await gTipiList([],[]));
+  mkFilter("msFornitore","Fornitore",await svFornitori());
+  mkFilter("msMarchio","Marchio",await svMarchi([]));
+  mkFilter("msTipo","Tipo lenti",await svTipi([],[]));
   await refreshCategorie();
   const vf=await sb.rpc("vendite_per_filiale"); (vf.data||[]).forEach(r=>vfiliale[r.filiale]=Number(r.pezzi));
   const ff=await sb.from("filiali").select("codice,nome,tipo,attiva"); (ff.data||[]).forEach(r=>FIL[r.codice]={nome:r.nome,tipo:r.tipo,attiva:r.attiva});
@@ -283,16 +288,16 @@ async function refreshCascade(changedId){
   const f=[...(FILTERS.msFornitore?FILTERS.msFornitore.selected:[])];
   if(changedId==="msFornitore"){
     const prevM=[...FILTERS.msMarchio.selected];
-    mkFilter("msMarchio","Marchio",optsFor("marchio",f,[],[]),prevM);
+    mkFilter("msMarchio","Marchio",await svMarchi(f),prevM);
   }
   const m=[...(FILTERS.msMarchio?FILTERS.msMarchio.selected:[])];
   const prevT=[...FILTERS.msTipo.selected];
-  mkFilter("msTipo","Tipo lenti",await gTipiList(f,m),prevT);
+  mkFilter("msTipo","Tipo lenti",await svTipi(f,m),prevT);
 }
 async function refreshCategorie(){
   const f=[...(FILTERS.msFornitore?FILTERS.msFornitore.selected:[])],m=[...(FILTERS.msMarchio?FILTERS.msMarchio.selected:[])],t=[...(FILTERS.msTipo?FILTERS.msTipo.selected:[])];
   const prev=FILTERS.msCategoria?[...FILTERS.msCategoria.selected]:[];
-  const cats=await gCatList(f,m,t);
+  const cats=await svCategorie(f,m,t);
   mkFilter("msCategoria","Categoria",cats,prev);
 }
 function trunc(s){s=String(s);return s.length>18?s.slice(0,17)+"…":s;}
