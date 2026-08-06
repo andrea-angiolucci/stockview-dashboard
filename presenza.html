@@ -247,12 +247,26 @@ async function checkDataFreshness(){
     if(wrap)wrap.title="Giacenze: aggiornate il "+fmtDT(gAgg)+(gState<2?"  ⚠ da aggiornare":"  ✓")+"\nVendite: fino al "+fmtD(vDat)+(vState<2?"  ⚠ in ritardo":"  ✓");
   }catch(e){ const txt=document.getElementById("dataTxt"); if(txt)txt.textContent="dati ?"; }
 }
+function marchiForFornitori(f){ if(!f||!f.length)return null; var s={}; ASSORT.forEach(function(r){ if(f.indexOf(r.fornitore)>=0&&r.marchio)s[r.marchio]=1; }); return Object.keys(s); }
+function _tcT(s){ s=String(s||""); return s?s.charAt(0).toUpperCase()+s.slice(1).toLowerCase():s; }
+async function gDistinctG(field,f,m,t){
+  var marchi=(m&&m.length)?m:((f&&f.length)?marchiForFornitori(f):null);
+  var cols=[field,"marchio","tipo_lenti"].filter(function(c,ix,a){return a.indexOf(c)===ix;}).join(","); var q=sb.from("giacenze").select(cols).in("filiale",["B","C","D","E","G","H","I","Z"]);
+  if(marchi&&marchi.length)q=q.in("marchio",marchi);
+  var r=await q.range(0,4999); var rows=r.data||[];
+  if(t&&t.length){ var ts={}; t.forEach(function(x){ts[String(x).toLowerCase()]=1;}); rows=rows.filter(function(x){return ts[String(x.tipo_lenti).toLowerCase()];}); }
+  var vals=rows.map(function(x){return x[field];});
+  if(field==="tipo_lenti")vals=vals.map(_tcT);
+  return [...new Set(vals)].filter(Boolean).sort();
+}
+async function gTipiList(f,m){ return await gDistinctG("tipo_lenti",f,m,null); }
+async function gCatList(f,m,t){ var cats=await gDistinctG("categoria",f,m,t); var VC=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9","SN","SR","SE","SV","SC"]; return cats.filter(function(x){return VC.indexOf(x)>=0;}); }
 async function loadFilters(){
   const {data}=await sb.from("assortimento_marchio").select("fornitore,marchio,tipo_lenti");
   const A=data||[]; ASSORT=A;
   mkFilter("msFornitore","Fornitore",optsFor("fornitore",[],[],[]));
   mkFilter("msMarchio","Marchio",optsFor("marchio",[],[],[]));
-  mkFilter("msTipo","Tipo lenti",optsFor("tipo_lenti",[],[],[]));
+  mkFilter("msTipo","Tipo lenti",await gTipiList([],[]));
   await refreshCategorie();
   const vf=await sb.rpc("vendite_per_filiale"); (vf.data||[]).forEach(r=>vfiliale[r.filiale]=Number(r.pezzi));
   const ff=await sb.from("filiali").select("codice,nome,tipo,attiva"); (ff.data||[]).forEach(r=>FIL[r.codice]={nome:r.nome,tipo:r.tipo,attiva:r.attiva});
@@ -265,7 +279,7 @@ function optsFor(field,f,m,t){
   if(t&&t.length)rows=rows.filter(r=>t.includes(r.tipo_lenti));
   return [...new Set(rows.map(r=>r[field]))].filter(Boolean).sort();
 }
-function refreshCascade(changedId){
+async function refreshCascade(changedId){
   const f=[...(FILTERS.msFornitore?FILTERS.msFornitore.selected:[])];
   if(changedId==="msFornitore"){
     const prevM=[...FILTERS.msMarchio.selected];
@@ -273,13 +287,12 @@ function refreshCascade(changedId){
   }
   const m=[...(FILTERS.msMarchio?FILTERS.msMarchio.selected:[])];
   const prevT=[...FILTERS.msTipo.selected];
-  mkFilter("msTipo","Tipo lenti",optsFor("tipo_lenti",f,m,[]),prevT);
+  mkFilter("msTipo","Tipo lenti",await gTipiList(f,m),prevT);
 }
 async function refreshCategorie(){
   const f=[...(FILTERS.msFornitore?FILTERS.msFornitore.selected:[])],m=[...(FILTERS.msMarchio?FILTERS.msMarchio.selected:[])],t=[...(FILTERS.msTipo?FILTERS.msTipo.selected:[])];
   const prev=FILTERS.msCategoria?[...FILTERS.msCategoria.selected]:[];
-  const r=await sb.rpc("sv_cat",{p_fornitori:f,p_marchi:m,p_tipi:t});
-  const VC=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9","SN","SR","SE","SV"]; const raw=(r.data||[]).map(x=>x.categoria); const cats=VC.filter(x=>raw.includes(x));
+  const cats=await gCatList(f,m,t);
   mkFilter("msCategoria","Categoria",cats,prev);
 }
 function trunc(s){s=String(s);return s.length>18?s.slice(0,17)+"…":s;}
@@ -289,7 +302,7 @@ function mkFilter(elId,label,items,preselected){
     '<div class="ms-pop"><input class="ms-search" placeholder="Cerca…"/><div class="ms-acts"><button data-a="all">Tutti</button><button data-a="none">Nessuno</button></div><div class="ms-list"></div></div>';
   const btn=host.querySelector(".ms-btn"),pop=host.querySelector(".ms-pop"),list=host.querySelector(".ms-list"),search=host.querySelector(".ms-search");
   const sel=new Set((preselected||[]).filter(x=>items.includes(x))); FILTERS[elId]={selected:sel,items};
-  async function changed(){ if(elId==="msOrdCat"||elId==="msOrdPdv")return; window.__lastFilter=elId; if(elId==="msFornitore")refreshCascade("msFornitore"); else if(elId==="msMarchio"){ if(FILTERS.msTipo&&FILTERS.msTipo.selected)FILTERS.msTipo.selected.clear(); refreshCascade("msMarchio"); } if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo"){ if(FILTERS.msCategoria&&FILTERS.msCategoria.selected)FILTERS.msCategoria.selected.clear(); await refreshCategorie(); } scheduleRun(); savePrefs(); }
+  async function changed(){ if(elId==="msOrdCat"||elId==="msOrdPdv")return; window.__lastFilter=elId; if(elId==="msFornitore")await refreshCascade("msFornitore"); else if(elId==="msMarchio"){ if(FILTERS.msTipo&&FILTERS.msTipo.selected)FILTERS.msTipo.selected.clear(); await refreshCascade("msMarchio"); } if(elId==="msFornitore"||elId==="msMarchio"||elId==="msTipo"){ if(FILTERS.msCategoria&&FILTERS.msCategoria.selected)FILTERS.msCategoria.selected.clear(); await refreshCategorie(); } scheduleRun(); savePrefs(); }
   function render(f){f=(f||"").toLowerCase();list.innerHTML="";items.filter(it=>!f||String(it).toLowerCase().includes(f)).forEach(it=>{
     const row=document.createElement("label");row.className="ms-item";const cb=document.createElement("input");cb.type="checkbox";cb.checked=sel.has(it);
     cb.onchange=()=>{cb.checked?sel.add(it):sel.delete(it);upd();changed();};const sp=document.createElement("span");sp.textContent=it;row.appendChild(cb);row.appendChild(sp);list.appendChild(row);});}
