@@ -288,17 +288,19 @@ function optsFor(field,f,m,t){
 async function refreshCascade(changedId){
   const f=[...(FILTERS.msFornitore?FILTERS.msFornitore.selected:[])];
   if(changedId==="msFornitore"){
+    const marchiList=await svMarchi(f);
     const prevM=[...FILTERS.msMarchio.selected];
-    mkFilter("msMarchio","Marchio",await svMarchi(f),prevM);
+    mkFilter("msMarchio","Marchio",marchiList,prevM);
   }
   const m=[...(FILTERS.msMarchio?FILTERS.msMarchio.selected:[])];
+  const tipiList=await svTipi(f,m);
   const prevT=[...FILTERS.msTipo.selected];
-  mkFilter("msTipo","Tipo lenti",await svTipi(f,m),prevT);
+  mkFilter("msTipo","Tipo lenti",tipiList,prevT);
 }
 async function refreshCategorie(){
   const f=[...(FILTERS.msFornitore?FILTERS.msFornitore.selected:[])],m=[...(FILTERS.msMarchio?FILTERS.msMarchio.selected:[])],t=[...(FILTERS.msTipo?FILTERS.msTipo.selected:[])];
-  const prev=FILTERS.msCategoria?[...FILTERS.msCategoria.selected]:[];
   const cats=await svCategorie(f,m,t);
+  const prev=FILTERS.msCategoria?[...FILTERS.msCategoria.selected]:[];
   mkFilter("msCategoria","Categoria",cats,prev);
 }
 function trunc(s){s=String(s);return s.length>18?s.slice(0,17)+"…":s;}
