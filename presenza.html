@@ -791,14 +791,44 @@ let _busyT=null;
 function _showBusy(){ var tw=document.getElementById("tablewrap"); if(tw&&!document.getElementById("matOverlay")){ var o=document.createElement("div"); o.id="matOverlay"; o.innerHTML='<span class="spin"></span>'; tw.appendChild(o); } var tb=document.getElementById("toolbar"); if(tb)tb.classList.add("filters-locked"); if(window.__lastFilter){ var el=document.getElementById(window.__lastFilter); if(el)el.classList.add("ms-loading"); } }
 function _hideBusy(){ var o=document.getElementById("matOverlay"); if(o)o.remove(); var tb=document.getElementById("toolbar"); if(tb)tb.classList.remove("filters-locked"); document.querySelectorAll(".ms.ms-loading").forEach(function(e){e.classList.remove("ms-loading");}); }
 async function run(){ if(_running){_rerun=true;return;} _running=true; _busyT=setTimeout(_showBusy,300); try{ do{ _rerun=false; await _runOnce(); }while(_rerun); }finally{ _running=false; clearTimeout(_busyT); _hideBusy(); } }
+var IDEALMAR=null;
+function idealMarName(x){ if(!IDEALMAR){ IDEALMAR={}; (ASSORT||[]).forEach(function(r){ if(r.marchio) IDEALMAR[String(r.marchio).toUpperCase()]=r.marchio; }); } return IDEALMAR[String(x).toUpperCase()]||x; }
+async function loadGiacExtra(m,t,c){
+  if(!m||!m.length) return;
+  var tips=(t&&t.length)?t.map(function(x){return String(x).toLowerCase();}):null;
+  var cats=(c&&c.length)?c.slice():null;
+  var FN={B:"Paternò",C:"Acireale",D:"Catania",E:"Augusta",G:"Giarre",H:"Lentini",I:"Portali",Z:"Viale Africa"};
+  var have={}; lastCells.forEach(function(x){ have[x.barcode+"|"+x.filiale]=1; });
+  var added=[], from=0, guard=0;
+  while(guard<40){ guard++;
+    var q=sb.from("giacenze").select("barcode,filiale,marchio,modello,colore,calibro,categoria,tipo_lenti,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo").in("filiale",ACTIVEFIL).in("marchio",m).gt("quantita_disponibile",0);
+    if(tips)q=q.in("tipo_lenti",tips);
+    if(cats)q=q.in("categoria",cats);
+    var g=await q.order("barcode").range(from,from+999);
+    var d=g.data||[];
+    for(var j=0;j<d.length;j++){ var r=d[j]; var k=r.barcode+"|"+r.filiale; if(have[k])continue; have[k]=1;
+      lastCells.push({fornitore:null,marchio:r.marchio,tipo_lenti:_tcT(r.tipo_lenti),categoria:r.categoria,barcode:r.barcode,modello:r.modello,colore:r.colore,calibro:r.calibro,filiale:r.filiale,negozio:FN[r.filiale]||r.filiale,disponibile:r.quantita_disponibile||0,magazzino:r.quantita_magazzino||0,prenotati:r.quantita_prenotata||0,in_arrivo:r.quantita_in_arrivo||0,presente:false,venduto:0,_x:true,_noideal:true});
+      added.push(lastCells[lastCells.length-1]);
+    }
+    if(d.length<1000)break; from+=1000;
+  }
+  if(added.length){
+    var abcs=[], s2={}; added.forEach(function(x){ if(!s2[x.barcode]){s2[x.barcode]=1;abcs.push(x.barcode);} });
+    var ystart=(new Date().getFullYear())+"-01-01";
+    var ve=await svFetchAll("vendite","barcode,filiale,quantita,data",abcs,function(q){ return q.in("filiale",ACTIVEFIL).gte("data",ystart); });
+    var vm={}; ve.forEach(function(r){ var k=r.barcode+"|"+r.filiale; vm[k]=(vm[k]||0)+(r.quantita||1); vbarcode[r.barcode]=(vbarcode[r.barcode]||0)+(r.quantita||1); });
+    added.forEach(function(cell){ cell.venduto=vm[cell.barcode+"|"+cell.filiale]||0; });
+  }
+}
 async function _runOnce(){
   const f=[...FILTERS.msFornitore.selected],m=[...FILTERS.msMarchio.selected],t=[...FILTERS.msTipo.selected],c=[...FILTERS.msCategoria.selected];
   $("#status").innerHTML='<span class="spin"></span>Calcolo presenza…';
-  const {data,error}=await sb.rpc("presenza_celle2",{p_marchi:m,p_tipi:t,p_categorie:c,p_fornitori:f}).range(0,49999); window.__rpcN=(data||[]).length;
+  const {data,error}=await sb.rpc("presenza_celle2",{p_marchi:m.map(idealMarName),p_tipi:t,p_categorie:c,p_fornitori:[]}).range(0,49999); window.__rpcN=(data||[]).length;
   if(error){$("#status").innerHTML='<span style="color:var(--bad)">Errore: '+error.message+'</span>';$("#tablewrap").style.display="none";return;}
   lastCells=data||[]; vbarcode={}; refreshOrdCat();
   const bcs=[...new Set(lastCells.map(c=>c.barcode))];
   if(bcs.length){const vb=await sb.rpc("vendite_per_barcode",{p_barcodes:bcs});(vb.data||[]).forEach(r=>vbarcode[r.barcode]=Number(r.pezzi));}
+  if(m.length)await loadGiacExtra(m,t,c);
   if(showExtra)await loadExtraStock();
   await loadExtraCats();
   await fillGhostCells(); if(dataMarchi==="tutti")await loadNoIdeal(); if(ageOn||prevOn)await loadAgePrev();
