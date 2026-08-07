@@ -123,6 +123,31 @@
   #matOverlay .spin{width:26px;height:26px;border-width:3px}
   #toolbar.filters-locked .ms{pointer-events:none;opacity:.5}
   .ms.ms-loading .ms-btn{border-color:var(--accent)!important;box-shadow:0 0 0 2px rgba(61,169,252,.45)}
+  #editCatBtn.on{background:var(--accent);color:#04121f;border-color:var(--accent);font-weight:700}
+  body.editcat #tbl td.filcol[data-bc]{cursor:pointer}
+  body.editcat #tbl td.filcol[data-bc]::after{content:"\270F";position:absolute;bottom:1px;left:3px;font-size:10px;color:var(--accent);opacity:.9;pointer-events:none}
+  #tbl td.filcol[data-pend]::before{content:"\270E";position:absolute;top:1px;left:3px;font-size:10px;color:var(--accent);font-weight:700;pointer-events:none;text-shadow:0 0 2px #000}
+  td.catflash{animation:catfl 1s ease}
+  @keyframes catfl{0%{background:rgba(54,201,141,.55)}100%{background:transparent}}
+  .catmodal-back{position:fixed;inset:0;background:rgba(4,10,18,.66);display:none;align-items:center;justify-content:center;z-index:70;padding:20px}
+  .catmodal-back.open{display:flex}
+  .catmodal{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:22px;width:100%;max-width:460px}
+  .catmodal h3{margin:0 0 12px;font-size:16px}
+  .catmodal .catinfo{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-bottom:12px}
+  .catmodal .catinfo>div{display:flex;flex-direction:column;font-size:13px}
+  .catmodal .catinfo span{font-size:11px;color:var(--muted)}
+  .catmodal .catrow{display:flex;align-items:center;gap:14px;margin:6px 0}
+  .catmodal .catrow>div{display:flex;flex-direction:column;gap:4px}
+  .catmodal .catrow span{font-size:11px;color:var(--muted)}
+  .catmodal .catcur{background:rgba(255,107,107,.15);color:var(--bad);font-weight:700;padding:6px 12px;border-radius:8px;text-align:center;min-width:60px}
+  .catmodal select.catsel{padding:8px 10px;border:1px solid var(--ok);border-radius:8px;font-size:14px;background:var(--panel2);color:var(--txt);min-width:90px}
+  .catmodal .cerr{color:var(--bad);font-size:12.5px;min-height:16px;margin-top:8px}
+  .catmodal .acts{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+  .catmodal .acts .cancel{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:9px 14px;font-size:13px}
+  .catmodal .acts .ok{background:var(--ok);border:none;color:#04121f;font-weight:700;border-radius:9px;padding:9px 16px;font-size:13px}
+  .cattoast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:11px 18px;border-radius:10px;box-shadow:var(--shadow);font-size:13px;opacity:0;transition:.25s;z-index:90}
+  .cattoast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  .cattoast.err{border-color:var(--bad);color:var(--bad)}
 </style>
 </head>
 <body>
@@ -148,6 +173,7 @@
       <a href="assortimento.html">Assortimento ideale</a>
       <a href="ricircolo.html">Ricircolo</a>
       <a href="impostazioni.html">Impostazioni</a>
+      <a href="revisioni.html" id="navRevisioni" style="display:none">Revisioni</a>
     </nav>
     <div class="spacer"></div>
     <span id="dataLight" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:default" title="Controllo aggiornamento dati…"><span id="dataDot" style="width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block"></span><span id="dataTxt">dati…</span></span>
@@ -156,6 +182,7 @@
   </header>
 
   <div class="wrap">
+    <button id="editCatBtn" class="ghost" style="display:none;margin:0 0 8px">\u270F Modifica categoria</button>
     <button class="tbtoggle" id="tbToggle"><span id="tbArrow">▾</span> Strumenti (mostra/nascondi)</button>
     <div class="toolbar" id="toolbar">
       <div class="tbgroup"><div class="tbglabel">Filtri</div><div class="tbrow">
@@ -208,6 +235,8 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<div class="catmodal-back" id="catModalBack"><div class="catmodal" id="catModal"></div></div>
+<div class="cattoast" id="cattoast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL="https://exrlurfvydxrqfzjdobp.supabase.co";
@@ -219,7 +248,7 @@ const NONORD={SE:1,SR:1,SV:1,FS:1};
 let view="matrice", showMode="mancanti", lastCells=[], FILTERS={}, ASSORT=[], FIL={}, extraFil=[], extraStock={}, showExtra=false, TGT={}, ORD={}, editTarget=false, editOrder=false, inclBuchi=true, filView="attive", CART=[], ORDROWS=[], ORDSORT={k:null,dir:1}, vfiliale={}, vbarcode={}, nomeSales={}, runT=null;
 
 async function boot(){const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex";}
-async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; curUser=session.user.id; await loadFilters(); PREFS=await loadPrefs(); await applyPrefs(); run(); checkDataFreshness(); loadCart();}
+async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; curUser=session.user.id; curEmail=session.user.email; var _md=(session.user&&session.user.user_metadata)||{}; ROLE=(_md.role==='admin')?'admin':'gestore'; isAdmin=ROLE==='admin'; applyAdminUI(); loadPending(); await loadFilters(); PREFS=await loadPrefs(); await applyPrefs(); run(); checkDataFreshness(); loadCart();}
 $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();const b=$("#loginBtn"),er=$("#loginErr");er.textContent="";b.disabled=true;b.textContent="Accesso…";
   const {data,error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pwd").value});
   b.disabled=false;b.textContent="Accedi"; if(error){er.textContent=error.message.includes("Invalid")?"Email o password non corretti.":error.message;return;} showApp(data.session);});
@@ -938,6 +967,33 @@ function drawMatrix(cells,negozi){
   $("#tbl").tFoot.innerHTML="<tr><td class='mar'>Totale giac. / vend.</td>"+negozi.map(n=>`<td><div class="cg">${colTot[n]}</div><div class="cv">${colVend[n]}</div></td>`).join("")+xf.map(()=>"<td></td>").join("")+`<td class='tot'><div class="cg">${grand}</div><div class="cv">${grandVend}</div></td></tr>`;
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+var ROLE='gestore',isAdmin=false,curEmail='',editCat=false; var PENDING=new Set();
+function applyAdminUI(){ var nv=document.getElementById('navRevisioni'); if(nv)nv.style.display=isAdmin?'':'none'; var eb=document.getElementById('editCatBtn'); if(eb)eb.style.display=isAdmin?'':'none'; }
+async function loadPending(){ try{ var r=await sb.from('richieste_cambio_categoria').select('barcode,filiale').eq('stato','pendente'); PENDING=new Set((r.data||[]).map(function(x){return x.barcode+'|'+x.filiale;})); applyPendBadges(); }catch(e){} }
+function applyPendBadges(){ try{ document.querySelectorAll('#tbl td.filcol[data-bc]').forEach(function(td){ var k=td.getAttribute('data-bc')+'|'+td.getAttribute('data-fil'); if(PENDING.has(k))td.setAttribute('data-pend','1'); else td.removeAttribute('data-pend'); }); }catch(e){} }
+(function(){ var _od=window.draw; if(typeof _od==='function'){ window.draw=function(){ var x=_od.apply(this,arguments); try{applyPendBadges();}catch(e){} return x; }; } })();
+function catToast(msg,isErr){ var el=document.getElementById('cattoast'); if(!el)return; el.textContent=msg; el.className='cattoast show'+(isErr?' err':''); clearTimeout(window.__catT); window.__catT=setTimeout(function(){el.className='cattoast'+(isErr?' err':'');},2600); }
+function closeCatModal(){ document.getElementById('catModalBack').classList.remove('open'); document.getElementById('catModal').innerHTML=''; }
+function openCatModal(bc,fil,td){
+  var c=(lastCells||[]).find(function(x){return String(x.barcode)===String(bc)&&String(x.filiale)===String(fil);});
+  if(!c){ catToast('Dati cella non trovati',true); return; }
+  var cats=['ST','P1','P2','P3','P4','SN','SC','SE','SR','SV'];
+  var opts=cats.map(function(x){return '<option value="'+x+'"'+(x===c.categoria?' selected':'')+'>'+x+'</option>';}).join('');
+  var info=[['Barcode',c.barcode],['Marchio',c.marchio],['Modello',c.modello||''],['Colore',c.colore||''],['Fornitore',c.fornitore||'\u2014'],['Filiale',c.negozio||c.filiale]].map(function(p){return '<div><span>'+p[0]+'</span><b>'+esc(String(p[1]==null?'':p[1]))+'</b></div>';}).join('');
+  document.getElementById('catModal').innerHTML='<h3>Proponi cambio categoria</h3><div class="catinfo">'+info+'</div><div class="catrow"><div><span>Categoria attuale</span><div class="catcur">'+esc(String(c.categoria||'\u2014'))+'</div></div><div style="font-size:20px;color:var(--muted)">\u2192</div><div><span>Nuova categoria</span><select id="catSel" class="catsel">'+opts+'</select></div></div><div class="cerr" id="catErr"></div><div class="acts"><button class="cancel" id="catCancel">Annulla</button><button class="ok" id="catOk">Proponi cambio</button></div>';
+  document.getElementById('catModalBack').classList.add('open');
+  document.getElementById('catCancel').onclick=closeCatModal;
+  document.getElementById('catOk').onclick=async function(){ var nc=document.getElementById('catSel').value; if(nc===c.categoria){ document.getElementById('catErr').textContent='Scegli una categoria diversa da quella attuale.'; return; } document.getElementById('catOk').disabled=true;
+    var payload={barcode:c.barcode,marchio:c.marchio,modello:c.modello,colore:c.colore,calibro:c.calibro,fornitore:c.fornitore||null,filiale:c.filiale,tipo_lenti:c.tipo_lenti,categoria_attuale:c.categoria,categoria_proposta:nc,richiesta_da:curEmail,stato:'pendente'};
+    var r=await sb.from('richieste_cambio_categoria').insert(payload);
+    document.getElementById('catOk').disabled=false;
+    if(r.error){ document.getElementById('catErr').textContent='Errore: '+r.error.message; return; }
+    PENDING.add(c.barcode+'|'+c.filiale); if(td){ td.setAttribute('data-pend','1'); td.classList.remove('catflash'); void td.offsetWidth; td.classList.add('catflash'); }
+    closeCatModal(); catToast('Proposta inviata: '+(c.categoria||'\u2014')+' \u2192 '+nc);
+  };
+}
+(function(){ var mb=document.getElementById('catModalBack'); if(mb)mb.addEventListener('click',function(e){ if(e.target.id==='catModalBack')closeCatModal(); }); var eb=document.getElementById('editCatBtn'); if(eb)eb.addEventListener('click',function(){ editCat=!editCat; document.body.classList.toggle('editcat',editCat); eb.classList.toggle('on',editCat); catToast(editCat?'Modalit\u00e0 modifica categoria attiva: clicca una cella della matrice':'Modalit\u00e0 modifica categoria disattivata'); }); var tb=document.getElementById('tbl'); if(tb)tb.addEventListener('click',function(ev){ if(!editCat||!isAdmin)return; var td=ev.target.closest('td.filcol[data-bc]'); if(!td)return; ev.preventDefault(); ev.stopPropagation(); openCatModal(td.getAttribute('data-bc'),td.getAttribute('data-fil'),td); },true); })();
+
 boot();
 </script>
 <script>document.addEventListener("click",function(e){var l=e.target.closest&&e.target.closest(".tbglabel");if(l){var g=l.parentElement;var was=g.classList.contains("open");document.querySelectorAll(".tbgroup.open").forEach(function(x){x.classList.remove("open");});if(!was)g.classList.add("open");e.stopPropagation();}else if(!(e.target.closest&&e.target.closest(".tbrow"))){document.querySelectorAll(".tbgroup.open").forEach(function(x){x.classList.remove("open");});}});</script>
