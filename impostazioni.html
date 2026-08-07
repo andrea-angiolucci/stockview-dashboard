@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StockView — Impostazioni</title>
+<style>
+  :root{--bg:#0f1720;--panel:#16212e;--panel2:#1c2a3a;--line:#26384c;--txt:#e8eef5;--muted:#8aa0b6;--accent:#3da9fc;--accent2:#2b7fd6;--ok:#36c98d;--bad:#ff6b6b;--warn:#f5a524;--yellow:#e8c848;--chip:#1c2a3a;--shadow:0 10px 30px rgba(0,0,0,.35)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:34px 30px;width:100%;max-width:370px}
+  .brand{display:flex;align-items:center;gap:11px}
+  .brand .dot{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#7c5cff);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff}
+  .brand h1{font-size:18px;margin:0}
+  .sub{color:var(--muted);font-size:12.5px;margin:6px 0 18px}
+  label{display:block;font-size:12px;color:var(--muted);margin:12px 0 5px}
+  input[type=email],input[type=password],input[type=text]{width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);font-size:14px;outline:none}
+  input:focus{border-color:var(--accent)}
+  button{cursor:pointer;font-family:inherit}
+  .btn{width:100%;margin-top:18px;padding:12px;border:none;border-radius:10px;background:var(--accent);color:#04121f;font-weight:700;font-size:14.5px}
+  .btn:hover{background:var(--accent2);color:#fff}
+  .err{color:var(--bad);font-size:12.5px;margin-top:12px;min-height:15px}
+  #app{display:none}
+  header{position:sticky;top:0;z-index:30;background:rgba(15,23,32,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 18px;display:flex;align-items:center;gap:18px}
+  header .brand h1{font-size:15px}
+  nav{display:flex;gap:14px}
+  nav a{color:var(--muted);text-decoration:none;font-size:13px;font-weight:600;padding:4px 2px;border-bottom:2px solid transparent}
+  nav a:hover{color:var(--accent)}
+  nav a.cur{color:var(--accent);border-bottom-color:var(--accent)}
+  .spacer{flex:1}
+  .who{color:var(--muted);font-size:12.5px}
+  .rolechip{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+  .rolechip.admin{background:rgba(54,201,141,.18);color:var(--ok)}
+  .rolechip.gestore{background:rgba(138,160,182,.18);color:var(--muted)}
+  .ghost{background:transparent;border:1px solid var(--line);color:var(--muted);padding:6px 11px;border-radius:8px;font-size:12.5px}
+  .ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .wrap{max-width:1700px;margin:0 auto;padding:18px}
+  .pagetitle{font-size:20px;margin:6px 2px 14px}
+  .tabbar{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:16px}
+  .tabbar button{background:transparent;border:none;border-bottom:2px solid transparent;color:var(--muted);font-size:13.5px;font-weight:600;padding:9px 14px}
+  .tabbar button:hover{color:var(--txt)}
+  .tabbar button.on{color:var(--accent);border-bottom-color:var(--accent)}
+  .toolbar{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px}
+  .fcol{display:flex;flex-direction:column;gap:5px}
+  .fcol>span{font-size:12px;color:var(--muted)}
+  select.sort,input.txt{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel2);color:var(--txt);min-width:150px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .seg button{background:var(--panel2);border:none;padding:9px 16px;font-size:13px;color:var(--muted)}
+  .seg button.on{background:var(--accent);color:#04121f;font-weight:700}
+  .addbtn{margin-left:auto;background:var(--ok);color:#04121f;border:none;border-radius:9px;padding:9px 14px;font-size:13px;font-weight:700}
+  .addbtn:hover{filter:brightness(1.08)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin:2px 2px 12px}
+  .status{color:var(--muted);font-size:13px;margin:10px 2px}
+  .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel);max-height:74vh}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{padding:7px 10px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
+  thead th{position:sticky;top:0;background:var(--panel2);color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;z-index:5}
+  td.mar,th.mar{position:sticky;left:0;text-align:left;background:var(--panel);z-index:4;min-width:190px}
+  thead th.mar{z-index:6;background:var(--panel2)}
+  td.mar b{color:var(--txt)} td.mar small{display:block;color:var(--muted);font-size:11px}
+  tbody tr:hover td{background:var(--panel2)}
+  tbody tr:hover td.mar{background:var(--panel2)}
+  .dp{display:inline-block;min-width:36px;padding:3px 8px;border-radius:6px;font-weight:700;font-size:12px;line-height:1.3}
+  .dpEmpty{color:var(--muted);background:rgba(138,160,182,.10)}
+  .dpST{color:#04121f;background:var(--ok)}
+  .dpP1{color:#04121f;background:var(--yellow)}
+  .dpP2{color:#04121f;background:var(--warn)}
+  .dpP3{color:#04121f;background:var(--accent)}
+  td.cellEdit{cursor:pointer}
+  td.cellEdit:hover .dp{outline:2px solid var(--accent);outline-offset:1px}
+  td.flash{animation:fl 1s ease}
+  @keyframes fl{0%{background:rgba(54,201,141,.55)}100%{background:transparent}}
+  td.cell select{background:var(--panel2);color:var(--txt);border:1px solid var(--accent);border-radius:6px;padding:4px 6px;font-size:12.5px}
+  .trash{background:transparent;border:none;color:var(--muted);font-size:14px;padding:2px 6px;border-radius:6px}
+  .trash:hover{color:var(--bad);background:rgba(255,107,107,.12)}
+  .modal-back{position:fixed;inset:0;background:rgba(4,10,18,.66);display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
+  .modal-back.open{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:22px;width:100%;max-width:520px;max-height:88vh;overflow:auto}
+  .modal h3{margin:0 0 4px;font-size:16px}
+  .modal .mrow{display:flex;gap:12px;flex-wrap:wrap}
+  .modal .mrow .fcol{flex:1;min-width:150px}
+  .grid-fil{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px}
+  .grid-fil .fcol{gap:4px}
+  .modal .acts{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+  .modal .acts .cancel{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:9px 14px;font-size:13px}
+  .modal .acts .ok{background:var(--accent);border:none;color:#04121f;font-weight:700;border-radius:9px;padding:9px 16px;font-size:13px}
+  .modal .acts .danger{background:var(--bad);border:none;color:#fff;font-weight:700;border-radius:9px;padding:9px 16px;font-size:13px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:11px 18px;border-radius:10px;box-shadow:var(--shadow);font-size:13px;opacity:0;transition:.25s;z-index:80}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  .toast.err{border-color:var(--bad);color:var(--bad)}
+  .ro-note{color:var(--muted);font-size:12px;margin:2px 2px 12px}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="card">
+    <div class="brand"><div class="dot">S</div><h1>StockView</h1></div>
+    <div class="sub">Impostazioni · accesso riservato</div>
+    <form id="loginForm">
+      <label for="email">Email</label><input id="email" type="email" autocomplete="username" required />
+      <label for="pwd">Password</label><input id="pwd" type="password" autocomplete="current-password" required />
+      <button class="btn" id="loginBtn" type="submit">Accedi</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="brand"><div class="dot">S</div><h1>StockView</h1></div>
+    <nav>
+      <a href="presenza.html">Controllo presenza</a>
+      <a href="assortimento.html">Assortimento ideale</a>
+      <a href="ricircolo.html">Ricircolo</a>
+      <a href="impostazioni.html" class="cur">Impostazioni</a>
+    </nav>
+    <div class="spacer"></div>
+    <span class="who" id="who"></span>
+    <button class="ghost" id="logout">Esci</button>
+  </header>
+
+  <div class="wrap">
+    <h2 class="pagetitle">Impostazioni</h2>
+    <div class="tabbar" id="tabbar"></div>
+    <div id="tabcontent"></div>
+  </div>
+</div>
+
+<div class="modal-back" id="modalBack"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://exrlurfvydxrqfzjdobp.supabase.co";
+const SUPABASE_KEY="sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+
+// --- Filiali (attive, no deposito) ordinate per performance ---
+const FIL_NAME={B:"Paternò",C:"Acireale",D:"Catania",E:"Augusta",G:"Giarre",H:"Lentini",I:"Portali",Z:"Viale Africa"};
+const FIL_ORDER=["D","I","G","Z","C","E","H","B"]; // Catania, Portali, Giarre, Viale Africa, Acireale, Augusta, Lentini, Paternò
+
+// --- Profondità: qty_ideale (multipli di 7) <-> gradino cumulativo ---
+const LADDER=["ST","P1","P2","P3","P4","T0","T1","T2","T3","T4","T5","T6","T7","T8","T9"];
+const STEP=7;
+function qtyToN(q){ q=Number(q)||0; return q>0?Math.min(Math.round(q/STEP),LADDER.length):0; }
+function nToCode(n){ return n>0?LADDER[n-1]:""; }
+function nToQty(n){ return n*STEP; }
+function dpClass(n){ if(n<=0)return "dpEmpty"; if(n===1)return "dpST"; if(n===2)return "dpP1"; if(n===3)return "dpP2"; return "dpP3"; }
+
+let ROLE="gestore", isAdmin=false;
+let MAP={Vista:{},Sole:{}};   // MAP[tipo][marchio][filiale]={id,qty}
+let FORN={};                  // marchio -> fornitore
+let AUTH={};                  // marchio -> autorizzato
+let curTipo="Vista";
+
+// ---------- Auth ----------
+async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex"; }
+async function showApp(session){
+  $("#login").style.display="none"; $("#app").style.display="block";
+  const meta=session.user.user_metadata||{};
+  ROLE=(meta.role==="admin")?"admin":"gestore"; isAdmin=ROLE==="admin";
+  $("#who").innerHTML=esc(session.user.email)+' <span class="rolechip '+ROLE+'">'+ROLE+'</span>';
+  renderTabbar(); selectTab(TABS[0].id);
+}
+$("#loginForm").addEventListener("submit",async e=>{ e.preventDefault(); const b=$("#loginBtn"),er=$("#loginErr"); er.textContent=""; b.disabled=true; b.textContent="Accesso…";
+  const {data,error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pwd").value});
+  b.disabled=false; b.textContent="Accedi"; if(error){er.textContent=error.message.includes("Invalid")?"Email o password non corretti.":error.message;return;} showApp(data.session); });
+$("#logout").addEventListener("click",async()=>{ await sb.auth.signOut(); location.reload(); });
+
+// ---------- Tab framework (estendibile) ----------
+const TABS=[
+  {id:"assortimento", label:"Assortimento ideale", render:renderAssortimento}
+  // future: {id:"marchi", label:"Marchi alias", render:...}, {id:"filiali",...}, {id:"sistema",...}
+];
+let curTab=null;
+function renderTabbar(){
+  $("#tabbar").innerHTML=TABS.map(t=>'<button data-id="'+t.id+'"'+(t.id===curTab?' class="on"':'')+'>'+esc(t.label)+'</button>').join("");
+  $("#tabbar").querySelectorAll("button").forEach(b=>b.onclick=()=>selectTab(b.dataset.id));
+}
+function selectTab(id){ curTab=id; renderTabbar(); const t=TABS.find(x=>x.id===id); $("#tabcontent").innerHTML=""; t.render($("#tabcontent")); }
+
+// ---------- Tab: Assortimento ideale ----------
+async function renderAssortimento(host){
+  host.innerHTML=
+    '<div class="toolbar">'+
+      '<div class="fcol"><span>Tipo lenti</span><div class="seg" id="segTipo"><button data-t="Vista" class="on">Vista</button><button data-t="Sole">Sole</button></div></div>'+
+      '<div class="fcol"><span>Fornitore</span><select class="sort" id="fForn"><option value="">Tutti</option></select></div>'+
+      '<div class="fcol"><span>Marchio</span><input class="txt" id="fMar" placeholder="Cerca marchio…" /></div>'+
+      (isAdmin?'<button class="addbtn" id="addMar">+ Aggiungi marchio</button>':'')+
+    '</div>'+
+    (isAdmin?'':'<div class="ro-note">Sola lettura (ruolo gestore). Per modificare serve il ruolo admin.</div>')+
+    '<div class="legend">'+
+      '<span><span class="dp dpEmpty">·</span> Non previsto</span>'+
+      '<span><span class="dp dpST">ST</span> profondità base</span>'+
+      '<span><span class="dp dpP1">P1</span></span>'+
+      '<span><span class="dp dpP2">P2</span></span>'+
+      '<span><span class="dp dpP3">P3+</span></span>'+
+      '<span>Ogni gradino ≈ '+STEP+' pezzi (cumulativo).</span>'+
+    '</div>'+
+    '<div class="status" id="asStatus"><span>Carico…</span></div>'+
+    '<div class="tablewrap" id="asWrap" style="display:none"><table id="asTbl"><thead></thead><tbody></tbody></table></div>';
+  $("#segTipo").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; [...$("#segTipo").children].forEach(x=>x.classList.remove("on")); b.classList.add("on"); curTipo=b.dataset.t; drawTable(); };
+  $("#fForn").onchange=drawTable;
+  $("#fMar").oninput=drawTable;
+  if(isAdmin) $("#addMar").onclick=openAddMarchio;
+  await loadData();
+  fillFornitori();
+  drawTable();
+}
+
+async function loadData(){
+  MAP={Vista:{},Sole:{}}; FORN={}; AUTH={};
+  const r=await sb.from("assortimento_marchio").select("id,marchio,tipo_lenti,filiale,qty_ideale,fornitore,autorizzato");
+  if(r.error){ $("#asStatus").innerHTML='<span style="color:var(--bad)">Errore: '+esc(r.error.message)+'</span>'; return; }
+  (r.data||[]).forEach(row=>{
+    const tp=row.tipo_lenti==="Sole"?"Sole":"Vista";
+    if(!MAP[tp][row.marchio]) MAP[tp][row.marchio]={};
+    MAP[tp][row.marchio][row.filiale]={id:row.id,qty:Number(row.qty_ideale)||0};
+    if(row.fornitore!=null) FORN[row.marchio]=row.fornitore;
+    if(row.autorizzato!=null) AUTH[row.marchio]=row.autorizzato;
+  });
+}
+
+function fillFornitori(){
+  const set=new Set();
+  Object.keys(FORN).forEach(m=>{ if(FORN[m]) set.add(FORN[m]); });
+  const cur=$("#fForn").value;
+  $("#fForn").innerHTML='<option value="">Tutti</option>'+[...set].sort().map(f=>'<option value="'+esc(f)+'">'+esc(f)+'</option>').join("");
+  if(cur) $("#fForn").value=cur;
+}
+
+function currentMarchi(){
+  const fornSel=$("#fForn")?$("#fForn").value:"";
+  const q=($("#fMar")?$("#fMar").value:"").trim().toLowerCase();
+  let ms=Object.keys(MAP[curTipo]);
+  if(fornSel) ms=ms.filter(m=>FORN[m]===fornSel);
+  if(q) ms=ms.filter(m=>m.toLowerCase().includes(q));
+  return ms.sort((a,b)=>a.localeCompare(b));
+}
+
+function cellHtml(marchio,fil){
+  const e=MAP[curTipo][marchio]?MAP[curTipo][marchio][fil]:null;
+  const n=qtyToN(e?e.qty:0);
+  const code=nToCode(n)||"·";
+  return '<span class="dp '+dpClass(n)+'" title="'+(e&&e.qty?e.qty+" pezzi":"non previsto")+'">'+code+'</span>';
+}
+
+function drawTable(){
+  fillFornitori();
+  const ms=currentMarchi();
+  const head='<tr><th class="mar">Marchio</th>'+FIL_ORDER.map(f=>'<th>'+esc(FIL_NAME[f])+'</th>').join("")+(isAdmin?'<th></th>':'')+'</tr>';
+  $("#asTbl").tHead.innerHTML=head;
+  if(!ms.length){
+    $("#asTbl").tBodies[0].innerHTML='<tr><td class="mar" colspan="'+(FIL_ORDER.length+1+(isAdmin?1:0))+'" style="text-align:center;color:var(--muted);padding:24px">Nessun marchio '+(curTipo==="Sole"?"Sole":"Vista")+'. '+(isAdmin?"Aggiungine uno con «+ Aggiungi marchio».":"")+'</td></tr>';
+    $("#asWrap").style.display="block"; $("#asStatus").innerHTML='<b>0</b> marchi';
+    return;
+  }
+  const body=ms.map(m=>{
+    let tr='<tr data-m="'+esc(m)+'"><td class="mar"><b>'+esc(m)+'</b>'+(FORN[m]?'<small>'+esc(FORN[m])+'</small>':'')+'</td>';
+    FIL_ORDER.forEach(f=>{
+      tr+='<td class="cell'+(isAdmin?' cellEdit':'')+'" data-m="'+esc(m)+'" data-f="'+f+'">'+cellHtml(m,f)+'</td>';
+    });
+    if(isAdmin) tr+='<td><button class="trash" title="Elimina marchio ('+esc(curTipo)+')" data-del="'+esc(m)+'">🗑</button></td>';
+    return tr+'</tr>';
+  }).join("");
+  $("#asTbl").tBodies[0].innerHTML=body;
+  $("#asStatus").innerHTML='<b>'+ms.length+'</b> marchi · '+FIL_ORDER.length+' filiali · '+esc(curTipo);
+  $("#asWrap").style.display="block";
+  if(isAdmin){
+    $("#asTbl").querySelectorAll("td.cellEdit").forEach(td=>td.onclick=()=>openCellEditor(td));
+    $("#asTbl").querySelectorAll("button.trash").forEach(b=>b.onclick=()=>confirmDelete(b.dataset.del));
+  }
+}
+
+function depthOptions(currentN){ const opts=[{n:0,label:"Non previsto"}]; for(let i=1;i<=5;i++) opts.push({n:i,label:LADDER[i-1]}); if(currentN>5) opts.push({n:currentN,label:LADDER[currentN-1]}); return opts; }
+
+function openCellEditor(td){
+  if(td.querySelector("select")) return;
+  const m=td.dataset.m, f=td.dataset.f;
+  const e=MAP[curTipo][m]?MAP[curTipo][m][f]:null;
+  const n0=qtyToN(e?e.qty:0);
+  const sel=document.createElement("select");
+  depthOptions(n0).forEach(o=>{ const op=document.createElement("option"); op.value=o.n; op.textContent=o.label; if(o.n===n0)op.selected=true; sel.appendChild(op); });
+  td.innerHTML=""; td.appendChild(sel); sel.focus();
+  let done=false;
+  const finish=async(commit)=>{ if(done)return; done=true; const n=parseInt(sel.value,10);
+    if(commit && n!==n0){ await saveDepth(m,f,n,td); } else { td.innerHTML=cellHtml(m,f); } };
+  sel.onchange=()=>finish(true);
+  sel.onblur=()=>finish(true);
+  sel.onkeydown=ev=>{ if(ev.key==="Escape")finish(false); if(ev.key==="Enter")finish(true); };
+}
+
+async function saveDepth(m,f,n,td){
+  const qty=nToQty(n);
+  const e=MAP[curTipo][m]?MAP[curTipo][m][f]:null;
+  let res;
+  if(e && e.id!=null){ res=await sb.from("assortimento_marchio").update({qty_ideale:qty,modificata_il:new Date().toISOString()}).eq("id",e.id).select(); }
+  else{ res=await sb.from("assortimento_marchio").insert({marchio:m,tipo_lenti:curTipo,filiale:f,qty_ideale:qty,fornitore:FORN[m]||null,autorizzato:(AUTH[m]!=null?AUTH[m]:true),modificata_il:new Date().toISOString()}).select(); }
+  if(res.error){ toast("Errore salvataggio: "+res.error.message,true); td.innerHTML=cellHtml(m,f); return; }
+  const row=(res.data&&res.data[0])||null;
+  if(!MAP[curTipo][m]) MAP[curTipo][m]={};
+  MAP[curTipo][m][f]={id:row?row.id:(e?e.id:null),qty:qty};
+  td.innerHTML=cellHtml(m,f); td.classList.remove("flash"); void td.offsetWidth; td.classList.add("flash");
+  toast("Salvato: "+m+" · "+FIL_NAME[f]+" → "+(nToCode(n)||"Non previsto"));
+}
+
+// ---------- Aggiungi marchio ----------
+function openAddMarchio(){
+  const grid=FIL_ORDER.map(f=>'<div class="fcol"><span>'+esc(FIL_NAME[f])+'</span><select class="sort addfil" data-f="'+f+'">'+depthOptions(0).map(o=>'<option value="'+o.n+'">'+or.label+'</option>').join("")+'</select></div>').join("");
+  openModal(
+    '<h3>Aggiungi marchio ('+esc(curTipo)+')</h3>'+
+    '<div class="sub" style="color:var(--muted);font-size:12px;margin:2px 0 14px">Le profondità impostano l\'assortimento ideale per il tipo lenti selezionato ('+esc(curTipo)+').</div>'+
+    '<div class="mrow">'+
+      '<div class="fcol"><span>Marchio</span><input class="txt" id="amMar" placeholder="Es. RAY-BAN" /></div>'+
+      '<div class="fcol"><span>Fornitore</span><input class="txt" id="amForn" placeholder="Es. Luxottica" /></div>'+
+    '</div>'+
+    '<div class="grid-fil">'+grid+'</div>'+
+    '<div class="err" id="amErr"></div>'+
+    '<div class="acts"><button class="cancel" id="amCancel">Annulla</button><button class="ok" id="amOk">Aggiungi</button></div>'
+  );
+  $("#amCancel").onclick=closeModal;
+  $("#amOk").onclick=async()=>{
+    const marchio=($("#amMar").value||"").trim().toUpperCase();
+    const forn=($("#amForn").value||"").trim();
+    if(!marchio){ $("#amErr").textContent="Inserisci il marchio."; return; }
+    if(MAP[curTipo][marchio]){ $("#amErr").textContent="Questo marchio esiste già in "+curTipo+"."; return; }
+    const rows=[];
+    document.querySelectorAll(".addfil").forEach(s=>{ const n=parseInt(s.value,10); if(n>0) rows.push({marchio:marchio,tipo_lenti:curTipo,filiale:s.dataset.f,qty_ideale:nToQty(n),fornitore:forn||null,autorizzato:true,modificata_il:new Date().toISOString()}); });
+    if(!rows.length){ $("#amErr").textContent="Imposta almeno una profondità (o annulla)."; return; }
+    $("#amOk").disabled=true;
+    const res=await sb.from("assortimento_marchio").insert(rows).select();
+    $("#amOk").disabled=false;
+    if(res.error){ $("#amErr").textContent="Errore: "+res.error.message; return; }
+    closeModal(); await loadData(); drawTable(); toast("Marchio aggiunto: "+marchio+" ("+rows.length+" filiali)");
+  };
+}
+
+// ---------- Elimina marchio ----------
+function confirmDelete(m){
+  openModal(
+    '<h3>Elimina marchio</h3>'+
+    '<div style="color:var(--muted);font-size:13px;margin:8px 0 4px">Rimuovere <b style="color:var(--txt)">'+esc(m)+'</b> dall\'assortimento <b>'+esc(curTipo)+'</b>? Verranno eliminate tutte le righe di questo marchio per il tipo '+esc(curTipo)+' (tutte le filiali). L\'operazione non è reversibile.</div>'+
+    '<div class="err" id="delErr"></div>'+
+    '<div class="acts"><button class="cancel" id="delCancel">Annulla</button><button class="danger" id="delOk">Elimina</button></div>'
+  );
+  $("#delCancel").onclick=closeModal;
+  $("#delOk").onclick=async()=>{
+    $("#delOk").disabled=true;
+    const res=await sb.from("assortimento_marchio").delete().eq("marchio",m).eq("tipo_lenti",curTipo);
+    $("#delOk").disabled=false;
+    if(res.error){ $("#delErr").textContent="Errore: "+res.error.message; return; }
+    closeModal(); await loadData(); drawTable(); toast("Marchio eliminato: "+m+" ("+curTipo+")");
+  };
+}
+
+// ---------- Modal + toast ----------
+function openModal(html){ $("#modal").innerHTML=html; $("#modalBack").classList.add("open"); }
+function closeModal(){ $("#modalBack").classList.remove("open"); $("#modal").innerHTML=""; }
+$("#modalBack").addEventListener("click",e=>{ if(e.target.id==="modalBack") closeModal(); });
+let toastT=null;
+function toast(msg,isErr){ const el=$("#toast"); el.textContent=msg; el.className="toast show"+(isErr?" err":""); clearTimeout(toastT); toastT=setTimeout(()=>el.className="toast"+(isErr?" err":""),2600); }
+
+boot();
+</script>
+</body>
+</html>
