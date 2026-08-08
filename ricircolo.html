@@ -45,6 +45,7 @@
     <a href="assortimento.html">Assortimento ideale</a>
     <a href="ricircolo.html" class="cur">Ricircolo</a>
     <a href="impostazioni.html">Impostazioni</a>
+    <a href="revisioni.html" id="navRevisioni" style="display:none">Revisioni</a>
   </nav>
   <div class="spacer"></div>
   <span class="who" id="who"></span>
@@ -164,6 +165,8 @@ $("#logout").addEventListener("click",async()=>{await sb.auth.signOut();location
 // XLSX for export
 (function(){var s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";document.head.appendChild(s);})();
 boot();
+
+(async function(){try{const {data:{session}}=await sb.auth.getSession();const _r=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.role;if(_r==='admin'){var e=document.getElementById('navRevisioni');if(e)e.style.display='';}}catch(e){}})();
 </script>
 </body>
 </html>
