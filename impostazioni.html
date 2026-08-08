@@ -147,7 +147,7 @@ const FIL_ORDER=["D","I","G","Z","C","E","H","B"]; // Catania, Portali, Giarre, 
 // --- Profondità: qty_ideale (multipli di 7) <-> gradino cumulativo ---
 const LADDER=["ST","P1","P2","P3","P4"];
 const STEP=7;
-function qtyToN(q){ q=Number(q)||0; return q>0?Math.round(q/STEP):0; }
+function qtyToN(q){ q=Number(q)||0; return q>0?Math.min(Math.round(q/STEP),5):0; }
 function nToCode(n){ return (n>=1&&n<=5)?LADDER[n-1]:""; }
 function nToQty(n){ return n*STEP; }
 function dpClass(n){ if(n<=0||n>5)return "dpEmpty"; if(n===1)return "dpST"; if(n===2)return "dpP1"; if(n===3)return "dpP2"; return "dpP3"; }
@@ -272,7 +272,7 @@ function drawTable(){
   $("#asStatus").innerHTML='<b>'+ms.length+'</b> marchi · '+FIL_ORDER.length+' filiali · '+esc(curTipo);
   $("#asWrap").style.display="block";
   if(isAdmin){
-    $("#asTbl").querySelectorAll("td.cellEdit").forEach(td=>td.onclick=()=>openCellEditor(td));
+    $("#asTbl").querySelectorAll("td.cellEdit").forEach(td=>td.ondblclick=()=>openCellEditor(td));
     $("#asTbl").querySelectorAll("button.trash").forEach(b=>b.onclick=()=>confirmDelete(b.dataset.del));
   }
 }
