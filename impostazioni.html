@@ -145,12 +145,12 @@ const FIL_NAME={B:"Paternò",C:"Acireale",D:"Catania",E:"Augusta",G:"Giarre",H:"
 const FIL_ORDER=["D","I","G","Z","C","E","H","B"]; // Catania, Portali, Giarre, Viale Africa, Acireale, Augusta, Lentini, Paternò
 
 // --- Profondità: qty_ideale (multipli di 7) <-> gradino cumulativo ---
-const LADDER=["ST","P1","P2","P3","P4","T0","T1","T2","T3","T4","T5","T6","T7","T8","T9"];
+const LADDER=["ST","P1","P2","P3","P4"];
 const STEP=7;
-function qtyToN(q){ q=Number(q)||0; return q>0?Math.min(Math.round(q/STEP),LADDER.length):0; }
-function nToCode(n){ return n>0?LADDER[n-1]:""; }
+function qtyToN(q){ q=Number(q)||0; return q>0?Math.round(q/STEP):0; }
+function nToCode(n){ return (n>=1&&n<=5)?LADDER[n-1]:""; }
 function nToQty(n){ return n*STEP; }
-function dpClass(n){ if(n<=0)return "dpEmpty"; if(n===1)return "dpST"; if(n===2)return "dpP1"; if(n===3)return "dpP2"; return "dpP3"; }
+function dpClass(n){ if(n<=0||n>5)return "dpEmpty"; if(n===1)return "dpST"; if(n===2)return "dpP1"; if(n===3)return "dpP2"; return "dpP3"; }
 
 let ROLE="gestore", isAdmin=false;
 let MAP={Vista:{},Sole:{}};   // MAP[tipo][marchio][filiale]={id,qty}
@@ -277,7 +277,7 @@ function drawTable(){
   }
 }
 
-function depthOptions(currentN){ const opts=[{n:0,label:"Non previsto"}]; for(let i=1;i<=5;i++) opts.push({n:i,label:LADDER[i-1]}); if(currentN>5) opts.push({n:currentN,label:LADDER[currentN-1]}); return opts; }
+function depthOptions(currentN){ const opts=[{n:0,label:"Non previsto"}]; for(let i=1;i<=5;i++) opts.push({n:i,label:LADDER[i-1]}); return opts; }
 
 function openCellEditor(td){
   if(td.querySelector("select")) return;
@@ -311,23 +311,29 @@ async function saveDepth(m,f,n,td){
 
 // ---------- Aggiungi marchio ----------
 function openAddMarchio(){
-  const grid=FIL_ORDER.map(f=>'<div class="fcol"><span>'+esc(FIL_NAME[f])+'</span><select class="sort addfil" data-f="'+f+'">'+depthOptions(0).map(o=>'<option value="'+o.n+'">'+or.label+'</option>').join("")+'</select></div>').join("");
+  const grid=FIL_ORDER.map(f=>'<div class="fcol"><span>'+esc(FIL_NAME[f])+'</span><select class="sort addfil" data-f="'+f+'">'+depthOptions(0).map(o=>'<option value="'+o.n+'">'+o.label+'</option>').join("")+'</select></div>').join("");
   openModal(
     '<h3>Aggiungi marchio ('+esc(curTipo)+')</h3>'+
     '<div class="sub" style="color:var(--muted);font-size:12px;margin:2px 0 14px">Le profondità impostano l\'assortimento ideale per il tipo lenti selezionato ('+esc(curTipo)+').</div>'+
     '<div class="mrow">'+
-      '<div class="fcol"><span>Marchio</span><input class="txt" id="amMar" placeholder="Es. RAY-BAN" /></div>'+
-      '<div class="fcol"><span>Fornitore</span><input class="txt" id="amForn" placeholder="Es. Luxottica" /></div>'+
+      '<div class="fcol" style="flex:1"><span>Fornitore</span><select class="sort" id="amForn" style="width:100%"><option value="">Seleziona fornitore…</option></select></div>'+
+      '<div class="fcol" style="flex:1"><span>Marchio</span><input class="txt" id="amMarSearch" placeholder="Seleziona prima il fornitore" disabled style="width:100%" /><select class="sort" id="amMar" size="6" disabled style="width:100%;margin-top:6px"></select></div>'+
     '</div>'+
     '<div class="grid-fil">'+grid+'</div>'+
     '<div class="err" id="amErr"></div>'+
     '<div class="acts"><button class="cancel" id="amCancel">Annulla</button><button class="ok" id="amOk">Aggiungi</button></div>'
   );
   $("#amCancel").onclick=closeModal;
+  (async function(){ try{ var fr=await sb.rpc("sv_g_fornitori"); var fsel=document.getElementById("amForn"); if(fsel){ (fr.data||[]).forEach(function(x){ if(x.fornitore){ var o=document.createElement("option"); o.value=x.fornitore; o.textContent=x.fornitore; fsel.appendChild(o); } }); } }catch(e){} })();
+  var AMMAR=[];
+  function amRenderMarchi(filter){ var sel=document.getElementById("amMar"); if(!sel)return; filter=(filter||"").toLowerCase(); var list=filter?AMMAR.filter(function(m){return m.toLowerCase().indexOf(filter)>=0;}):AMMAR; sel.innerHTML=list.map(function(m){return '<option value="'+esc(m)+'">'+esc(m)+'</option>';}).join(""); }
+  document.getElementById("amForn").onchange=async function(){ var f=this.value; var ms=document.getElementById("amMarSearch"), sel=document.getElementById("amMar"); AMMAR=[]; sel.innerHTML=""; if(!f){ ms.disabled=true; ms.value=""; ms.placeholder="Seleziona prima il fornitore"; sel.disabled=true; return; } ms.disabled=false; ms.value=""; ms.placeholder="Cerca marchio…"; sel.disabled=false; sel.innerHTML='<option value="">Carico…</option>'; try{ var r=await sb.rpc("sv_g_marchi",{p_fornitore:f}); AMMAR=(r.data||[]).map(function(x){return x.marchio;}).filter(Boolean); }catch(e){ AMMAR=[]; } amRenderMarchi(""); };
+  document.getElementById("amMarSearch").oninput=function(){ amRenderMarchi(this.value); };
   $("#amOk").onclick=async()=>{
-    const marchio=($("#amMar").value||"").trim().toUpperCase();
+    const marchio=($("#amMar").value||"").trim();
     const forn=($("#amForn").value||"").trim();
-    if(!marchio){ $("#amErr").textContent="Inserisci il marchio."; return; }
+    if(!forn){ $("#amErr").textContent="Seleziona il fornitore."; return; }
+    if(!marchio){ $("#amErr").textContent="Seleziona il marchio."; return; }
     if(MAP[curTipo][marchio]){ $("#amErr").textContent="Questo marchio esiste già in "+curTipo+"."; return; }
     const rows=[];
     document.querySelectorAll(".addfil").forEach(s=>{ const n=parseInt(s.value,10); if(n>0) rows.push({marchio:marchio,tipo_lenti:curTipo,filiale:s.dataset.f,qty_ideale:nToQty(n),fornitore:forn||null,autorizzato:true,modificata_il:new Date().toISOString()}); });
