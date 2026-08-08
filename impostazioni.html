@@ -115,6 +115,7 @@
       <a href="assortimento.html">Assortimento ideale</a>
       <a href="ricircolo.html">Ricircolo</a>
       <a href="impostazioni.html" class="cur">Impostazioni</a>
+      <a href="revisioni.html" id="navRevisioni" style="display:none">Revisioni</a>
     </nav>
     <div class="spacer"></div>
     <span class="who" id="who"></span>
@@ -365,6 +366,8 @@ let toastT=null;
 function toast(msg,isErr){ const el=$("#toast"); el.textContent=msg; el.className="toast show"+(isErr?" err":""); clearTimeout(toastT); toastT=setTimeout(()=>el.className="toast"+(isErr?" err":""),2600); }
 
 boot();
+
+(async function(){try{const {data:{session}}=await sb.auth.getSession();const _r=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.role;if(_r==='admin'){var e=document.getElementById('navRevisioni');if(e)e.style.display='';}}catch(e){}})();
 </script>
 </body>
 </html>
