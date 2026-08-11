@@ -148,6 +148,14 @@
   .cattoast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:11px 18px;border-radius:10px;box-shadow:var(--shadow);font-size:13px;opacity:0;transition:.25s;z-index:90}
   .cattoast.show{transform:translateX(-50%) translateY(0);opacity:1}
   .cattoast.err{border-color:var(--bad);color:var(--bad)}
+  #revToggle.on{background:var(--accent);color:#04121f;border-color:var(--accent);font-weight:700}
+  .revpanel{position:absolute;top:calc(100% + 4px);left:0;z-index:45;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:12px 14px;display:none;min-width:230px}
+  .revpanel.open{display:block}
+  .revpanel .fcol{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+  .revpanel .fcol:last-child{margin-bottom:0}
+  .revpanel .fcol>span{font-size:12px;color:var(--muted)}
+  .rightlink{color:var(--muted);text-decoration:none;font-size:13px;font-weight:600;margin-right:14px}
+  .rightlink:hover{color:var(--accent)}
 </style>
 </head>
 <body>
@@ -172,17 +180,16 @@
       <a href="presenza.html" class="cur">Controllo presenza</a>
       <a href="assortimento.html">Assortimento ideale</a>
       <a href="ricircolo.html">Ricircolo</a>
-      <a href="impostazioni.html">Impostazioni</a>
       <a href="revisioni.html" id="navRevisioni" style="display:none">Revisioni</a>
     </nav>
     <div class="spacer"></div>
-    <span id="dataLight" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:default" title="Controllo aggiornamento dati…"><span id="dataDot" style="width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block"></span><span id="dataTxt">dati…</span></span>
+    <a href="impostazioni.html" class="rightlink">Impostazioni</a><span id="dataLight" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:default" title="Controllo aggiornamento dati…"><span id="dataDot" style="width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block"></span><span id="dataTxt">dati…</span></span>
     <span class="who" id="who"></span>
     <button class="ghost" id="logout">Esci</button>
   </header>
 
   <div class="wrap">
-    <button id="editCatBtn" class="ghost" style="display:none;margin:0 0 8px">✏ Modifica categoria</button>
+    <div id="revWrap" style="display:none;position:relative;margin:0 0 8px"><button class="tbtoggle" id="revToggle"><span id="revArrow">▾</span> Revisioni</button><div class="revpanel" id="revPanel"><div class="fcol"><span>Modifica categoria</span><button id="editCatBtn" class="ghost">✏ Modifica categoria</button></div><div class="fcol"><span>Target (min stock)</span><div class="seg" id="segTgt"><button data-e="off" class="on">Blocca</button><button data-e="on">Modifica</button></div></div></div></div>
     <button class="tbtoggle" id="tbToggle"><span id="tbArrow">▾</span> Strumenti (mostra/nascondi)</button>
     <div class="toolbar" id="toolbar">
       <div class="tbgroup"><div class="tbglabel">Filtri</div><div class="tbrow">
@@ -195,7 +202,7 @@
         <div class="fcol"><span>Mostra</span><div class="seg" id="segShow"><button data-s="mancanti" class="on">Solo con mancanti</button><button data-s="tutte">Tutte</button></div></div>
         <div class="fcol"><span>Vista</span><div class="seg" id="seg"><button data-v="lista">Elenco</button><button data-v="matrice" class="on">Matrice</button></div></div>
         <div class="fcol"><span>Filiali</span><div class="seg" id="segFil"><button data-fv="attive" class="on">Attive</button><button data-fv="giacenza">Movimentate</button><button data-fv="tutte">Tutte</button></div></div>
-        <div class="fcol"><span>Target (min stock)</span><div class="seg" id="segTgt"><button data-e="off" class="on">Blocca</button><button data-e="on">Modifica</button></div></div><div class="fcol"><span>Impostazioni</span><button class="ghost" id="saveViewDef" style="padding:6px 10px;white-space:nowrap">★ Salva vista predefinita</button></div>
+        <div class="fcol"><span>Impostazioni</span><button class="ghost" id="saveViewDef" style="padding:6px 10px;white-space:nowrap">★ Salva vista predefinita</button></div>
       </div></div>
       <div class="tbgroup"><div class="tbglabel">Dati</div><div class="tbrow">
         <div class="fcol"><span>Marchi</span><div class="seg" id="segMarchi"><button data-dm="ideale" class="on">Con ideale</button><button data-dm="tutti">Tutti</button></div></div>
@@ -968,7 +975,7 @@ function drawMatrix(cells,negozi){
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
 var ROLE='gestore',isAdmin=false,curEmail='',editCat=false; var PENDING=new Set();
-function applyAdminUI(){ var nv=document.getElementById('navRevisioni'); if(nv)nv.style.display=isAdmin?'':'none'; var eb=document.getElementById('editCatBtn'); if(eb)eb.style.display=isAdmin?'':'none'; }
+function applyAdminUI(){ var nv=document.getElementById('navRevisioni'); if(nv)nv.style.display=isAdmin?'':'none'; var rw=document.getElementById('revWrap'); if(rw)rw.style.display=isAdmin?'':'none'; }
 async function loadPending(){ try{ var r=await sb.from('richieste_cambio_categoria').select('barcode,filiale').eq('stato','pendente'); PENDING=new Set((r.data||[]).map(function(x){return x.barcode+'|'+x.filiale;})); applyPendBadges(); }catch(e){} }
 function applyPendBadges(){ try{ document.querySelectorAll('#tbl td.filcol[data-bc]').forEach(function(td){ var k=td.getAttribute('data-bc')+'|'+td.getAttribute('data-fil'); if(PENDING.has(k))td.setAttribute('data-pend','1'); else td.removeAttribute('data-pend'); }); }catch(e){} }
 (function(){ var _od=window.draw; if(typeof _od==='function'){ window.draw=function(){ var x=_od.apply(this,arguments); try{applyPendBadges();}catch(e){} return x; }; } })();
@@ -992,7 +999,7 @@ function openCatModal(bc,fil,td){
     closeCatModal(); catToast('Proposta inviata: '+(c.categoria||'\u2014')+' \u2192 '+nc);
   };
 }
-(function(){ var mb=document.getElementById('catModalBack'); if(mb)mb.addEventListener('click',function(e){ if(e.target.id==='catModalBack')closeCatModal(); }); var eb=document.getElementById('editCatBtn'); if(eb)eb.addEventListener('click',function(){ editCat=!editCat; document.body.classList.toggle('editcat',editCat); eb.classList.toggle('on',editCat); catToast(editCat?'Modalit\u00e0 modifica categoria attiva: clicca una cella della matrice':'Modalit\u00e0 modifica categoria disattivata'); }); var tb=document.getElementById('tbl'); if(tb)tb.addEventListener('click',function(ev){ if(!editCat||!isAdmin)return; var td=ev.target.closest('td.filcol[data-bc]'); if(!td)return; ev.preventDefault(); ev.stopPropagation(); openCatModal(td.getAttribute('data-bc'),td.getAttribute('data-fil'),td); },true); })();
+(function(){ var mb=document.getElementById('catModalBack'); if(mb)mb.addEventListener('click',function(e){ if(e.target.id==='catModalBack')closeCatModal(); }); var _rt=document.getElementById('revToggle'); if(_rt)_rt.addEventListener('click',function(ev){ ev.stopPropagation(); var p=document.getElementById('revPanel'); var op=p.classList.toggle('open'); _rt.classList.toggle('on',op); }); document.addEventListener('click',function(ev){ if(!ev.target.closest('#revWrap')){ var p=document.getElementById('revPanel'); if(p)p.classList.remove('open'); var r=document.getElementById('revToggle'); if(r)r.classList.remove('on'); } }); var eb=document.getElementById('editCatBtn'); if(eb)eb.addEventListener('click',function(){ editCat=!editCat; document.body.classList.toggle('editcat',editCat); eb.classList.toggle('on',editCat); catToast(editCat?'Modalit\u00e0 modifica categoria attiva: clicca una cella della matrice':'Modalit\u00e0 modifica categoria disattivata'); }); var tb=document.getElementById('tbl'); if(tb)tb.addEventListener('click',function(ev){ if(!editCat||!isAdmin)return; var td=ev.target.closest('td.filcol[data-bc]'); if(!td)return; ev.preventDefault(); ev.stopPropagation(); openCatModal(td.getAttribute('data-bc'),td.getAttribute('data-fil'),td); },true); })();
 
 boot();
 </script>
