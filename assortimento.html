@@ -163,7 +163,7 @@ async function load(){
   // selettore fornitore
   const fornitori=[...new Set(Object.values(FORN))].sort();
   $("#forn").innerHTML='<option value="">Tutti i fornitori</option>'+fornitori.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join("");
-  $("#marchiList").innerHTML=(marchi||[]).map(m=>`<option value="${esc(typeof m==='string'?m:Object.values(m)[0])}">`).join("");
+  if(document.getElementById("marchiList"))$("#marchiList").innerHTML=(marchi||[]).map(m=>`<option value="${esc(typeof m==='string'?m:Object.values(m)[0])}">`).join("");
   render();
 }
 
