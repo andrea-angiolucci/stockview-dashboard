@@ -90,6 +90,24 @@
   .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
   .toast.err{border-color:var(--bad);color:var(--bad)}
   .ro-note{color:var(--muted);font-size:12px;margin:2px 2px 12px}
+  .utools{display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
+  .ubtn{background:var(--accent);color:#04121f;border:none;border-radius:8px;padding:9px 14px;font-weight:700;cursor:pointer;font-size:13px}
+  .ubtn:hover{background:var(--accent2)}
+  .ubtn:disabled{opacity:.6;cursor:default}
+  .utblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+  .utbl{width:100%;border-collapse:collapse;font-size:13px;background:var(--panel);min-width:720px}
+  .utbl th{text-align:left;padding:10px 12px;background:var(--panel2);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--line)}
+  .utbl td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .utbl tbody tr:last-child td{border-bottom:none}
+  .utbl tr.disrow td{opacity:.55}
+  .ubadge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700}
+  .ubadge.on{background:rgba(54,201,141,.15);color:var(--ok)}
+  .ubadge.off{background:rgba(255,107,107,.18);color:var(--bad)}
+  .urole{padding:5px 8px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:12px}
+  .uacts{display:flex;gap:6px;white-space:nowrap}
+  .usm{padding:5px 10px!important;font-size:12px!important}
+  .udel{color:var(--bad)}
+  .umuted{color:var(--muted);font-size:12px}
 </style>
 </head>
 <body>
@@ -174,15 +192,89 @@ $("#logout").addEventListener("click",async()=>{ await sb.auth.signOut(); locati
 
 // ---------- Tab framework (estendibile) ----------
 const TABS=[
-  {id:"assortimento", label:"Assortimento ideale", render:renderAssortimento}
+  {id:"assortimento", label:"Assortimento ideale", render:renderAssortimento},
+  {id:"utenti", label:"Utenti", render:renderUtenti, admin:true}
   // future: {id:"marchi", label:"Marchi alias", render:...}, {id:"filiali",...}, {id:"sistema",...}
 ];
 let curTab=null;
 function renderTabbar(){
-  $("#tabbar").innerHTML=TABS.map(t=>'<button data-id="'+t.id+'"'+(t.id===curTab?' class="on"':'')+'>'+esc(t.label)+'</button>').join("");
+  $("#tabbar").innerHTML=TABS.filter(t=>!t.admin||isAdmin).map(t=>'<button data-id="'+t.id+'"'+(t.id===curTab?' class="on"':'')+'>'+esc(t.label)+'</button>').join("");
   $("#tabbar").querySelectorAll("button").forEach(b=>b.onclick=()=>selectTab(b.dataset.id));
 }
 function selectTab(id){ curTab=id; renderTabbar(); const t=TABS.find(x=>x.id===id); $("#tabcontent").innerHTML=""; t.render($("#tabcontent")); }
+
+// ---------- Tab: Utenti (solo admin) ----------
+const EF_URL = SUPABASE_URL + "/functions/v1/user-management";
+let U_LIST = [], U_ME = "";
+async function efCall(method, path, body){
+  const { data:{ session } } = await sb.auth.getSession();
+  const tok = session ? session.access_token : "";
+  const res = await fetch(EF_URL + (path||""), {
+    method,
+    headers:{ "Authorization":"Bearer "+tok, "apikey":SUPABASE_KEY, "Content-Type":"application/json" },
+    body: (method==="GET") ? undefined : JSON.stringify(body||{})
+  });
+  let j={}; try{ j=await res.json(); }catch(e){}
+  if(!res.ok) throw new Error((j&&j.error)||("Errore "+res.status));
+  return j;
+}
+function uFmt(s){ if(!s) return "\u2014"; try{ const d=new Date(s); return d.toLocaleDateString("it-IT")+" "+d.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"}); }catch(e){ return "\u2014"; } }
+async function renderUtenti(host){
+  if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; }
+  try{ const s=await sb.auth.getSession(); U_ME=(s&&s.data&&s.data.session&&s.data.session.user)?s.data.session.user.email:""; }catch(e){}
+  host.innerHTML='<div class="utools"><button class="ubtn" id="uInvite">+ Invita utente</button><button class="ghost" id="uReload">Aggiorna</button></div><div id="uwrap"><div class="umuted">Caricamento utenti\u2026</div></div>';
+  $("#uInvite").onclick=openInvite;
+  $("#uReload").onclick=function(){ loadUtenti(); };
+  await loadUtenti();
+}
+async function loadUtenti(){
+  const wrap=$("#uwrap"); wrap.innerHTML='<div class="umuted">Caricamento utenti\u2026</div>';
+  try{
+    const j=await efCall("GET","");
+    U_LIST=(j.users||[]).sort(function(a,b){ return (a.email||"").localeCompare(b.email||""); });
+    drawUtenti();
+  }catch(e){ wrap.innerHTML='<div class="err">Errore: '+esc(String((e&&e.message)||e))+'</div>'; }
+}
+function drawUtenti(){
+  const rows=U_LIST.map(function(u){
+    const dis=!!u.disabled, self=(u.email&&u.email===U_ME);
+    const roleSel='<select class="urole" data-id="'+esc(u.id)+'"><option value="gestore"'+(u.role!=="admin"?" selected":"")+'>gestore</option><option value="admin"'+(u.role==="admin"?" selected":"")+'>admin</option></select>';
+    const stato=dis?'<span class="ubadge off">Disattivato</span>':'<span class="ubadge on">Attivo</span>';
+    const toggleBtn='<button class="ghost usm" data-act="status" data-id="'+esc(u.id)+'" data-dis="'+(dis?"0":"1")+'">'+(dis?"Riattiva":"Disattiva")+'</button>';
+    const delBtn=self?'':'<button class="ghost usm udel" data-act="del" data-id="'+esc(u.id)+'" data-email="'+esc(u.email||"")+'">Elimina</button>';
+    return '<tr'+(dis?' class="disrow"':'')+'><td>'+esc(u.email||"\u2014")+(self?' <span class="umuted">(tu)</span>':'')+'</td><td>'+roleSel+'</td><td>'+stato+'</td><td>'+uFmt(u.created_at)+'</td><td>'+uFmt(u.last_sign_in_at)+'</td><td class="uacts">'+toggleBtn+delBtn+'</td></tr>';
+  }).join("");
+  $("#uwrap").innerHTML='<div class="utblwrap"><table class="utbl"><thead><tr><th>Email</th><th>Ruolo</th><th>Stato</th><th>Creazione</th><th>Ultimo accesso</th><th>Azioni</th></tr></thead><tbody>'+rows+'</tbody></table></div><div class="umuted" style="margin-top:8px">'+U_LIST.length+' utenti registrati</div>';
+  $("#uwrap").querySelectorAll("select.urole").forEach(function(sel){ sel.onchange=function(){ changeRole(sel.dataset.id, sel.value, sel); }; });
+  $("#uwrap").querySelectorAll("button.usm").forEach(function(b){ b.onclick=function(){ if(b.dataset.act==="status") toggleStatus(b.dataset.id, b.dataset.dis==="1"); else delUser(b.dataset.id, b.dataset.email); }; });
+}
+async function changeRole(id, role, sel){
+  sel.disabled=true;
+  try{ await efCall("PATCH","/role",{id:id, role:role}); const u=U_LIST.find(function(x){return x.id===id;}); if(u)u.role=role; toast("Ruolo aggiornato: "+role); }
+  catch(e){ toast(String((e&&e.message)||e), true); loadUtenti(); }
+  sel.disabled=false;
+}
+async function toggleStatus(id, disable){
+  try{ await efCall("PATCH","/status",{id:id, disable:disable}); toast(disable?"Utente disattivato":"Utente riattivato"); await loadUtenti(); }
+  catch(e){ toast(String((e&&e.message)||e), true); }
+}
+async function delUser(id, email){
+  if(!confirm("Eliminare definitivamente l'utente "+email+" ?\nL'azione \u00e8 irreversibile.")) return;
+  if(!confirm("Conferma finale: elimino "+email+" ?")) return;
+  try{ await efCall("DELETE","",{id:id}); toast("Utente eliminato"); await loadUtenti(); }
+  catch(e){ toast(String((e&&e.message)||e), true); }
+}
+function openInvite(){
+  openModal('<h3 style="margin:0 0 12px">Invita nuovo utente</h3><label>Email</label><input type="email" id="invEmail" placeholder="nome@dominio.it" style="width:100%"><label style="margin-top:10px;display:block">Ruolo</label><select id="invRole" style="width:100%"><option value="gestore" selected>gestore</option><option value="admin">admin</option></select><div class="err" id="invErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button class="ghost" id="invCancel">Annulla</button><button class="ubtn" id="invSend">Invia invito</button></div>');
+  $("#invCancel").onclick=closeModal;
+  $("#invSend").onclick=async function(){
+    const email=($("#invEmail").value||"").trim(); const role=$("#invRole").value; const err=$("#invErr");
+    if(!email || email.indexOf("@")<1 || email.lastIndexOf(".")<email.indexOf("@")){ err.textContent="Inserisci un'email valida."; return; }
+    $("#invSend").disabled=true;
+    try{ await efCall("POST","/invite",{email:email, role:role, redirectTo:location.origin+"/presenza.html"}); closeModal(); toast("Invito inviato a "+email); await loadUtenti(); }
+    catch(e){ err.textContent=String((e&&e.message)||e); $("#invSend").disabled=false; }
+  };
+}
 
 // ---------- Tab: Assortimento ideale ----------
 async function renderAssortimento(host){
