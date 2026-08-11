@@ -265,7 +265,7 @@ async function delUser(id, email){
   catch(e){ toast(String((e&&e.message)||e), true); }
 }
 function openInvite(){
-  openModal('<h3 style="margin:0 0 12px">Invita nuovo utente</h3><label>Email</label><input type="email" id="invEmail" placeholder="nome@dominio.it" style="width:100%"><label style="margin-top:10px;display:block">Ruolo</label><select id="invRole" style="width:100%"><option value="gestore" selected>gestore</option><option value="admin">admin</option></select><div class="err" id="invErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button class="ghost" id="invCancel">Annulla</button><button class="ubtn" id="invSend">Invia invito</button></div>');
+  openModal('<h3 style="margin:0 0 12px">Invita nuovo utente</h3><label>Email</label><input type="email" id="invEmail" placeholder="nome@dominio.it" style="width:100%"><label style="margin-top:10px;display:block">Ruolo</label><select id="invRole" class="urole" style="width:100%"><option value="gestore" selected>gestore</option><option value="admin">admin</option></select><div class="err" id="invErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button class="ghost" id="invCancel">Annulla</button><button class="ubtn" id="invSend">Invia invito</button></div>');
   $("#invCancel").onclick=closeModal;
   $("#invSend").onclick=async function(){
     const email=($("#invEmail").value||"").trim(); const role=$("#invRole").value; const err=$("#invErr");
