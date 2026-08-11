@@ -63,6 +63,24 @@
   tfoot td.mar{background:#e4eef9}
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:9px;font-size:13.5px;opacity:0;transition:.25s;pointer-events:none}
   .toast.show{opacity:1}
+  .qd{padding:4px 6px;border-radius:6px;background:#fff;border:1px solid var(--line);color:var(--ink);font-size:12px}
+  .deltacell{text-align:center;font-weight:700;font-size:13px}
+  .deltacell.dpos{color:var(--ok)}
+  .deltacell.dneg{color:var(--bad);background:rgba(229,72,77,.10)}
+  .deltacell.dgrey{color:var(--muted);opacity:.7}
+  .dtoggle{background:#fff;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13px}
+  .dtoggle.on{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+  .delrow{margin-left:6px;background:transparent;border:none;color:var(--bad);cursor:pointer;font-size:14px;opacity:.55}
+  .delrow:hover{opacity:1}
+  body.notadmin .adminonly{display:none!important}
+  .amback{position:fixed;inset:0;background:rgba(20,30,50,.45);display:none;align-items:center;justify-content:center;z-index:100}
+  .amback.open{display:flex}
+  .ammodal{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;width:390px;max-width:92vw;box-shadow:var(--shadow)}
+  .ammodal label{font-size:12px;color:var(--muted)}
+  .ammodal input,.ammodal select{color:var(--ink)}
+  .amdepths{max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px;margin-top:4px}
+  .amdrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 4px}
+  .amdrow span{font-size:12px;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -103,12 +121,9 @@
         <button data-t="Sole">Sole</button>
       </div>
       <div class="spacer"></div>
-      <div class="addbox">
-        <input id="addInput" list="marchiList" placeholder="Aggiungi marchio…" />
-        <datalist id="marchiList"></datalist>
-        <button class="addbtn" id="addBtn">+ Aggiungi</button>
-      </div>
-      <button class="savebtn" id="saveBtn">Salva modifiche</button>
+      <button class="dtoggle" id="deltaBtn" title="Delta disponibile vs ideale">△ Delta ideale</button>
+        <button class="addbtn adminonly" id="addBtn">+ Aggiungi marchio</button>
+        <button class="savebtn adminonly" id="saveBtn">Salva modifiche</button>
     </div>
     <div class="legend">Profondità: <b>7</b>=ST · <b>14</b>=ST+P1 · <b>21</b>=ST+P1+P2 · <b>28</b>=+P3 · <b>35</b>=+P4 … (vuoto/0 = linea spenta). Totali riga/colonna in tempo reale. Il <b>fornitore</b> filtra i marchi mostrati.</div>
     <div class="tablewrap"><table id="tbl"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
@@ -126,10 +141,10 @@ const $=s=>document.querySelector(s);
 let PDV=[];                  // [{codice,nome}]
 let DATA={Vista:{},Sole:{}}; // DATA[tipo][marchio][codice]=qty
 let FORN={};                 // marchio -> fornitore
-let tab="Vista"; let dirty=false;
+let tab="Vista"; let dirty=false; let isAdmin=false; let deltaOn=false; let ADISP={}; let ADISP_tab=null; const A_LADDER=["ST","P1","P2","P3","P4"]; const A_STEP=7;
 
 async function boot(){const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex";}
-async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; await load();}
+async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; isAdmin=!!(session.user.user_metadata&&session.user.user_metadata.role==="admin"); document.body.classList.toggle("notadmin",!isAdmin); await load();}
 $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();const b=$("#loginBtn"),er=$("#loginErr");er.textContent="";b.disabled=true;b.textContent="Accesso…";
   const {data,error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pwd").value});
   b.disabled=false;b.textContent="Accedi"; if(error){er.textContent=error.message.includes("Invalid")?"Email o password non corretti.":error.message;return;} showApp(data.session);});
@@ -152,8 +167,30 @@ async function load(){
   render();
 }
 
-$("#seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#seg").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");tab=b.dataset.t;render();});
+$("#seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#seg").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");tab=b.dataset.t; if(deltaOn){loadDelta().then(render);}else{render();}});
 $("#forn").addEventListener("change",render);
+$("#deltaBtn").addEventListener("click",async function(){ deltaOn=!deltaOn; $("#deltaBtn").classList.toggle("on",deltaOn); if(deltaOn){ await loadDelta(); } render(); });
+
+function aQtyToN(q){ q=Number(q||0); return q>0?Math.min(Math.round(q/A_STEP),5):0; }
+function aDepthSelect(m,code,q){ var n=aQtyToN(q); var o='<option value="">Non previsto</option>'; for(var i=1;i<=5;i++){ o+='<option value="'+A_LADDER[i-1]+'"'+(i===n?" selected":"")+'>'+A_LADDER[i-1]+'</option>'; } return '<select class="qd" data-m="'+esc(m)+'" data-f="'+code+'">'+o+'</select>'; }
+function aCellHTML(m,code){ var has=DATA[tab][m]&&Object.prototype.hasOwnProperty.call(DATA[tab][m],code); var q=has?Number(DATA[tab][m][code]||0):0;
+  if(deltaOn){ var disp=Number(ADISP[m+"|"+code]||0); if(!has){ return '<td class="deltacell dgrey" title="filiale non prevista">'+(disp||"·")+'</td>'; } var d=disp-q; var cls=d<0?"dneg":"dpos"; return '<td class="deltacell '+cls+'" title="disp '+disp+' · ideale '+q+'">'+(d>0?"+":"")+d+'</td>'; }
+  if(isAdmin){ return '<td class="'+(q>0?"has":"")+'">'+aDepthSelect(m,code,q)+'</td>'; }
+  return '<td class="'+(q>0?"has":"")+'">'+(q>0?A_LADDER[aQtyToN(q)-1]:"·")+'</td>'; }
+function onEditSel(e){ var s=e.target; var m=s.dataset.m,f=s.dataset.f; var code=s.value; var qty=code?(A_LADDER.indexOf(code)+1)*A_STEP:0; if(!DATA[tab][m])DATA[tab][m]={}; if(qty>0)DATA[tab][m][f]=qty; else delete DATA[tab][m][f]; var td=s.closest("td"); if(td)td.classList.toggle("has",qty>0); dirty=true; recalc(); }
+function delMarchio(m){ if(!isAdmin)return; if(!confirm("Eliminare il marchio "+m+" da "+tab+"?"))return; delete DATA[tab][m]; dirty=true; render(); }
+async function loadDelta(){ ADISP={}; ADISP_tab=tab; var marchi=Object.keys(DATA[tab]); if(!marchi.length)return; var out=[],from=0; while(true){ var r=await sb.from("giacenze").select("marchio,filiale,quantita_disponibile,tipo_lenti").in("marchio",marchi).range(from,from+999); if(r.error)break; out=out.concat(r.data||[]); if(!r.data||r.data.length<1000)break; from+=1000; if(from>100000)break; } var tl=String(tab).toLowerCase(); out.forEach(function(x){ if(String(x.tipo_lenti||"").toLowerCase()!==tl)return; var k=x.marchio+"|"+x.filiale; ADISP[k]=(ADISP[k]||0)+Number(x.quantita_disponibile||0); }); }
+function aDepthSelectPlain(id){ var o='<option value="">Non previsto</option>'; for(var i=0;i<A_LADDER.length;i++){ o+='<option value="'+A_LADDER[i]+'">'+A_LADDER[i]+'</option>'; } return '<select id="'+id+'" class="qd">'+o+'</select>'; }
+function amRenderMarchi(q){ q=String(q||"").toLowerCase(); var list=(window.__amMarchi||[]).filter(function(m){return !q||String(m).toLowerCase().indexOf(q)>=0;}); $("#amMar").innerHTML=list.length?list.map(function(m){return '<option value="'+esc(m)+'">'+esc(m)+'</option>';}).join(""):'<option value="">Nessun marchio</option>'; }
+async function openAddModal(){ if(!isAdmin)return; var back=document.getElementById("amBack"); if(!back){ back=document.createElement("div"); back.id="amBack"; back.className="amback"; document.body.appendChild(back); back.addEventListener("click",function(e){ if(e.target.id==="amBack")back.classList.remove("open"); }); }
+  back.innerHTML='<div class="ammodal"><h3 style="margin:0 0 10px">Aggiungi marchio ('+tab+')</h3><label>Fornitore</label><select id="amForn" class="qd" style="width:100%"><option value="">Caricamento…</option></select><label style="margin-top:8px;display:block">Marchio</label><input id="amSearch" placeholder="cerca…" style="width:100%;margin-bottom:4px"><select id="amMar" size="6" class="qd" style="width:100%"><option value="">Seleziona prima il fornitore</option></select><label style="margin-top:8px;display:block">Profondità per filiale</label><div id="amDepths" class="amdepths"></div><div class="amerr" id="amErr" style="color:var(--bad);min-height:16px;margin-top:6px"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="ghost" id="amCancel">Annulla</button><button class="addbtn" id="amOk">Aggiungi</button></div></div>';
+  back.classList.add("open");
+  $("#amDepths").innerHTML=PDV.map(function(p){ return '<div class="amdrow"><span>'+esc(p.nome)+'</span>'+aDepthSelectPlain("amd_"+p.codice)+'</div>'; }).join("");
+  try{ var rf=await sb.rpc("sv_g_fornitori"); var fs=(rf.data||[]).map(function(x){return typeof x==="string"?x:(x.fornitore||x.label||Object.values(x)[0]);}); $("#amForn").innerHTML='<option value="">Seleziona fornitore</option>'+fs.map(function(f){return '<option value="'+esc(f)+'">'+esc(f)+'</option>';}).join(""); }catch(e){ $("#amForn").innerHTML='<option value="">Errore fornitori</option>'; }
+  $("#amForn").addEventListener("change",async function(){ var f=$("#amForn").value; if(!f){ $("#amMar").innerHTML='<option value="">Seleziona prima il fornitore</option>'; return; } $("#amMar").innerHTML='<option>Caricamento…</option>'; try{ var rm=await sb.rpc("sv_g_marchi",{p_fornitore:f}); window.__amMarchi=(rm.data||[]).map(function(x){return typeof x==="string"?x:(x.marchio||x.label||Object.values(x)[0]);}); amRenderMarchi(""); }catch(e){ $("#amMar").innerHTML='<option value="">Errore marchi</option>'; } });
+  $("#amSearch").addEventListener("input",function(){ amRenderMarchi($("#amSearch").value); });
+  $("#amCancel").addEventListener("click",function(){ back.classList.remove("open"); });
+  $("#amOk").addEventListener("click",function(){ var m=$("#amMar").value; var err=$("#amErr"); if(!m){ err.textContent="Seleziona un marchio."; return; } if(DATA[tab][m]){ err.textContent="Marchio già presente in "+tab+"."; return; } var forn=$("#amForn").value||"Luxottica"; DATA[tab][m]={}; FORN[m]=forn; PDV.forEach(function(p){ var sel=document.getElementById("amd_"+p.codice); var code=sel?sel.value:""; if(code){ DATA[tab][m][p.codice]=(A_LADDER.indexOf(code)+1)*A_STEP; } }); dirty=true; back.classList.remove("open"); render(); toast("Marchio aggiunto: "+m); }); }
 
 function render(){
   const fornSel=$("#forn").value;
@@ -161,9 +198,8 @@ function render(){
   let head="<tr><th class='mar'>Marchio</th>"+PDV.map(p=>`<th>${esc(p.nome)}</th>`).join("")+"<th class='tot'>Totale</th></tr>";
   $("#tbl").tHead.innerHTML=head;
   const body=marchi.map(m=>{
-    let tr=`<tr><td class="mar">${esc(m)}<br><small style="color:var(--muted);font-weight:400">${esc(FORN[m]||"")}</small></td>`;
-    for(const p of PDV){ const q=DATA[tab][m][p.codice]||0;
-      tr+=`<td class="${q>0?'has':''}"><input class="q" type="number" min="0" step="7" value="${q||''}" data-m="${esc(m)}" data-f="${p.codice}" title="${tiers(q)}"></td>`;
+    let tr=`<tr><td class="mar">${esc(m)}<br><small style="color:var(--muted);font-weight:400">${esc(FORN[m]||"")}</small><button class="delrow adminonly" data-m="${esc(m)}" title="Elimina marchio">🗑</button></td>`;
+    for(const p of PDV){ tr+=aCellHTML(m,p.codice);
     }
     tr+=`<td class="tot" data-rowtot="${esc(m)}">0</td></tr>`;
     return tr;
@@ -171,7 +207,7 @@ function render(){
   $("#tbl").tBodies[0].innerHTML=body.join("")||`<tr><td class="mar" colspan="${PDV.length+2}" style="text-align:center;color:var(--muted);padding:24px">Nessun marchio${fornSel?" per "+esc(fornSel):""} in ${tab}. Aggiungine uno dall'alto.</td></tr>`;
   let foot="<tr><td class='mar'>Totale</td>"+PDV.map(p=>`<td data-coltot="${p.codice}">0</td>`).join("")+"<td class='tot' id='grandtot'>0</td></tr>";
   $("#tbl").tFoot.innerHTML=foot;
-  $("#tbl").querySelectorAll("input.q").forEach(i=>i.addEventListener("input",onEdit));
+  $("#tbl").querySelectorAll("select.qd").forEach(function(s){s.addEventListener("change",onEditSel);}); $("#tbl").querySelectorAll("button.delrow").forEach(function(b){b.addEventListener("click",function(){delMarchio(b.dataset.m);});});
   recalc();
 }
 function onEdit(e){
@@ -190,11 +226,7 @@ function recalc(){
 function tiers(q){ if(!q)return "spento"; const n=Math.round(q/7); const lad=["ST","P1","P2","P3","P4","T0","T1","T2","T3","T4","T5","T6","T7","T8","T9"];
   return q+" pezzi · "+lad.slice(0,Math.min(n,lad.length)).join("+")+(n>lad.length?"…":""); }
 
-$("#addBtn").addEventListener("click",()=>{
-  const v=$("#addInput").value.trim(); if(!v)return;
-  if(DATA[tab][v]){ toast("Marchio già presente"); return; }
-  DATA[tab][v]={}; FORN[v]=$("#forn").value||FORN[v]||"Luxottica"; $("#addInput").value=""; dirty=true; render();
-});
+$("#addBtn").addEventListener("click",openAddModal);
 
 $("#saveBtn").addEventListener("click",async()=>{
   const btn=$("#saveBtn"); btn.disabled=true; btn.textContent="Salvataggio…";
