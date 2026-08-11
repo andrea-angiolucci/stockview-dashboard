@@ -183,7 +183,7 @@ async function showApp(session){
   const meta=session.user.user_metadata||{};
   ROLE=(meta.role==="admin")?"admin":"gestore"; isAdmin=ROLE==="admin";
   $("#who").innerHTML=esc(session.user.email)+' <span class="rolechip '+ROLE+'">'+ROLE+'</span>';
-  renderTabbar(); selectTab(TABS[0].id);
+  renderTabbar(); var _v=TABS.filter(function(x){return !x.admin||isAdmin;}); if(_v.length)selectTab(_v[0].id); else $("#tabcontent").innerHTML='<div style="color:var(--muted);padding:16px">Nessuna sezione disponibile per il tuo ruolo.</div>';
 }
 $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault(); const b=$("#loginBtn"),er=$("#loginErr"); er.textContent=""; b.disabled=true; b.textContent="Accesso…";
   const {data,error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pwd").value});
@@ -192,7 +192,6 @@ $("#logout").addEventListener("click",async()=>{ await sb.auth.signOut(); locati
 
 // ---------- Tab framework (estendibile) ----------
 const TABS=[
-  {id:"assortimento", label:"Assortimento ideale", render:renderAssortimento},
   {id:"utenti", label:"Utenti", render:renderUtenti, admin:true}
   // future: {id:"marchi", label:"Marchi alias", render:...}, {id:"filiali",...}, {id:"sistema",...}
 ];
