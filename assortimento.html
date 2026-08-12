@@ -150,7 +150,10 @@ $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();const b=$
   b.disabled=false;b.textContent="Accedi"; if(error){er.textContent=error.message.includes("Invalid")?"Email o password non corretti.":error.message;return;} showApp(data.session);});
 $("#logout").addEventListener("click",async()=>{await sb.auth.signOut();location.reload();});
 
+var ESCLUSI_FORNITORI=new Set(), ESCLUSI_MARCHI=new Set(), MARCHI_ATTIVI={};
+async function loadMasterFilters(){ try{ var res=await Promise.all([ sb.from("esclusioni_master").select("tipo,valore").eq("escluso",true), sb.from("marchi_fornitori_attivi").select("marchio,fornitore_attivo") ]); ESCLUSI_FORNITORI=new Set(); ESCLUSI_MARCHI=new Set(); MARCHI_ATTIVI={}; (res[0].data||[]).forEach(function(x){ if(x.tipo==="fornitore")ESCLUSI_FORNITORI.add(x.valore); else if(x.tipo==="marchio")ESCLUSI_MARCHI.add(x.valore); }); (res[1].data||[]).forEach(function(x){ MARCHI_ATTIVI[x.marchio]=x.fornitore_attivo; }); }catch(e){} }
 async function load(){
+  await loadMasterFilters();
   const [{data:fil},{data:rows},{data:marchi}]=await Promise.all([
     sb.from("filiali").select("codice,nome,tipo,attiva"),
     sb.from("assortimento_marchio").select("marchio,tipo_lenti,filiale,qty_ideale,fornitore"),
@@ -161,7 +164,7 @@ async function load(){
   DATA={Vista:{},Sole:{}}; FORN={};
   for(const r of (rows||[])){ (DATA[r.tipo_lenti] ||= {}); (DATA[r.tipo_lenti][r.marchio] ||= {}); DATA[r.tipo_lenti][r.marchio][r.filiale]=r.qty_ideale; FORN[r.marchio]=r.fornitore||"Luxottica"; }
   // selettore fornitore
-  const fornitori=[...new Set(Object.values(FORN))].sort();
+  const fornitori=[...new Set(Object.values(FORN))].filter(function(f){return !ESCLUSI_FORNITORI.has(f);}).sort();
   $("#forn").innerHTML='<option value="">Tutti i fornitori</option>'+fornitori.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join("");
   if(document.getElementById("marchiList"))$("#marchiList").innerHTML=(marchi||[]).map(m=>`<option value="${esc(typeof m==='string'?m:Object.values(m)[0])}">`).join("");
   render();
@@ -179,7 +182,7 @@ function aCellHTML(m,code){ var has=DATA[tab][m]&&Object.prototype.hasOwnPropert
   return '<td class="'+(q>0?"has":"")+'">'+(q>0?A_LADDER[aQtyToN(q)-1]:"·")+'</td>'; }
 function onEditSel(e){ var s=e.target; var m=s.dataset.m,f=s.dataset.f; var code=s.value; var qty=code?(A_LADDER.indexOf(code)+1)*A_STEP:0; if(!DATA[tab][m])DATA[tab][m]={}; if(qty>0)DATA[tab][m][f]=qty; else delete DATA[tab][m][f]; var td=s.closest("td"); if(td)td.classList.toggle("has",qty>0); dirty=true; recalc(); }
 function delMarchio(m){ if(!isAdmin)return; if(!confirm("Eliminare il marchio "+m+" da "+tab+"?"))return; delete DATA[tab][m]; dirty=true; render(); }
-async function loadDelta(){ ADISP={}; ADISP_tab=tab; var marchi=Object.keys(DATA[tab]); if(!marchi.length)return; var out=[],from=0; while(true){ var r=await sb.from("giacenze").select("marchio,filiale,quantita_disponibile,tipo_lenti").in("marchio",marchi).range(from,from+999); if(r.error)break; out=out.concat(r.data||[]); if(!r.data||r.data.length<1000)break; from+=1000; if(from>100000)break; } var tl=String(tab).toLowerCase(); out.forEach(function(x){ if(String(x.tipo_lenti||"").toLowerCase()!==tl)return; var k=x.marchio+"|"+x.filiale; ADISP[k]=(ADISP[k]||0)+Number(x.quantita_disponibile||0); }); }
+async function loadDelta(){ ADISP={}; ADISP_tab=tab; var marchi=Object.keys(DATA[tab]); if(!marchi.length)return; var out=[],from=0; while(true){ var r=await sb.from("giacenze").select("marchio,filiale,quantita_disponibile,tipo_lenti,fornitore").in("marchio",marchi).range(from,from+999); if(r.error)break; out=out.concat(r.data||[]); if(!r.data||r.data.length<1000)break; from+=1000; if(from>100000)break; } var tl=String(tab).toLowerCase(); out.forEach(function(x){ if(String(x.tipo_lenti||"").toLowerCase()!==tl)return; var fa=MARCHI_ATTIVI[x.marchio]; if(fa&&x.fornitore!==fa)return; var k=x.marchio+"|"+x.filiale; ADISP[k]=(ADISP[k]||0)+Number(x.quantita_disponibile||0); }); }
 function aDepthSelectPlain(id){ var o='<option value="">Non previsto</option>'; for(var i=0;i<A_LADDER.length;i++){ o+='<option value="'+A_LADDER[i]+'">'+A_LADDER[i]+'</option>'; } return '<select id="'+id+'" class="qd">'+o+'</select>'; }
 function amRenderMarchi(q){ q=String(q||"").toLowerCase(); var list=(window.__amMarchi||[]).filter(function(m){return !q||String(m).toLowerCase().indexOf(q)>=0;}); $("#amMar").innerHTML=list.length?list.map(function(m){return '<option value="'+esc(m)+'">'+esc(m)+'</option>';}).join(""):'<option value="">Nessun marchio</option>'; }
 async function openAddModal(){ if(!isAdmin)return; var back=document.getElementById("amBack"); if(!back){ back=document.createElement("div"); back.id="amBack"; back.className="amback"; document.body.appendChild(back); back.addEventListener("click",function(e){ if(e.target.id==="amBack")back.classList.remove("open"); }); }
@@ -194,7 +197,7 @@ async function openAddModal(){ if(!isAdmin)return; var back=document.getElementB
 
 function render(){
   const fornSel=$("#forn").value;
-  let marchi=Object.keys(DATA[tab]).filter(m=>!fornSel||FORN[m]===fornSel).sort((a,b)=>a.localeCompare(b));
+  let marchi=Object.keys(DATA[tab]).filter(m=>(!fornSel||FORN[m]===fornSel)&&!ESCLUSI_MARCHI.has(m)&&!ESCLUSI_FORNITORI.has(FORN[m])).sort((a,b)=>a.localeCompare(b));
   let head="<tr><th class='mar'>Marchio</th>"+PDV.map(p=>`<th>${esc(p.nome)}</th>`).join("")+"<th class='tot'>Totale</th></tr>";
   $("#tbl").tHead.innerHTML=head;
   const body=marchi.map(m=>{
@@ -216,7 +219,7 @@ function onEdit(e){
 }
 function recalc(){
   const fornSel=$("#forn").value;
-  const marchi=Object.keys(DATA[tab]).filter(m=>!fornSel||FORN[m]===fornSel);
+  const marchi=Object.keys(DATA[tab]).filter(m=>(!fornSel||FORN[m]===fornSel)&&!ESCLUSI_MARCHI.has(m)&&!ESCLUSI_FORNITORI.has(FORN[m]));
   const col={}; PDV.forEach(p=>col[p.codice]=0); let grand=0;
   marchi.forEach(m=>{ let rt=0; PDV.forEach(p=>{const q=DATA[tab][m][p.codice]||0; rt+=q; col[p.codice]+=q;}); grand+=rt;
     const c=$(`[data-rowtot="${cssEsc(m)}"]`); if(c)c.textContent=rt; });
