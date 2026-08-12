@@ -108,6 +108,16 @@
   .usm{padding:5px 10px!important;font-size:12px!important}
   .udel{color:var(--bad)}
   .umuted{color:var(--muted);font-size:12px}
+  .fmwrap{display:flex;gap:16px;flex-wrap:wrap}
+  .fmsec{flex:1;min-width:280px;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel)}
+  .fmhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .fmbadge{background:rgba(255,107,107,.15);color:var(--bad);border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700}
+  .fmsearch{margin-left:auto;padding:5px 8px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:12px}
+  .fmlist{max-height:360px;overflow:auto;display:flex;flex-direction:column;gap:2px}
+  .fmitem{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;font-size:13px;cursor:pointer}
+  .fmitem:hover{background:var(--panel2)}
+  .fmitem.off{opacity:.55}
+  .fmitem.off span{text-decoration:line-through}
 </style>
 </head>
 <body>
@@ -192,6 +202,8 @@ $("#logout").addEventListener("click",async()=>{ await sb.auth.signOut(); locati
 
 // ---------- Tab framework (estendibile) ----------
 const TABS=[
+  {id:"filtromaster", label:"Filtro master", render:renderFiltroMaster, admin:true},
+  {id:"marchiattivi", label:"Marchi attivi", render:renderMarchiAttivi, admin:true},
   {id:"utenti", label:"Utenti", render:renderUtenti, admin:true}
   // future: {id:"marchi", label:"Marchi alias", render:...}, {id:"filiali",...}, {id:"sistema",...}
 ];
@@ -456,6 +468,25 @@ function confirmDelete(m){
 }
 
 // ---------- Modal + toast ----------
+// ---------- Tab: Filtro master (solo admin) ----------
+function fmVal(x){ return typeof x==="string"?x:(x.fornitore||x.marchio||x.label||Object.values(x)[0]); }
+function fmCmp(a,b){ return String(a||"").localeCompare(String(b||"")); }
+let FM_EXCL={fornitore:new Set(),marchio:new Set()};
+async function fmLoadExcl(){ FM_EXCL={fornitore:new Set(),marchio:new Set()}; try{ var r=await sb.from("esclusioni_master").select("tipo,valore,escluso").eq("escluso",true); (r.data||[]).forEach(function(x){ if(FM_EXCL[x.tipo])FM_EXCL[x.tipo].add(x.valore); }); }catch(e){} }
+function fmSection(tipo,label,items){ var exc=FM_EXCL[tipo].size; return '<div class="fmsec"><div class="fmhead"><b>'+label+'</b> <span class="umuted">'+items.length+' totali</span> <span class="fmbadge" id="fmbadge_'+tipo+'">'+exc+' esclusi</span><input class="fmsearch" id="fmsearch_'+tipo+'" placeholder="cerca…"></div><div class="fmlist" id="fmlist_'+tipo+'"></div></div>'; }
+function fmWire(tipo,items){ function draw(q){ q=String(q||"").toLowerCase(); var list=items.filter(function(v){return !q||String(v).toLowerCase().indexOf(q)>=0;}); $("#fmlist_"+tipo).innerHTML=list.map(function(v){ var ex=FM_EXCL[tipo].has(v); return '<label class="fmitem'+(ex?" off":"")+'"><input type="checkbox" data-v="'+esc(v)+'"'+(ex?"":" checked")+'><span>'+esc(v)+'</span></label>'; }).join(""); $("#fmlist_"+tipo).querySelectorAll("input[type=checkbox]").forEach(function(cb){ cb.onchange=function(){ fmToggle(tipo,cb.dataset.v,!cb.checked); }; }); } draw(""); $("#fmsearch_"+tipo).addEventListener("input",function(){ draw($("#fmsearch_"+tipo).value); }); }
+async function fmToggle(tipo,valore,escluso){ try{ await sb.from("esclusioni_master").upsert({tipo:tipo,valore:valore,escluso:escluso,modificato_il:new Date().toISOString()},{onConflict:"tipo,valore"}); if(escluso)FM_EXCL[tipo].add(valore); else FM_EXCL[tipo].delete(valore); var b=$("#fmbadge_"+tipo); if(b)b.textContent=FM_EXCL[tipo].size+" esclusi"; toast(escluso?("Escluso: "+valore):("Ripristinato: "+valore)); }catch(e){ toast(String((e&&e.message)||e),true); } }
+async function renderFiltroMaster(host){ if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; } host.innerHTML='<div class="umuted">Caricamento…</div>'; await fmLoadExcl(); var rf=await sb.rpc("sv_g_fornitori"); var forn=(rf.data||[]).map(fmVal).sort(fmCmp); var rm=await sb.rpc("sv_marchi"); var mar=(rm.data||[]).map(fmVal).sort(fmCmp); host.innerHTML='<p class="umuted" style="margin:0 0 12px">Deseleziona un fornitore o marchio per nasconderlo ovunque in StockView. Riselezionandolo torna visibile.</p><div class="fmwrap">'+fmSection("fornitore","Fornitori",forn)+fmSection("marchio","Marchi",mar)+'</div>'; fmWire("fornitore",forn); fmWire("marchio",mar); }
+
+// ---------- Tab: Marchi attivi (solo admin) ----------
+let MA_ROWS=[], MA_FORN=[];
+function maFornOptions(sel){ return '<option value="">—</option>'+MA_FORN.map(function(f){return '<option value="'+esc(f)+'"'+(f===sel?" selected":"")+'>'+esc(f)+'</option>';}).join(""); }
+function maDraw(){ var host=$("#tabcontent"); host.innerHTML='<p class="umuted" style="margin:0 0 12px">Per ogni marchio, il fornitore attivo oggi. Usato per delta ideale, buchi/ordini e assortimento (le giacenze di altri fornitori dello stesso marchio vengono ignorate).</p><div class="utools"><button class="ubtn" id="maAdd">+ Aggiungi marchio</button><span class="umuted">'+MA_ROWS.length+' marchi mappati</span></div><div class="utblwrap"><table class="utbl"><thead><tr><th>Marchio</th><th>Fornitore attivo</th><th>Note</th><th>Azioni</th></tr></thead><tbody id="maBody"></tbody></table></div>'; $("#maBody").innerHTML=MA_ROWS.map(function(r){ return '<tr><td>'+esc(r.marchio)+'</td><td><select class="urole maforn" data-m="'+esc(r.marchio)+'">'+maFornOptions(r.fornitore_attivo)+'</select></td><td><input class="urole manote" data-m="'+esc(r.marchio)+'" value="'+esc(r.note||"")+'" style="width:100%"></td><td><button class="ghost usm udel madel" data-m="'+esc(r.marchio)+'">Elimina</button></td></tr>'; }).join(""); $("#maBody").querySelectorAll("select.maforn").forEach(function(s){ s.onchange=function(){ maSave(s.dataset.m,s.value,null); }; }); $("#maBody").querySelectorAll("input.manote").forEach(function(i){ i.onchange=function(){ maSave(i.dataset.m,null,i.value); }; }); $("#maBody").querySelectorAll("button.madel").forEach(function(b){ b.onclick=function(){ maDelete(b.dataset.m); }; }); $("#maAdd").onclick=maOpenAdd; }
+async function renderMarchiAttivi(host){ if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; } host.innerHTML='<div class="umuted">Caricamento…</div>'; try{ var rf=await sb.rpc("sv_g_fornitori"); MA_FORN=(rf.data||[]).map(fmVal).sort(fmCmp); var r=await sb.from("marchi_fornitori_attivi").select("marchio,fornitore_attivo,note").order("marchio"); MA_ROWS=r.data||[]; maDraw(); }catch(e){ host.innerHTML='<div class="err">Errore: '+esc(String((e&&e.message)||e))+'</div>'; } }
+async function maSave(marchio,forn,note){ var row=MA_ROWS.find(function(x){return x.marchio===marchio;}); if(!row)return; if(forn!==null)row.fornitore_attivo=forn; if(note!==null)row.note=note; if(!row.fornitore_attivo){ toast("Seleziona un fornitore",true); return; } try{ await sb.from("marchi_fornitori_attivi").upsert({marchio:marchio,fornitore_attivo:row.fornitore_attivo,note:row.note||null,aggiornato_il:new Date().toISOString()},{onConflict:"marchio"}); toast("Salvato: "+marchio); }catch(e){ toast(String((e&&e.message)||e),true); } }
+async function maDelete(marchio){ if(!confirm("Eliminare la mappatura per "+marchio+"?"))return; try{ await sb.from("marchi_fornitori_attivi").delete().eq("marchio",marchio); MA_ROWS=MA_ROWS.filter(function(x){return x.marchio!==marchio;}); maDraw(); toast("Eliminato"); }catch(e){ toast(String((e&&e.message)||e),true); } }
+function maOpenAdd(){ openModal('<h3 style="margin:0 0 12px">Aggiungi marchio attivo</h3><label>Marchio</label><input id="maNewMar" placeholder="nome marchio" style="width:100%"><label style="margin-top:8px;display:block">Fornitore attivo</label><select id="maNewForn" class="urole" style="width:100%">'+maFornOptions("")+'</select><div class="err" id="maErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="ghost" id="maCancel">Annulla</button><button class="ubtn" id="maOk">Aggiungi</button></div>'); $("#maCancel").onclick=closeModal; $("#maOk").onclick=async function(){ var m=($("#maNewMar").value||"").trim(); var f=$("#maNewForn").value; var err=$("#maErr"); if(!m||!f){ err.textContent="Marchio e fornitore obbligatori."; return; } if(MA_ROWS.find(function(x){return x.marchio===m;})){ err.textContent="Marchio già mappato."; return; } try{ await sb.from("marchi_fornitori_attivi").upsert({marchio:m,fornitore_attivo:f,aggiornato_il:new Date().toISOString()},{onConflict:"marchio"}); MA_ROWS.push({marchio:m,fornitore_attivo:f,note:null}); MA_ROWS.sort(function(a,b){return fmCmp(a.marchio,b.marchio);}); closeModal(); maDraw(); toast("Aggiunto: "+m); }catch(e){ err.textContent=String((e&&e.message)||e); } }; }
+
 function openModal(html){ $("#modal").innerHTML=html; $("#modalBack").classList.add("open"); }
 function closeModal(){ $("#modalBack").classList.remove("open"); $("#modal").innerHTML=""; }
 $("#modalBack").addEventListener("click",e=>{ if(e.target.id==="modalBack") closeModal(); });
