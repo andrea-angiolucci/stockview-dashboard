@@ -136,7 +136,7 @@ function exportRic(){
 async function run(){
   $("#body").innerHTML='<div class="empty">Calcolo ricircolo su tutte le linee…</div>';
   await loadMasterFilters(); let marchi=[];
-  try{ const r=await sb.from("assortimento_marchio").select("marchio,fornitore").limit(50000); const set={}; (r.data||[]).forEach(function(x){ if(!x.marchio)return; if(ESCLUSI_MARCHI.has(x.marchio))return; if(ESCLUSI_FORNITORI.has(x.fornitore))return; var fa=MARCHI_ATTIVI[x.marchio]; if(fa&&x.fornitore!==fa)return; set[x.marchio]=1; }); marchi=Object.keys(set).sort(); }catch(e){}
+  try{ const r=await sb.from("assortimento_marchio").select("marchio,fornitore").limit(50000); const set={}; (r.data||[]).forEach(function(x){ if(!x.marchio)return; if(ESCLUSI_MARCHI.has(x.marchio))return; if(ESCLUSI_FORNITORI.has(x.fornitore))return; var fa=MARCHI_ATTIVI[x.marchio]; if(fa&&x.fornitore&&x.fornitore!==fa)return; set[x.marchio]=1; }); marchi=Object.keys(set).sort(); }catch(e){}
   if(!marchi.length){ $("#body").innerHTML='<div class="empty" style="color:var(--bad)">Nessuna linea trovata negli assortimenti ideali.</div>'; return; }
   let TGT={};
   try{ const r=await sb.from("stock_target").select("barcode,filiale,target_qty"); (r.data||[]).forEach(x=>TGT[x.barcode+"|"+x.filiale]=x.target_qty); }catch(e){}
