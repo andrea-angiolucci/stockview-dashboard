@@ -75,6 +75,8 @@ const NEGS=["Paternò","Acireale","Catania","Augusta","Giarre","Lentini","Portal
 let MOVES=[];
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function tget(c,TGT){const v=TGT[c.barcode+"|"+c.filiale];return v===undefined?1:v;}
+var RC_EXC_USCITA=new Set(), RC_EXC_ENTRATA=new Set();
+async function loadRcEsclusioni(){ try{ const r=await sb.from("ricircolo_esclusioni").select("filiale,direzione"); RC_EXC_USCITA=new Set(); RC_EXC_ENTRATA=new Set(); (r.data||[]).forEach(function(x){ if(x.direzione==="uscita")RC_EXC_USCITA.add(x.filiale); else if(x.direzione==="entrata")RC_EXC_ENTRATA.add(x.filiale); }); }catch(e){} }
 function computeRicircolo(cells,TGT){
   const active={B:1,C:1,D:1,E:1,G:1,H:1,I:1,Z:1};
   const byBc={};
@@ -82,7 +84,7 @@ function computeRicircolo(cells,TGT){
   const moves=[];
   Object.keys(byBc).forEach(bc=>{
     const arr=byBc[bc].cells, sources=[], needs=[];
-    arr.forEach(c=>{ const t=tget(c,TGT); const s=(c.disponibile||0)-t; if(s>0)sources.push({c:c,qty:s}); else if((c.disponibile||0)<t)needs.push({c:c,qty:t-(c.disponibile||0)}); });
+    arr.forEach(c=>{ const t=tget(c,TGT); const s=(c.disponibile||0)-t; if(s>0){ if(!RC_EXC_USCITA.has(c.filiale))sources.push({c:c,qty:s}); } else if((c.disponibile||0)<t){ if(!RC_EXC_ENTRATA.has(c.filiale))needs.push({c:c,qty:t-(c.disponibile||0)}); } });
     if(!sources.length||!needs.length)return;
     needs.sort((a,b)=>(b.c.venduto||0)-(a.c.venduto||0));
     sources.sort((a,b)=>(a.c.venduto||0)-(b.c.venduto||0));
@@ -136,7 +138,7 @@ function exportRic(){
 }
 async function run(){
   $("#body").innerHTML='<div class="empty">Calcolo ricircolo su tutte le linee…</div>';
-  await loadMasterFilters(); let marchi=[];
+  await loadMasterFilters(); await loadRcEsclusioni(); let marchi=[];
   try{ const r=await sb.from("assortimento_marchio").select("marchio,fornitore").limit(50000); const set={}; (r.data||[]).forEach(function(x){ if(!x.marchio)return; if(ESCLUSI_MARCHI.has(x.marchio))return; if(ESCLUSI_FORNITORI.has(x.fornitore))return; var fa=MARCHI_ATTIVI[x.marchio]; if(fa&&x.fornitore&&x.fornitore!==fa)return; set[x.marchio]=1; }); marchi=Object.keys(set).sort(); }catch(e){}
   if(!marchi.length){ $("#body").innerHTML='<div class="empty" style="color:var(--bad)">Nessuna linea trovata negli assortimenti ideali.</div>'; return; }
   let TGT={};
