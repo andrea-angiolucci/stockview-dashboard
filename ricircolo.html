@@ -152,15 +152,20 @@ async function run(){
   }
   MOVES=computeRicircolo(all,TGT);
   buildStoreOptions();
-  render($("#store").value||"");
+  render(RC_ROLE==='vendita'?(RC_FILIALE||""):($("#store").value||""));
 }
 var ESCLUSI_FORNITORI=new Set(), ESCLUSI_MARCHI=new Set(), MARCHI_ATTIVI={};
 async function loadMasterFilters(){ try{ var res=await Promise.all([ sb.from("esclusioni_master").select("tipo,valore").eq("escluso",true), sb.from("marchi_fornitori_attivi").select("marchio,fornitore_attivo") ]); ESCLUSI_FORNITORI=new Set(); ESCLUSI_MARCHI=new Set(); MARCHI_ATTIVI={}; (res[0].data||[]).forEach(function(x){ if(x.tipo==="fornitore")ESCLUSI_FORNITORI.add(x.valore); else if(x.tipo==="marchio")ESCLUSI_MARCHI.add(x.valore); }); (res[1].data||[]).forEach(function(x){ MARCHI_ATTIVI[x.marchio]=x.fornitore_attivo; }); }catch(e){} }
+var RC_ROLE='gestore', RC_FILIALE=null;
 async function boot(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){ $("#body").innerHTML='<div class="empty">Devi accedere. <a href="presenza.html" style="color:var(--accent)">Vai a Controllo presenza</a> per il login, poi torna qui.</div>'; return; }
   $("#who").textContent=session.user.email;
   $("#logout").style.display="";
+  var _md=session.user.user_metadata||{}; RC_ROLE=_md.role||'gestore'; RC_FILIALE=_md.filiale||null;
+  try{ var _pp=await sb.from('ruoli_permessi').select('puo_accedere').eq('ruolo',RC_ROLE).eq('pagina','ricircolo').maybeSingle(); if(RC_ROLE!=='admin' && !(_pp.data&&_pp.data.puo_accedere)){ $("#body").innerHTML='<div class="empty">Accesso non autorizzato.</div>'; return; } }catch(e){}
+  if(RC_ROLE==='vendita'){ var _s=$("#store"); if(_s){ _s.style.display='none'; if(_s.previousElementSibling)_s.previousElementSibling.style.display='none'; } var _x=$("#xls"); if(_x)_x.style.display='none'; }
+  if(location.search.indexOf('denied=1')>-1){ var _bd=document.createElement('div'); _bd.textContent='Accesso non autorizzato: sei stato reindirizzato al Ricircolo.'; _bd.style.cssText='background:rgba(245,165,36,.15);border:1px solid var(--truck);color:var(--txt);padding:8px 12px;border-radius:8px;margin:0 0 10px;font-size:13px'; var _b=$("#body"); if(_b&&_b.parentElement)_b.parentElement.insertBefore(_bd,_b); }
   run();
 }
 $("#store").addEventListener("change",function(){render(this.value);});
