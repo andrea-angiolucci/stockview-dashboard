@@ -252,7 +252,7 @@ async function loadUtenti(){
 function drawUtenti(){
   const rows=U_LIST.map(function(u){
     const dis=!!u.disabled, self=(u.email&&u.email===U_ME);
-    const roleSel='<select class="urole" data-id="'+esc(u.id)+'"><option value="gestore"'+(u.role!=="admin"?" selected":"")+'>gestore</option><option value="admin"'+(u.role==="admin"?" selected":"")+'>admin</option></select>';
+    const roleSel='<select class="urole" data-id="'+esc(u.id)+'"><option value="gestore"'+(u.role!=="admin"&&u.role!=="vendita"?" selected":"")+'>gestore</option><option value="vendita"'+(u.role==="vendita"?" selected":"")+'>vendita</option><option value="admin"'+(u.role==="admin"?" selected":"")+'>admin</option></select>';
     const stato=dis?'<span class="ubadge off">Disattivato</span>':'<span class="ubadge on">Attivo</span>';
     const toggleBtn='<button class="ghost usm" data-act="status" data-id="'+esc(u.id)+'" data-dis="'+(dis?"0":"1")+'">'+(dis?"Riattiva":"Disattiva")+'</button>';
     const delBtn=self?'':'<button class="ghost usm udel" data-act="del" data-id="'+esc(u.id)+'" data-email="'+esc(u.email||"")+'">Elimina</button>';
@@ -264,7 +264,7 @@ function drawUtenti(){
 }
 async function changeRole(id, role, sel){
   sel.disabled=true;
-  try{ await efCall("PATCH","/role",{id:id, role:role}); const u=U_LIST.find(function(x){return x.id===id;}); if(u)u.role=role; toast("Ruolo aggiornato: "+role); }
+  try{ var _fil=null; if(role==="vendita"){ _fil=await uPickFiliale(); if(!_fil){ sel.disabled=false; loadUtenti(); return; } } await efCall("PATCH","/role",{id:id, role:role, filiale:_fil}); const u=U_LIST.find(function(x){return x.id===id;}); if(u){u.role=role; u.filiale=_fil;} toast("Ruolo aggiornato: "+role); }
   catch(e){ toast(String((e&&e.message)||e), true); loadUtenti(); }
   sel.disabled=false;
 }
@@ -279,13 +279,13 @@ async function delUser(id, email){
   catch(e){ toast(String((e&&e.message)||e), true); }
 }
 function openInvite(){
-  openModal('<h3 style="margin:0 0 12px">Invita nuovo utente</h3><label>Email</label><input type="email" id="invEmail" placeholder="nome@dominio.it" style="width:100%"><label style="margin-top:10px;display:block">Ruolo</label><select id="invRole" class="urole" style="width:100%"><option value="gestore" selected>gestore</option><option value="admin">admin</option></select><div class="err" id="invErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button class="ghost" id="invCancel">Annulla</button><button class="ubtn" id="invSend">Invia invito</button></div>');
-  $("#invCancel").onclick=closeModal;
+  openModal('<h3 style="margin:0 0 12px">Invita nuovo utente</h3><label>Email</label><input type="email" id="invEmail" placeholder="nome@dominio.it" style="width:100%"><label style="margin-top:10px;display:block">Ruolo</label><select id="invRole" class="urole" style="width:100%"><option value="gestore" selected>gestore</option><option value="vendita">vendita</option><option value="admin">admin</option></select><div id="invFilRow" style="display:none;margin-top:10px"><label>Filiale</label><select id="invFiliale" class="urole" style="width:100%"><option value="">— seleziona —</option>'+RC_FILIALI.map(function(f){return '<option value="'+f[0]+'">'+esc(f[1])+'</option>';}).join("")+'</select></div><div class="err" id="invErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button class="ghost" id="invCancel">Annulla</button><button class="ubtn" id="invSend">Invia invito</button></div>');
+  $("#invCancel").onclick=closeModal; if($("#invRole"))$("#invRole").onchange=function(){ var fr=$("#invFilRow"); if(fr)fr.style.display=($("#invRole").value==="vendita")?"block":"none"; };
   $("#invSend").onclick=async function(){
     const email=($("#invEmail").value||"").trim(); const role=$("#invRole").value; const err=$("#invErr");
     if(!email || email.indexOf("@")<1 || email.lastIndexOf(".")<email.indexOf("@")){ err.textContent="Inserisci un'email valida."; return; }
     $("#invSend").disabled=true;
-    try{ await efCall("POST","/invite",{email:email, role:role, redirectTo:location.origin+"/presenza.html"}); closeModal(); toast("Invito inviato a "+email); await loadUtenti(); }
+    try{ if(role==="vendita" && !$("#invFiliale").value){ $("#invSend").disabled=false; err.textContent="Filiale obbligatoria per il ruolo vendita."; return; } await efCall("POST","/invite",{email:email, role:role, filiale:(role==="vendita"?$("#invFiliale").value:null), redirectTo:location.origin+"/presenza.html"}); closeModal(); toast("Invito inviato a "+email); await loadUtenti(); }
     catch(e){ err.textContent=String((e&&e.message)||e); $("#invSend").disabled=false; }
   };
 }
@@ -563,6 +563,11 @@ async function renderPermessi(host){
   });
 }
 
+function uPickFiliale(cur){ return new Promise(function(resolve){
+  openModal('<h3 style="margin:0 0 10px">Filiale del venditore</h3><label>Filiale</label><select id="ufSel" class="urole" style="width:100%"><option value="">— seleziona —</option>'+RC_FILIALI.map(function(f){return '<option value="'+f[0]+'"'+(cur===f[0]?" selected":"")+'>'+esc(f[1])+'</option>';}).join("")+'</select><div class="err" id="ufErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="ghost" id="ufCancel">Annulla</button><button class="ubtn" id="ufOk">Salva</button></div>');
+  $("#ufCancel").onclick=function(){ closeModal(); resolve(null); };
+  $("#ufOk").onclick=function(){ var v=$("#ufSel").value; if(!v){ $("#ufErr").textContent="Filiale obbligatoria."; return; } closeModal(); resolve(v); };
+}); }
 function openModal(html){ $("#modal").innerHTML=html; $("#modalBack").classList.add("open"); }
 function closeModal(){ $("#modalBack").classList.remove("open"); $("#modal").innerHTML=""; }
 $("#modalBack").addEventListener("click",e=>{ if(e.target.id==="modalBack") closeModal(); });
