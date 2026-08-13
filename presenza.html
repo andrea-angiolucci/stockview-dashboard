@@ -550,35 +550,25 @@ function svCartModal(){
 function checkout(){
   if(!CART.length){alert("Carrello vuoto.");return;}
   const today=new Date().toISOString().slice(0,10);
-  const HEAD=["Fornitore","Marchio","Modello","Colore","Calibro","Categoria","Barcode","Quantità da ordinare"];
-  const negozi=[...new Set(CART.map(function(r){return r.negozio;}))].sort(function(a,b){return String(a||"").localeCompare(String(b||""));});
+  const HEAD=["Fornitore","Filiale","Marchio","Modello","Colore","Calibro","Categoria","Barcode","Quantità"];
+  const forns=[...new Set(CART.map(function(r){return r.fornitore||"(senza fornitore)";}))].sort(function(a,b){return String(a).localeCompare(String(b));});
   const wb=XLSX.utils.book_new();
   const usedNames={};
-  negozi.forEach(function(neg){
-    const rowsN=CART.filter(function(r){return r.negozio===neg;});
-    if(!rowsN.length) return;
-    const forns=[...new Set(rowsN.map(function(r){return r.fornitore||"";}))].sort(function(a,b){return String(a||"").localeCompare(String(b||""));});
+  forns.forEach(function(fn){
+    const rowsF=CART.filter(function(r){return (r.fornitore||"(senza fornitore)")===fn;});
+    if(!rowsF.length) return;
+    const agg={};
+    rowsF.forEach(function(r){ const k=(r.negozio||"")+"||"+r.barcode; if(!agg[k])agg[k]={fil:r.negozio,ma:r.marchio,mo:r.modello,co:r.colore,ca:r.calibro,cat:r.categoria,bc:r.barcode,q:0}; agg[k].q+=(r.qta||0); });
+    const items=Object.keys(agg).map(function(k){return agg[k];}).sort(function(a,b){ var f=String(a.fil||"").localeCompare(String(b.fil||"")); if(f)return f; var m=String(a.ma||"").localeCompare(String(b.ma||"")); if(m)return m; return String(a.mo||"").localeCompare(String(b.mo||"")); });
     const aoa=[HEAD.slice()];
-    const boldRows=[];
-    forns.forEach(function(fn){
-      const rowsF=rowsN.filter(function(r){return (r.fornitore||"")===fn;});
-      const agg={};
-      rowsF.forEach(function(r){ const k=r.barcode; if(!agg[k])agg[k]={ma:r.marchio,mo:r.modello,co:r.colore,ca:r.calibro,cat:r.categoria,bc:r.barcode,q:0}; agg[k].q+=(r.qta||0); });
-      const items=Object.keys(agg).map(function(k){return agg[k];}).sort(function(a,b){return String((a.ma||"")+(a.mo||"")).localeCompare(String((b.ma||"")+(b.mo||"")));});
-      boldRows.push(aoa.length);
-      aoa.push([fn||"(senza fornitore)","","","","","","",""]);
-      items.forEach(function(it){ aoa.push([fn||"",it.ma||"",it.mo||"",it.co||"",it.ca||"",it.cat||"",it.bc||"",it.q]); });
-      aoa.push(["","","","","","","",""]);
-    });
+    items.forEach(function(it){ aoa.push([fn,it.fil||"",it.ma||"",it.mo||"",it.co||"",it.ca||"",it.cat||"",it.bc||"",it.q]); });
     const ws=XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"]=[{wch:24},{wch:16},{wch:16},{wch:16},{wch:9},{wch:11},{wch:16},{wch:20}];
+    ws["!cols"]=[{wch:22},{wch:14},{wch:16},{wch:16},{wch:16},{wch:9},{wch:11},{wch:16},{wch:10}];
     const range=XLSX.utils.decode_range(ws["!ref"]);
-    function styleRow(ri,style){ for(var ci=range.s.c; ci<=range.e.c; ci++){ var addr=XLSX.utils.encode_cell({r:ri,c:ci}); if(!ws[addr])ws[addr]={t:"s",v:""}; ws[addr].s=style; } }
-    styleRow(0,{font:{bold:true},fill:{fgColor:{rgb:"DCE6F1"}}});
-    boldRows.forEach(function(ri){ styleRow(ri,{font:{bold:true},fill:{fgColor:{rgb:"F0F0F0"}}}); });
-    var nm=String(neg||"Negozio");
+    for(var ci=range.s.c; ci<=range.e.c; ci++){ var addr=XLSX.utils.encode_cell({r:0,c:ci}); if(!ws[addr])ws[addr]={t:"s",v:""}; ws[addr].s={font:{bold:true},fill:{fgColor:{rgb:"DCE6F1"}}}; }
+    var nm=String(fn||"Fornitore");
     ["/","?","*",":","[","]"].forEach(function(ch){ nm=nm.split(ch).join(" "); });
-    nm=nm.slice(0,31)||"Negozio";
+    nm=nm.slice(0,31)||"Fornitore";
     if(usedNames[nm]){ var kk=2; while(usedNames[(nm.slice(0,28)+" "+kk)])kk++; nm=(nm.slice(0,28)+" "+kk); }
     usedNames[nm]=1;
     XLSX.utils.book_append_sheet(wb,ws,nm);
