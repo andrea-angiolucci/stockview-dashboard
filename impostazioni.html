@@ -192,6 +192,7 @@ async function showApp(session){
   $("#login").style.display="none"; $("#app").style.display="block";
   const meta=session.user.user_metadata||{};
   ROLE=(meta.role==="admin")?"admin":"gestore"; isAdmin=ROLE==="admin";
+  if(!isAdmin){ location.replace("ricircolo.html?denied=1"); return; }
   $("#who").innerHTML=esc(session.user.email)+' <span class="rolechip '+ROLE+'">'+ROLE+'</span>';
   renderTabbar(); var _v=TABS.filter(function(x){return !x.admin||isAdmin;}); if(_v.length)selectTab(_v[0].id); else $("#tabcontent").innerHTML='<div style="color:var(--muted);padding:16px">Nessuna sezione disponibile per il tuo ruolo.</div>';
 }
@@ -205,7 +206,8 @@ const TABS=[
   {id:"filtromaster", label:"Filtro master", render:renderFiltroMaster, admin:true},
   {id:"marchiattivi", label:"Marchi attivi", render:renderMarchiAttivi, admin:true},
   {id:"utenti", label:"Utenti", render:renderUtenti, admin:true},
-  {id:"ricircolo", label:"Ricircolo", render:renderRicircolo, admin:true}
+  {id:"ricircolo", label:"Ricircolo", render:renderRicircolo, admin:true},
+  {id:"permessi", label:"Permessi", render:renderPermessi, admin:true}
   // future: {id:"marchi", label:"Marchi alias", render:...}, {id:"filiali",...}, {id:"sistema",...}
 ];
 let curTab=null;
@@ -532,6 +534,32 @@ async function renderRicircolo(host){
     var chk=row.querySelector(".rcChk"), nota=row.querySelector(".rcNota");
     chk.onchange=async function(){ try{ if(chk.checked){ await rcSaveOn(code,dir,nota.value); nota.style.display=""; } else { await rcSaveOff(code,dir); nota.style.display="none"; nota.value=""; } rcFlash(row); }catch(e){ chk.checked=!chk.checked; toast(String((e&&e.message)||e),true); } };
     nota.onblur=async function(){ if(!chk.checked)return; try{ await rcSaveOn(code,dir,nota.value); rcFlash(row); }catch(e){ toast(String((e&&e.message)||e),true); } };
+  });
+}
+
+// ---------- Tab: Permessi ruoli (solo admin) ----------
+const RP_PAGES=[["presenza","Controllo presenza"],["assortimento","Assortimento ideale"],["ricircolo","Ricircolo"],["aggiornamenti","Aggiornamenti"],["impostazioni","Impostazioni"]];
+const RP_ROLES=[["gestore","Gestore"],["vendita","Vendita"]];
+function rpFlash(row){ row.style.transition="background .15s ease"; row.style.background="rgba(54,201,141,.30)"; setTimeout(function(){ row.style.background=""; },500); }
+async function rpSave(ruolo,pagina,acc,mod){ var res=await sb.from("ruoli_permessi").upsert({ruolo:ruolo,pagina:pagina,puo_accedere:acc,puo_modificare:mod},{onConflict:"ruolo,pagina"}); if(res&&res.error)throw res.error; }
+async function renderPermessi(host){
+  if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; }
+  host.innerHTML='<div class="umuted">Caricamento…</div>';
+  var rows;
+  try{ var r=await sb.from("ruoli_permessi").select("ruolo,pagina,puo_accedere,puo_modificare"); if(r.error)throw r.error; rows=r.data||[]; }
+  catch(e){ host.innerHTML='<div class="err">Errore: '+esc(String((e&&e.message)||e))+'</div>'; return; }
+  var map={}; rows.forEach(function(x){ map[x.ruolo+"|"+x.pagina]={acc:!!x.puo_accedere,mod:!!x.puo_modificare}; });
+  function cell(ruolo,pagina){ var p=map[ruolo+"|"+pagina]||{acc:false,mod:false};
+    return '<td class="rpCell" data-r="'+ruolo+'" data-p="'+pagina+'" style="text-align:center;white-space:nowrap">'
+      +'<label style="margin-right:10px;font-size:12px;color:var(--muted)"><input type="checkbox" class="rpAcc" '+(p.acc?"checked":"")+'> Accesso</label>'
+      +'<label style="font-size:12px;color:var(--muted)"><input type="checkbox" class="rpMod" '+(p.mod?"checked":"")+'> Modifica</label></td>'; }
+  var head='<tr><th>Pagina</th><th style="text-align:center">Admin</th>'+RP_ROLES.map(function(rr){return '<th style="text-align:center">'+esc(rr[1])+'</th>';}).join("")+'</tr>';
+  var body=RP_PAGES.map(function(pg){ return '<tr><td><b>'+esc(pg[1])+'</b></td><td style="text-align:center;color:var(--ok);font-size:12px">✓ Accesso · ✓ Modifica</td>'+RP_ROLES.map(function(rr){return cell(rr[0],pg[0]);}).join("")+'</tr>'; }).join("");
+  host.innerHTML='<p class="umuted" style="margin:0 0 12px">Chi può <b>accedere</b> a ogni pagina e chi può <b>modificarne</b> i dati. L’admin ha sempre accesso completo (non modificabile). Salvataggio immediato.</p><div class="utblwrap"><table class="utbl"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
+  host.querySelectorAll("td.rpCell").forEach(function(td){ var ruolo=td.dataset.r, pagina=td.dataset.p; var acc=td.querySelector(".rpAcc"), mod=td.querySelector(".rpMod");
+    async function save(){ try{ await rpSave(ruolo,pagina,acc.checked,mod.checked); rpFlash(td.parentElement); }catch(e){ toast(String((e&&e.message)||e),true); } }
+    acc.onchange=function(){ if(!acc.checked)mod.checked=false; save(); };
+    mod.onchange=function(){ if(mod.checked)acc.checked=true; save(); };
   });
 }
 
