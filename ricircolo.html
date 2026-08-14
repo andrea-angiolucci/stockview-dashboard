@@ -157,6 +157,56 @@ async function run(){
 var ESCLUSI_FORNITORI=new Set(), ESCLUSI_MARCHI=new Set(), MARCHI_ATTIVI={};
 async function loadMasterFilters(){ try{ var res=await Promise.all([ sb.from("esclusioni_master").select("tipo,valore").eq("escluso",true), sb.from("marchi_fornitori_attivi").select("marchio,fornitore_attivo") ]); ESCLUSI_FORNITORI=new Set(); ESCLUSI_MARCHI=new Set(); MARCHI_ATTIVI={}; (res[0].data||[]).forEach(function(x){ if(x.tipo==="fornitore")ESCLUSI_FORNITORI.add(x.valore); else if(x.tipo==="marchio")ESCLUSI_MARCHI.add(x.valore); }); (res[1].data||[]).forEach(function(x){ MARCHI_ATTIVI[x.marchio]=x.fornitore_attivo; }); }catch(e){} }
 var RC_ROLE='gestore', RC_FILIALE=null;
+var RIC_ROWS=[];
+var RC_FILNAMES={D:"Catania",I:"Portali",G:"Giarre",Z:"Viale Africa",C:"Acireale",E:"Augusta",H:"Lentini",B:"Paternò",A:"Deposito"};
+function filName(c){ return RC_FILNAMES[c]||c||""; }
+function fmtDate(dd){ try{ return dd.toLocaleDateString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric"}); }catch(e){ return ""; } }
+function statoBadge(s){ if(s==="trovato")return '<span style="background:rgba(245,165,36,.2);color:var(--truck);padding:2px 8px;border-radius:10px;font-size:12px;white-space:nowrap">In trasferimento</span>'; if(s==="non_trovato")return '<span style="background:rgba(255,107,107,.2);color:var(--bad);padding:2px 8px;border-radius:10px;font-size:12px">Non trovato</span>'; return '<span style="background:rgba(138,160,182,.2);color:var(--muted);padding:2px 8px;border-radius:10px;font-size:12px">In attesa</span>'; }
+function buildFilialeFilter(){ var sel=$("#store"); if(!sel)return; var lab=sel.previousElementSibling; if(lab)lab.textContent="Filtra filiale"; var cur=sel.value; var codes=["D","I","G","Z","C","E","H","B"]; sel.innerHTML='<option value="">Tutte le filiali</option>'+codes.map(function(c){return '<option value="'+c+'"'+(c===cur?" selected":"")+'>'+esc(filName(c))+'</option>';}).join(""); }
+async function run(){
+  $("#body").innerHTML='<div class="empty">Caricamento ricircoli…</div>';
+  var q=sb.from("ricircoli").select("*").in("stato",["pending","trovato","non_trovato"]).order("creato_il",{ascending:false});
+  if(RC_ROLE==="vendita" && RC_FILIALE){ q=q.or("filiale_da.eq."+RC_FILIALE+",filiale_a.eq."+RC_FILIALE); }
+  try{ var r=await q; if(r.error)throw r.error; RIC_ROWS=r.data||[]; }
+  catch(e){ $("#body").innerHTML='<div class="empty" style="color:var(--bad)">Errore: '+esc(String((e&&e.message)||e))+'</div>'; return; }
+  var x=$("#xls"); if(x)x.style.display="none";
+  if(RC_ROLE!=="vendita")buildFilialeFilter();
+  render();
+}
+function render(){
+  var rows=RIC_ROWS.slice();
+  var sel=$("#store"); var ff=(sel && RC_ROLE!=="vendita")?sel.value:"";
+  if(ff){ rows=rows.filter(function(x){return x.filiale_da===ff||x.filiale_a===ff;}); }
+  $("#stat").innerHTML='<b>'+rows.length+'</b> ricircoli attivi';
+  var body=$("#body");
+  if(!rows.length){ body.innerHTML='<div class="empty">Nessun ricircolo attivo. ✅</div>'; return; }
+  var email=($("#who")&&$("#who").textContent)||"";
+  var today=Date.now();
+  var head='<tr><th>Data richiesta</th><th>Giorni</th><th>Stato</th><th>Marchio</th><th>Da (invia)</th><th>A (riceve)</th><th>Referenza</th><th>Qta</th><th></th></tr>';
+  var b=rows.map(function(r){
+    var cr=r.creato_il?new Date(r.creato_il):null;
+    var days=cr?Math.floor((today-cr.getTime())/86400000):0;
+    var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':'')+'>'+(cr?days+"g":"-")+'</td>';
+    var az="";
+    if(RC_ROLE==="vendita" && r.stato==="pending" && (r.filiale_da===RC_FILIALE||r.filiale_a===RC_FILIALE)){ az='<button class="btn ok rcFound" data-id="'+r.id+'">✓ Trovato</button> <button class="btn rcNot" data-id="'+r.id+'" style="background:var(--bad);color:#fff">✗ Non trovato</button>'; }
+    if(RC_ROLE==="admin"){ az+=' <button class="ghost rcDel" data-id="'+r.id+'" title="Annulla" style="padding:2px 8px">🗑</button>'; }
+    var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" · "));
+    return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td>'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
+  }).join("");
+  body.innerHTML='<table><thead>'+head+'</thead><tbody>'+b+'</tbody></table>';
+  body.querySelectorAll(".rcFound").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"trovato",email); }; });
+  body.querySelectorAll(".rcNot").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"non_trovato",email); }; });
+  body.querySelectorAll(".rcDel").forEach(function(bt){ bt.onclick=function(){ rcAnnulla(bt.dataset.id); }; });
+}
+async function rcSetStato(id,stato,email){ try{ var r=await sb.from("ricircoli").update({stato:stato,aggiornato_da:email||null,aggiornato_il:new Date().toISOString()}).eq("id",id); if(r.error)throw r.error; run(); }catch(e){ alert("Errore: "+String((e&&e.message)||e)); } }
+function rcAnnulla(id){
+  var back=document.createElement("div");
+  back.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:100";
+  back.innerHTML='<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;width:320px;max-width:92%"><h3 style="margin:0 0 12px;font-size:16px">Annulla ricircolo</h3><p class="muted" style="margin:0 0 12px;font-size:13px">Per quanto tempo non riproporlo?</p><div style="display:flex;flex-direction:column;gap:8px"><button class="btn" data-s="7g">7 giorni</button><button class="btn" data-s="30g">30 giorni</button><button class="btn" data-s="definitivo" style="background:var(--bad);color:#fff">Definitivo</button><button class="ghost" data-s="">Chiudi</button></div></div>';
+  document.body.appendChild(back);
+  back.addEventListener("click",function(e){ if(e.target===back){ document.body.removeChild(back); } });
+  back.querySelectorAll("button[data-s]").forEach(function(bt){ bt.onclick=async function(){ var s=bt.dataset.s; if(!s){ document.body.removeChild(back); return; } var fino=null; var dd=new Date(); if(s==="7g"){ dd.setDate(dd.getDate()+7); fino=dd.toISOString().slice(0,10); } else if(s==="30g"){ dd.setDate(dd.getDate()+30); fino=dd.toISOString().slice(0,10); } try{ var r=await sb.from("ricircoli").update({stato:"annullato",snooze_tipo:s,snooze_fino_al:fino,aggiornato_il:new Date().toISOString()}).eq("id",id); if(r.error)throw r.error; document.body.removeChild(back); run(); }catch(e){ alert("Errore: "+String((e&&e.message)||e)); } }; });
+}
 async function boot(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){ $("#body").innerHTML='<div class="empty">Devi accedere. <a href="presenza.html" style="color:var(--accent)">Vai a Controllo presenza</a> per il login, poi torna qui.</div>'; return; }
