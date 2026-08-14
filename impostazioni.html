@@ -142,6 +142,7 @@
       <a href="presenza.html">Controllo presenza</a>
       <a href="assortimento.html">Assortimento ideale</a>
       <a href="ricircolo.html">Ricircolo</a>
+      <a href="ricircoli_storici.html">Ricircoli effettuati</a>
       <a href="impostazioni.html" class="cur">Impostazioni</a>
       <a href="revisioni.html" id="navRevisioni" style="display:none">Aggiornamenti</a>
     </nav>
@@ -253,15 +254,16 @@ function drawUtenti(){
   const rows=U_LIST.map(function(u){
     const dis=!!u.disabled, self=(u.email&&u.email===U_ME);
     const roleSel='<select class="urole" data-id="'+esc(u.id)+'"><option value="gestore"'+(u.role!=="admin"&&u.role!=="vendita"?" selected":"")+'>gestore</option><option value="vendita"'+(u.role==="vendita"?" selected":"")+'>vendita</option><option value="admin"'+(u.role==="admin"?" selected":"")+'>admin</option></select>';
-    const stato=dis?'<span class="ubadge off">Disattivato</span>':'<span class="ubadge on">Attivo</span>';
+    const pending=(!u.last_sign_in_at && !dis); const stato=dis?'<span class="ubadge off">Disattivato</span>':(pending?'<span class="ubadge" style="background:rgba(245,165,36,.2);color:#f5a524">In attesa</span>':'<span class="ubadge on">Attivo</span>');
     const toggleBtn='<button class="ghost usm" data-act="status" data-id="'+esc(u.id)+'" data-dis="'+(dis?"0":"1")+'">'+(dis?"Riattiva":"Disattiva")+'</button>';
     const delBtn=self?'':'<button class="ghost usm udel" data-act="del" data-id="'+esc(u.id)+'" data-email="'+esc(u.email||"")+'">Elimina</button>';
-    return '<tr'+(dis?' class="disrow"':'')+'><td>'+esc(u.email||"\u2014")+(self?' <span class="umuted">(tu)</span>':'')+'</td><td>'+roleSel+'</td><td>'+stato+'</td><td>'+uFmt(u.created_at)+'</td><td>'+uFmt(u.last_sign_in_at)+'</td><td class="uacts">'+toggleBtn+delBtn+'</td></tr>';
+    return '<tr'+(dis?' class="disrow"':'')+'><td>'+esc(u.email||"\u2014")+(self?' <span class="umuted">(tu)</span>':'')+'</td><td>'+roleSel+'</td><td>'+stato+'</td><td>'+uFmt(u.created_at)+'</td><td>'+uFmt(u.last_sign_in_at)+'</td><td class="uacts">'+(pending?'<button class="ghost usm" data-act="reinvite" data-id="'+esc(u.id)+'" data-email="'+esc(u.email||"")+'">Re-invia invito</button>':'')+toggleBtn+delBtn+'</td></tr>';
   }).join("");
   $("#uwrap").innerHTML='<div class="utblwrap"><table class="utbl"><thead><tr><th>Email</th><th>Ruolo</th><th>Stato</th><th>Creazione</th><th>Ultimo accesso</th><th>Azioni</th></tr></thead><tbody>'+rows+'</tbody></table></div><div class="umuted" style="margin-top:8px">'+U_LIST.length+' utenti registrati</div>';
   $("#uwrap").querySelectorAll("select.urole").forEach(function(sel){ sel.onchange=function(){ changeRole(sel.dataset.id, sel.value, sel); }; });
-  $("#uwrap").querySelectorAll("button.usm").forEach(function(b){ b.onclick=function(){ if(b.dataset.act==="status") toggleStatus(b.dataset.id, b.dataset.dis==="1"); else delUser(b.dataset.id, b.dataset.email); }; });
+  $("#uwrap").querySelectorAll("button.usm").forEach(function(b){ b.onclick=function(){ if(b.dataset.act==="status") toggleStatus(b.dataset.id, b.dataset.dis==="1"); else if(b.dataset.act==="reinvite") reinvite(b.dataset.email, b); else delUser(b.dataset.id, b.dataset.email); }; });
 }
+async function reinvite(email, btn){ if(!email)return; if(btn)btn.disabled=true; try{ await efCall("POST","/reinvite",{email:email}); toast("Invito re-inviato a "+email); }catch(e){ toast(String((e&&e.message)||e),true); } if(btn)btn.disabled=false; }
 async function changeRole(id, role, sel){
   sel.disabled=true;
   try{ var _fil=null; if(role==="vendita"){ _fil=await uPickFiliale(); if(!_fil){ sel.disabled=false; loadUtenti(); return; } } await efCall("PATCH","/role",{id:id, role:role, filiale:_fil}); const u=U_LIST.find(function(x){return x.id===id;}); if(u){u.role=role; u.filiale=_fil;} toast("Ruolo aggiornato: "+role); }
