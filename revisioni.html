@@ -99,6 +99,9 @@
   <div class="wrap">
     <h2 class="pagetitle">Revisioni cambio categoria</h2>
     <div id="content"></div>
+    <h2 class="pagetitle" style="margin-top:28px">Correzioni magazzino richieste</h2>
+    <p style="color:var(--muted);margin:-6px 0 12px;font-size:13px">Articoli non trovati durante il ricircolo — da correggere nel gestionale</p>
+    <div id="nonTrovati"></div>
   </div>
 </div>
 
@@ -116,6 +119,27 @@ let ROLE="gestore", isAdmin=false;
 function fmtDate(s){ if(!s)return"—"; try{ const d=new Date(s); return d.toLocaleDateString("it-IT")+" "+d.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"}); }catch(e){return s;} }
 
 async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex"; }
+async function loadNonTrovati(){
+  var host=document.getElementById("nonTrovati"); if(!host)return;
+  var FN={D:"Catania",I:"Portali",G:"Giarre",Z:"Viale Africa",C:"Acireale",E:"Augusta",H:"Lentini",B:"Paternò",A:"Deposito"};
+  function fn(c){ return FN[c]||c||""; }
+  host.innerHTML='<div style="color:var(--muted)">Caricamento…</div>';
+  try{
+    var r=await sb.from("ricircoli").select("*").eq("stato","non_trovato").order("aggiornato_il",{ascending:false});
+    if(r.error)throw r.error;
+    var rows=r.data||[];
+    if(!rows.length){ host.innerHTML='<div style="color:var(--muted);padding:8px 0">Nessuna correzione richiesta. ✅</div>'; return; }
+    var today=Date.now();
+    var head='<tr><th>Data segnalazione</th><th>Barcode</th><th>Marchio · Modello · Colore</th><th>Da</th><th>A</th><th>Segnalato da</th><th>Giorni aperti</th></tr>';
+    var b=rows.map(function(x){
+      var ag=x.aggiornato_il?new Date(x.aggiornato_il):null;
+      var days=ag?Math.floor((today-ag.getTime())/86400000):0;
+      var desc=[x.marchio,x.modello,x.colore].filter(Boolean).join(" · ");
+      return '<tr><td style="white-space:nowrap">'+(ag?ag.toLocaleDateString("it-IT"):"-")+'</td><td>'+esc(x.barcode||"")+'</td><td>'+esc(desc)+'</td><td>'+esc(fn(x.filiale_da))+'</td><td>'+esc(fn(x.filiale_a))+'</td><td>'+esc(x.aggiornato_da||"")+'</td><td>'+days+'g</td></tr>';
+    }).join("");
+    host.innerHTML='<table style="width:100%;border-collapse:collapse"><thead>'+head+'</thead><tbody>'+b+'</tbody></table>';
+  }catch(e){ host.innerHTML='<div style="color:var(--bad)">Errore: '+esc(String((e&&e.message)||e))+'</div>'; }
+}
 async function showApp(session){
   $("#login").style.display="none"; $("#app").style.display="block";
   const meta=session.user.user_metadata||{};
@@ -123,6 +147,7 @@ async function showApp(session){
   $("#who").innerHTML=esc(session.user.email)+' <span class="rolechip '+ROLE+'">'+ROLE+'</span>';
   if(!isAdmin){ $("#content").innerHTML='<div class="notice">Sezione riservata agli amministratori.<br><span style="font-size:12px">Il tuo ruolo attuale è <b>gestore</b>.</span></div>'; return; }
   await loadAll();
+  loadNonTrovati();
 }
 $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault(); const b=$("#loginBtn"),er=$("#loginErr"); er.textContent=""; b.disabled=true; b.textContent="Accesso…";
   const {data,error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pwd").value});
