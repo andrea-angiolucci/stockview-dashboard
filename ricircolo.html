@@ -188,20 +188,12 @@ function render(){
     var cr=r.creato_il?new Date(r.creato_il):null;
     var days=cr?Math.floor((today-cr.getTime())/86400000):0;
     var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':'')+'>'+(cr?days+"g":"-")+'</td>';
-    var az="";
-    if(RC_ROLE==="vendita" && r.stato==="pending" && (r.filiale_da===RC_FILIALE||r.filiale_a===RC_FILIALE)){ az='<button class="btn ok rcFound" data-id="'+r.id+'">✓ Trovato</button> <button class="btn rcNot" data-id="'+r.id+'" style="background:var(--bad);color:#fff">✗ Non trovato</button>'; }
-    if(RC_ROLE==="admin"){
-      if(r.stato==="pending"){ az='<button class="btn ok rcFound" data-id="'+r.id+'">✓ Trovato</button> <button class="btn rcNot" data-id="'+r.id+'" style="background:var(--bad);color:#fff">✗ Non trovato</button>'; }
-      else if(r.stato==="trovato"||r.stato==="non_trovato"){ az='<button class="btn rcReset" data-id="'+r.id+'">↩ Ripristina</button>'; }
-      az+=' <button class="ghost rcDel" data-id="'+r.id+'" title="Annulla" style="padding:2px 8px">🗑</button>';
-    }
+    var az=rcActionBtns(r);
     var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" · "));
     return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td>'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
   }).join("");
   body.innerHTML='<table><thead>'+head+'</thead><tbody>'+b+'</tbody></table>';
-  body.querySelectorAll(".rcFound").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"trovato",email); }; });
-  body.querySelectorAll(".rcNot").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"non_trovato",email); }; });
-  body.querySelectorAll(".rcReset").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"pending",email); }; });
+  body.querySelectorAll(".rcAct").forEach(function(bt){ bt.onclick=function(){ rcClickStato(bt); }; });
   body.querySelectorAll(".rcDel").forEach(function(bt){ bt.onclick=function(){ rcAnnulla(bt.dataset.id); }; });
 }
 async function rcSetStato(id,stato,email){ try{ var r=await sb.from("ricircoli").update({stato:stato,aggiornato_da:email||null,aggiornato_il:new Date().toISOString()}).eq("id",id); if(r.error)throw r.error; run(); }catch(e){ alert("Errore: "+String((e&&e.message)||e)); } }
@@ -265,22 +257,74 @@ function render(){
     var cr=r.creato_il?new Date(r.creato_il):null;
     var days=cr?Math.floor((today-cr.getTime())/86400000):0;
     var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':"")+'>'+(cr?days+"g":"-")+'</td>';
-    var az="";
-    if(RC_ROLE==="vendita" && r.stato==="pending" && (r.filiale_da===RC_FILIALE||r.filiale_a===RC_FILIALE)){ az='<button class="btn ok rcFound" data-id="'+r.id+'">✓ Trovato</button> <button class="btn rcNot" data-id="'+r.id+'" style="background:var(--bad);color:#fff">✗ Non trovato</button>'; }
-    if(RC_ROLE==="admin"){
-      if(r.stato==="pending"){ az='<button class="btn ok rcFound" data-id="'+r.id+'">✓ Trovato</button> <button class="btn rcNot" data-id="'+r.id+'" style="background:var(--bad);color:#fff">✗ Non trovato</button>'; }
-      else if(r.stato==="trovato"||r.stato==="non_trovato"){ az='<button class="btn rcReset" data-id="'+r.id+'">↩ Ripristina</button>'; }
-      az+=' <button class="ghost rcDel" data-id="'+r.id+'" title="Annulla" style="padding:2px 8px">🗑</button>';
-    }
+    var az=rcActionBtns(r);
     var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" · "));
     return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.fornitore||"")+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td>'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
   }).join("");
   body.innerHTML='<table><thead>'+head+'</thead><tbody>'+b+'</tbody></table>';
   body.querySelectorAll("th.sortable").forEach(function(th){ th.onclick=function(){ var k=th.getAttribute("data-k"); if(RC_SORT_KEY===k){ RC_SORT_DIR=(RC_SORT_DIR==="asc"?"desc":"asc"); } else { RC_SORT_KEY=k; RC_SORT_DIR=(k==="data"?"desc":"asc"); } render(); }; });
-  body.querySelectorAll(".rcFound").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"trovato",email); }; });
-  body.querySelectorAll(".rcNot").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"non_trovato",email); }; });
-  body.querySelectorAll(".rcReset").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"pending",email); }; });
+  body.querySelectorAll(".rcAct").forEach(function(bt){ bt.onclick=function(){ rcClickStato(bt); }; });
   body.querySelectorAll(".rcDel").forEach(function(bt){ bt.onclick=function(){ rcAnnulla(bt.dataset.id); }; });
+}
+
+/* ==== FIX pulsanti stato compatti + aggiornamento in-place + feedback ==== */
+(function(){ try{
+  var st=document.createElement("style");
+  st.textContent="#body table td .rcBtn{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11.5px;font-weight:600;line-height:1.6;white-space:nowrap;cursor:pointer;border:1px solid transparent;user-select:none;vertical-align:middle;transition:transform .05s ease,box-shadow .1s ease,opacity .12s ease}"
+   +"#body table td .rcBtn:hover{filter:brightness(1.1)}"
+   +"#body table td .rcBtn:active{transform:scale(.93)}"
+   +"#body table td .rcBtn.rcFound{background:rgba(54,201,141,.20);color:var(--ok)}"
+   +"#body table td .rcBtn.rcNot{background:rgba(255,107,107,.20);color:var(--bad)}"
+   +"#body table td .rcBtn.rcReset{background:rgba(138,160,182,.22);color:var(--muted)}"
+   +"#body table td .rcBtn.rcDel{background:transparent;border-color:var(--line);color:var(--muted);padding:2px 7px}"
+   +"#body table td .rcBtn.is-pressed{box-shadow:inset 0 0 0 2px rgba(0,0,0,.22);filter:brightness(1.12)}"
+   +"#body table td .rcBtn.is-loading{opacity:.55;cursor:wait}"
+   +"@keyframes rcErrFlash{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 2px var(--bad)}}"
+   +"#body table td .rcBtn.is-error{animation:rcErrFlash .6s ease;background:rgba(255,107,107,.35)}";
+  document.head.appendChild(st);
+}catch(e){} })();
+function rcActionBtns(r){
+  var out="";
+  function b(act,cls,label){ return '<button type="button" class="rcBtn rcAct '+cls+'" data-id="'+r.id+'" data-act="'+act+'">'+label+'</button>'; }
+  var showVend=(RC_ROLE==="vendita" && r.stato==="pending" && (r.filiale_da===RC_FILIALE||r.filiale_a===RC_FILIALE));
+  if(RC_ROLE==="admin"){
+    if(r.stato==="pending"){ out=b("trovato","rcFound","✓ Trovato")+" "+b("non_trovato","rcNot","✗ Non trovato"); }
+    else if(r.stato==="trovato"||r.stato==="non_trovato"){ out=b("pending","rcReset","↩ Ripristina"); }
+    out+=(out?" ":"")+'<button type="button" class="rcBtn rcDel" data-id="'+r.id+'" title="Annulla">🗑</button>';
+  } else if(showVend){
+    out=b("trovato","rcFound","✓ Trovato")+" "+b("non_trovato","rcNot","✗ Non trovato");
+  }
+  return out;
+}
+function rcRewireCell(cell){
+  cell.querySelectorAll(".rcAct").forEach(function(bt){ bt.onclick=function(){ rcClickStato(bt); }; });
+  cell.querySelectorAll(".rcDel").forEach(function(bt){ bt.onclick=function(){ rcAnnulla(bt.dataset.id); }; });
+}
+async function rcClickStato(bt){
+  if(bt.classList.contains("is-loading"))return;
+  var id=bt.dataset.id, act=bt.dataset.act;
+  var email=($("#who")&&$("#who").textContent)||"";
+  var row=bt.closest("tr");
+  var origHtml=bt.innerHTML;
+  bt.classList.add("is-pressed","is-loading");
+  bt.innerHTML="…";
+  try{
+    var res=await sb.from("ricircoli").update({stato:act,aggiornato_da:email||null,aggiornato_il:new Date().toISOString()}).eq("id",id);
+    if(res.error)throw res.error;
+    var rdata=null;
+    for(var i=0;i<RIC_ROWS.length;i++){ if(String(RIC_ROWS[i].id)===String(id)){ RIC_ROWS[i].stato=act; RIC_ROWS[i].aggiornato_da=email; rdata=RIC_ROWS[i]; break; } }
+    if(row){
+      var badgeCell=row.children[2]; if(badgeCell) badgeCell.innerHTML=statoBadge(act);
+      var actCell=row.children[row.children.length-1];
+      if(actCell){ actCell.innerHTML=rdata?rcActionBtns(rdata):""; rcRewireCell(actCell); }
+    }
+  }catch(e){
+    bt.classList.remove("is-loading","is-pressed");
+    bt.innerHTML=origHtml;
+    bt.classList.add("is-error");
+    setTimeout(function(){ bt.classList.remove("is-error"); },650);
+    alert("Errore: "+String((e&&e.message)||e));
+  }
 }
 
 boot();
