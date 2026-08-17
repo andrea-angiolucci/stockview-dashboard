@@ -225,6 +225,54 @@ $("#xls").addEventListener("click",exportRic);
 $("#logout").addEventListener("click",async()=>{await sb.auth.signOut();location.href="presenza.html";});
 // XLSX for export
 (function(){var s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";document.head.appendChild(s);})();
+/* ==== FIX ordinamento colonne cliccabili + colonna e filtro Fornitore ==== */
+var RC_SORT_KEY="data", RC_SORT_DIR="desc";
+(function(){ try{ var st=document.createElement("style"); st.textContent="#body table th.sortable{cursor:pointer;user-select:none}#body table th.sortable:hover{color:var(--txt)}#body table th.sorted{color:var(--accent)}#body table th .arw{font-size:11px;margin-left:3px}"; document.head.appendChild(st); }catch(e){} })();
+function rcFornitori(){ var seen={}, out=[]; (RIC_ROWS||[]).forEach(function(r){ var f=(r.fornitore||"").trim(); if(f && !seen[f]){ seen[f]=1; out.push(f); } }); out.sort(function(a,b){return a.localeCompare(b);}); return out; }
+function buildFilialeFilter(){
+  var sel=$("#store"); if(!sel) return;
+  var lab=sel.previousElementSibling; if(lab) lab.textContent="Filtra filiale";
+  var cur=sel.value; var codes=["D","I","G","Z","C","E","H","B"];
+  sel.innerHTML='<option value="">Tutte le filiali</option>'+codes.map(function(c){return '<option value="'+c+'"'+(c===cur?" selected":"")+'>'+esc(filName(c))+'</option>';}).join("");
+  var ff=document.getElementById("fornFilter");
+  if(!ff){ var lb=document.createElement("span"); lb.className="muted"; lb.style.fontSize="12px"; lb.textContent="Filtra fornitore"; ff=document.createElement("select"); ff.id="fornFilter"; sel.parentNode.insertBefore(lb, sel.nextSibling); sel.parentNode.insertBefore(ff, lb.nextSibling); ff.addEventListener("change", function(){ render(); }); }
+  var fcur=ff.value; var forn=rcFornitori();
+  ff.innerHTML='<option value="">Tutti i fornitori</option>'+forn.map(function(f){return '<option value="'+esc(f)+'"'+(f===fcur?" selected":"")+'>'+esc(f)+'</option>';}).join("");
+}
+function rcSortVal(r,k){ if(k==="data") return r.creato_il?new Date(r.creato_il).getTime():0; if(k==="giorni"){ var cr=r.creato_il?new Date(r.creato_il).getTime():0; return cr?(Date.now()-cr):0; } if(k==="stato") return (r.stato||""); if(k==="fornitore") return (r.fornitore||""); if(k==="marchio") return (r.marchio||""); if(k==="da") return filName(r.filiale_da)||""; if(k==="a") return filName(r.filiale_a)||""; if(k==="qta") return (r.quantita||1); return ""; }
+function rcSort(rows){ var k=RC_SORT_KEY, dir=RC_SORT_DIR==="asc"?1:-1; rows.sort(function(a,b){ var va=rcSortVal(a,k), vb=rcSortVal(b,k), c; if(typeof va==="number" && typeof vb==="number") c=va-vb; else c=String(va).localeCompare(String(vb)); return c*dir; }); return rows; }
+function rcArrow(k){ return RC_SORT_KEY===k?'<span class="arw">'+(RC_SORT_DIR==="asc"?"↑":"↓")+'</span>':""; }
+function rcTh(k,label){ return '<th class="sortable'+(RC_SORT_KEY===k?" sorted":"")+'" data-k="'+k+'">'+label+rcArrow(k)+'</th>'; }
+function render(){
+  var rows=RIC_ROWS.slice();
+  var sel=$("#store"); var ff=(sel && RC_ROLE!=="vendita")?sel.value:"";
+  if(ff){ rows=rows.filter(function(x){return x.filiale_da===ff||x.filiale_a===ff;}); }
+  var fsel=document.getElementById("fornFilter"); var fv=(fsel && RC_ROLE!=="vendita")?fsel.value:"";
+  if(fv){ rows=rows.filter(function(x){return (x.fornitore||"")===fv;}); }
+  $("#stat").innerHTML='<b>'+rows.length+'</b> ricircoli attivi';
+  var body=$("#body");
+  if(!rows.length){ body.innerHTML='<div class="empty">Nessun ricircolo attivo. ✅</div>'; return; }
+  rcSort(rows);
+  var email=($("#who")&&$("#who").textContent)||"";
+  var today=Date.now();
+  var head='<tr>'+rcTh("data","Data richiesta")+rcTh("giorni","Giorni")+rcTh("stato","Stato")+rcTh("fornitore","Fornitore")+rcTh("marchio","Marchio")+rcTh("da","Da (invia)")+rcTh("a","A (riceve)")+'<th>Referenza</th>'+rcTh("qta","Qta")+'<th></th></tr>';
+  var b=rows.map(function(r){
+    var cr=r.creato_il?new Date(r.creato_il):null;
+    var days=cr?Math.floor((today-cr.getTime())/86400000):0;
+    var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':"")+'>'+(cr?days+"g":"-")+'</td>';
+    var az="";
+    if(RC_ROLE==="vendita" && r.stato==="pending" && (r.filiale_da===RC_FILIALE||r.filiale_a===RC_FILIALE)){ az='<button class="btn ok rcFound" data-id="'+r.id+'">✓ Trovato</button> <button class="btn rcNot" data-id="'+r.id+'" style="background:var(--bad);color:#fff">✗ Non trovato</button>'; }
+    if(RC_ROLE==="admin"){ az+=' <button class="ghost rcDel" data-id="'+r.id+'" title="Annulla" style="padding:2px 8px">🗑</button>'; }
+    var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" · "));
+    return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.fornitore||"")+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td>'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
+  }).join("");
+  body.innerHTML='<table><thead>'+head+'</thead><tbody>'+b+'</tbody></table>';
+  body.querySelectorAll("th.sortable").forEach(function(th){ th.onclick=function(){ var k=th.getAttribute("data-k"); if(RC_SORT_KEY===k){ RC_SORT_DIR=(RC_SORT_DIR==="asc"?"desc":"asc"); } else { RC_SORT_KEY=k; RC_SORT_DIR=(k==="data"?"desc":"asc"); } render(); }; });
+  body.querySelectorAll(".rcFound").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"trovato",email); }; });
+  body.querySelectorAll(".rcNot").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"non_trovato",email); }; });
+  body.querySelectorAll(".rcDel").forEach(function(bt){ bt.onclick=function(){ rcAnnulla(bt.dataset.id); }; });
+}
+
 boot();
 
 (async function(){try{const {data:{session}}=await sb.auth.getSession();const _r=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.role;if(_r==='admin'){var e=document.getElementById('navRevisioni');if(e)e.style.display='';}}catch(e){}})();
