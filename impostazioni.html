@@ -506,6 +506,46 @@ const RC_FILIALI=[["D","Catania"],["I","Portali"],["G","Giarre"],["Z","Viale Afr
 function rcFlash(row){ row.style.transition="background .15s ease"; row.style.background="rgba(54,201,141,.30)"; setTimeout(function(){ row.style.background=""; },500); }
 async function rcSaveOn(code,dir,nota){ var res=await sb.from("ricircolo_esclusioni").upsert({filiale:code,direzione:dir,nota:(nota||null),modificato_il:new Date().toISOString()},{onConflict:"filiale,direzione"}); if(res&&res.error)throw res.error; }
 async function rcSaveOff(code,dir){ var res=await sb.from("ricircolo_esclusioni").delete().eq("filiale",code).eq("direzione",dir); if(res&&res.error)throw res.error; }
+async function rcMFSaveOn(tipo,valore){ var res=await sb.from("ricircolo_esclusioni_marchi").upsert({tipo:tipo,valore:valore,modificato_il:new Date().toISOString()},{onConflict:"tipo,valore"}); if(res&&res.error)throw res.error; }
+async function rcMFSaveOff(tipo,valore){ var res=await sb.from("ricircolo_esclusioni_marchi").delete().eq("tipo",tipo).eq("valore",valore); if(res&&res.error)throw res.error; }
+async function rcRenderMF(wrap){
+  if(!wrap)return;
+  try{
+    var ex=await sb.from("ricircolo_esclusioni_marchi").select("tipo,valore"); if(ex.error)throw ex.error;
+    var exForn={}, exMar={};
+    (ex.data||[]).forEach(function(r){ if(r.tipo==="fornitore")exForn[r.valore]=1; else if(r.tipo==="marchio")exMar[r.valore]=1; });
+    var rf=await sb.rpc("sv_g_fornitori"); if(rf.error)throw rf.error;
+    var rm=await sb.rpc("sv_g_marchi",{p_fornitore:null}); if(rm.error)throw rm.error;
+    var forn=(rf.data||[]).map(function(x){return x.fornitore;}).filter(Boolean);
+    var mar=(rm.data||[]).map(function(x){return x.marchio;}).filter(Boolean);
+    forn.sort(function(a,b){return String(a).localeCompare(String(b));});
+    mar.sort(function(a,b){return String(a).localeCompare(String(b));});
+    function rowHtml(tipo,val,on){ return '<div class="rcMFRow" data-tipo="'+tipo+'" data-val="'+esc(val)+'" style="padding:5px 8px;border:1px solid var(--line);border-radius:7px;margin-bottom:5px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px"><input type="checkbox" class="rcMFChk" '+(on?"checked":"")+'> '+esc(val)+'</label></div>'; }
+    var fCount=Object.keys(exForn).length, mCount=Object.keys(exMar).length;
+    wrap.innerHTML=''
+      +'<h3 style="margin:0 0 4px;font-size:15px">Marchi e fornitori esclusi</h3>'
+      +'<p class="umuted" style="margin:0 0 12px;font-size:12.5px">Marchi e fornitori spuntati non generano nuovi ricircoli. I ricircoli già presenti restano visibili.</p>'
+      +'<div style="display:flex;gap:20px;align-items:flex-start">'
+        +'<div style="flex:1;min-width:0">'
+          +'<h4 style="margin:0 0 8px;font-size:14px">Fornitori esclusi <span id="rcFornBadge" class="urole" style="font-size:11px">'+fCount+' esclusi</span></h4>'
+          +'<div id="rcFornList" style="max-height:340px;overflow:auto;padding-right:4px">'+forn.map(function(v){return rowHtml("fornitore",v,!!exForn[v]);}).join("")+'</div>'
+        +'</div>'
+        +'<div style="flex:1;min-width:0">'
+          +'<h4 style="margin:0 0 8px;font-size:14px">Marchi esclusi <span id="rcMarBadge" class="urole" style="font-size:11px">'+mCount+' esclusi</span></h4>'
+          +'<input id="rcMarSearch" class="urole" placeholder="Cerca marchio…" style="width:100%;margin-bottom:8px;font-size:13px">'
+          +'<div id="rcMarList" style="max-height:340px;overflow:auto;padding-right:4px">'+mar.map(function(v){return rowHtml("marchio",v,!!exMar[v]);}).join("")+'</div>'
+        +'</div>'
+      +'</div>';
+    function updBadge(tipo){ var list=wrap.querySelectorAll('.rcMFRow[data-tipo="'+tipo+'"] .rcMFChk'); var n=0; list.forEach(function(c){if(c.checked)n++;}); var b=wrap.querySelector(tipo==="fornitore"?"#rcFornBadge":"#rcMarBadge"); if(b)b.textContent=n+" esclusi"; }
+    wrap.querySelectorAll(".rcMFRow").forEach(function(row){
+      var tipo=row.dataset.tipo, val=row.dataset.val, chk=row.querySelector(".rcMFChk");
+      chk.onchange=async function(){ try{ if(chk.checked){ await rcMFSaveOn(tipo,val); } else { await rcMFSaveOff(tipo,val); } rcFlash(row); updBadge(tipo); }catch(e){ chk.checked=!chk.checked; toast(String((e&&e.message)||e),true); } };
+    });
+    var srch=wrap.querySelector("#rcMarSearch");
+    if(srch){ srch.oninput=function(){ var q=srch.value.toLowerCase(); wrap.querySelectorAll('.rcMFRow[data-tipo="marchio"]').forEach(function(row){ row.style.display=(String(row.dataset.val).toLowerCase().indexOf(q)>-1)?"":"none"; }); }; }
+  }catch(e){ wrap.innerHTML='<div class="err">Errore caricamento marchi/fornitori: '+esc(String((e&&e.message)||e))+'</div>'; }
+}
+
 async function renderRicircolo(host){
   if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; }
   host.innerHTML='<div class="umuted">Caricamento…</div>';
@@ -530,7 +570,9 @@ async function renderRicircolo(host){
     +'<div style="display:flex;gap:20px;align-items:flex-start">'
     +section("uscita","Negozi esclusi dall’uscita","Da questi negozi non si preleva mai per il ricircolo")
     +section("entrata","Negozi esclusi dall’entrata","Questi negozi non ricevono mai pezzi dal ricircolo")
-    +'</div>';
+    +'</div>'
+    +'<div id="rcMFwrap" style="margin-top:22px;border-top:1px solid var(--line);padding-top:16px"><div class="umuted">Caricamento marchi e fornitori…</div></div>';
+  rcRenderMF(host.querySelector("#rcMFwrap"));
   host.querySelectorAll(".rcRow").forEach(function(row){
     var code=row.dataset.code, dir=row.dataset.dir;
     var chk=row.querySelector(".rcChk"), nota=row.querySelector(".rcNota");
