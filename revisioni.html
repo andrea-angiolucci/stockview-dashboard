@@ -52,6 +52,9 @@
   .arrow{color:var(--muted);margin:0 7px;font-weight:700}
   .btn-annulla{background:transparent;border:1px solid var(--bad);color:var(--bad);border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600}
   .btn-annulla:hover{background:rgba(255,107,107,.12)}
+  .btn-ripristina{background:transparent;border:1px solid var(--ok);color:var(--ok);border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .btn-ripristina:hover{background:rgba(54,201,141,.12)}
+  .btn-ripristina:disabled{opacity:.55;cursor:wait}
   .muted{color:var(--muted)}
   .modal-back{position:fixed;inset:0;background:rgba(4,10,18,.66);display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
   .modal-back.open{display:flex}
@@ -130,15 +133,40 @@ async function loadNonTrovati(){
     var rows=r.data||[];
     if(!rows.length){ host.innerHTML='<div style="color:var(--muted);padding:8px 0">Nessuna correzione richiesta. ✅</div>'; return; }
     var today=Date.now();
-    var head='<tr><th>Data segnalazione</th><th>Barcode</th><th>Marchio · Modello · Colore</th><th>Da</th><th>A</th><th>Segnalato da</th><th>Giorni aperti</th></tr>';
+    var head='<tr><th>Data segnalazione</th><th>Barcode</th><th>Marchio · Modello · Colore</th><th>Da</th><th>A</th><th>Segnalato da</th><th>Giorni aperti</th><th></th></tr>';
     var b=rows.map(function(x){
       var ag=x.aggiornato_il?new Date(x.aggiornato_il):null;
       var days=ag?Math.floor((today-ag.getTime())/86400000):0;
       var desc=[x.marchio,x.modello,x.colore].filter(Boolean).join(" · ");
-      return '<tr><td style="white-space:nowrap">'+(ag?ag.toLocaleDateString("it-IT"):"-")+'</td><td>'+esc(x.barcode||"")+'</td><td>'+esc(desc)+'</td><td>'+esc(fn(x.filiale_da))+'</td><td>'+esc(fn(x.filiale_a))+'</td><td>'+esc(x.aggiornato_da||"")+'</td><td>'+days+'g</td></tr>';
+      return '<tr data-rid="'+x.id+'"><td style="white-space:nowrap">'+(ag?ag.toLocaleDateString("it-IT"):"-")+'</td><td>'+esc(x.barcode||"")+'</td><td>'+esc(desc)+'</td><td>'+esc(fn(x.filiale_da))+'</td><td>'+esc(fn(x.filiale_a))+'</td><td>'+esc(x.aggiornato_da||"")+'</td><td>'+days+'g</td><td>'+(isAdmin?'<button class="btn-ripristina rcRip" data-id="'+x.id+'">↩ Ripristina</button>':"")+'</td></tr>';
     }).join("");
     host.innerHTML='<table style="width:100%;border-collapse:collapse"><thead>'+head+'</thead><tbody>'+b+'</tbody></table>';
+    host.querySelectorAll(".rcRip").forEach(function(bt){ bt.onclick=function(){ rcRipristina(bt,host); }; });
   }catch(e){ host.innerHTML='<div style="color:var(--bad)">Errore: '+esc(String((e&&e.message)||e))+'</div>'; }
+}
+async function rcRipristina(bt, host){
+  if(bt.disabled) return;
+  var id=bt.dataset.id;
+  var tr=bt.closest("tr");
+  bt.disabled=true; var orig=bt.textContent; bt.textContent="…";
+  try{
+    var sess=await sb.auth.getSession();
+    var email=(sess&&sess.data&&sess.data.session&&sess.data.session.user&&sess.data.session.user.email)||null;
+    var res=await sb.from("ricircoli").update({stato:"pending",aggiornato_il:new Date().toISOString(),aggiornato_da:email}).eq("id",id);
+    if(res.error)throw res.error;
+    if(tr){
+      tr.style.transition="background .25s ease";
+      tr.style.background="rgba(54,201,141,.35)";
+      setTimeout(function(){
+        var tb=tr.parentNode;
+        tr.remove();
+        if(tb && tb.querySelectorAll("tr").length===0 && host){ host.innerHTML='<div style="color:var(--muted);padding:8px 0">Nessuna correzione richiesta. ✅</div>'; }
+      },500);
+    }
+  }catch(e){
+    bt.disabled=false; bt.textContent=orig;
+    alert("Errore: "+String((e&&e.message)||e));
+  }
 }
 async function showApp(session){
   $("#login").style.display="none"; $("#app").style.display="block";
