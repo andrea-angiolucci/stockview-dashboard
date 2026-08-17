@@ -190,13 +190,18 @@ function render(){
     var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':'')+'>'+(cr?days+"g":"-")+'</td>';
     var az="";
     if(RC_ROLE==="vendita" && r.stato==="pending" && (r.filiale_da===RC_FILIALE||r.filiale_a===RC_FILIALE)){ az='<button class="btn ok rcFound" data-id="'+r.id+'">✓ Trovato</button> <button class="btn rcNot" data-id="'+r.id+'" style="background:var(--bad);color:#fff">✗ Non trovato</button>'; }
-    if(RC_ROLE==="admin"){ az+=' <button class="ghost rcDel" data-id="'+r.id+'" title="Annulla" style="padding:2px 8px">🗑</button>'; }
+    if(RC_ROLE==="admin"){
+      if(r.stato==="pending"){ az='<button class="btn ok rcFound" data-id="'+r.id+'">✓ Trovato</button> <button class="btn rcNot" data-id="'+r.id+'" style="background:var(--bad);color:#fff">✗ Non trovato</button>'; }
+      else if(r.stato==="trovato"||r.stato==="non_trovato"){ az='<button class="btn rcReset" data-id="'+r.id+'">↩ Ripristina</button>'; }
+      az+=' <button class="ghost rcDel" data-id="'+r.id+'" title="Annulla" style="padding:2px 8px">🗑</button>';
+    }
     var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" · "));
     return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td>'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
   }).join("");
   body.innerHTML='<table><thead>'+head+'</thead><tbody>'+b+'</tbody></table>';
   body.querySelectorAll(".rcFound").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"trovato",email); }; });
   body.querySelectorAll(".rcNot").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"non_trovato",email); }; });
+  body.querySelectorAll(".rcReset").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"pending",email); }; });
   body.querySelectorAll(".rcDel").forEach(function(bt){ bt.onclick=function(){ rcAnnulla(bt.dataset.id); }; });
 }
 async function rcSetStato(id,stato,email){ try{ var r=await sb.from("ricircoli").update({stato:stato,aggiornato_da:email||null,aggiornato_il:new Date().toISOString()}).eq("id",id); if(r.error)throw r.error; run(); }catch(e){ alert("Errore: "+String((e&&e.message)||e)); } }
@@ -262,7 +267,11 @@ function render(){
     var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':"")+'>'+(cr?days+"g":"-")+'</td>';
     var az="";
     if(RC_ROLE==="vendita" && r.stato==="pending" && (r.filiale_da===RC_FILIALE||r.filiale_a===RC_FILIALE)){ az='<button class="btn ok rcFound" data-id="'+r.id+'">✓ Trovato</button> <button class="btn rcNot" data-id="'+r.id+'" style="background:var(--bad);color:#fff">✗ Non trovato</button>'; }
-    if(RC_ROLE==="admin"){ az+=' <button class="ghost rcDel" data-id="'+r.id+'" title="Annulla" style="padding:2px 8px">🗑</button>'; }
+    if(RC_ROLE==="admin"){
+      if(r.stato==="pending"){ az='<button class="btn ok rcFound" data-id="'+r.id+'">✓ Trovato</button> <button class="btn rcNot" data-id="'+r.id+'" style="background:var(--bad);color:#fff">✗ Non trovato</button>'; }
+      else if(r.stato==="trovato"||r.stato==="non_trovato"){ az='<button class="btn rcReset" data-id="'+r.id+'">↩ Ripristina</button>'; }
+      az+=' <button class="ghost rcDel" data-id="'+r.id+'" title="Annulla" style="padding:2px 8px">🗑</button>';
+    }
     var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" · "));
     return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.fornitore||"")+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td>'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
   }).join("");
@@ -270,6 +279,7 @@ function render(){
   body.querySelectorAll("th.sortable").forEach(function(th){ th.onclick=function(){ var k=th.getAttribute("data-k"); if(RC_SORT_KEY===k){ RC_SORT_DIR=(RC_SORT_DIR==="asc"?"desc":"asc"); } else { RC_SORT_KEY=k; RC_SORT_DIR=(k==="data"?"desc":"asc"); } render(); }; });
   body.querySelectorAll(".rcFound").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"trovato",email); }; });
   body.querySelectorAll(".rcNot").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"non_trovato",email); }; });
+  body.querySelectorAll(".rcReset").forEach(function(bt){ bt.onclick=function(){ rcSetStato(bt.dataset.id,"pending",email); }; });
   body.querySelectorAll(".rcDel").forEach(function(bt){ bt.onclick=function(){ rcAnnulla(bt.dataset.id); }; });
 }
 
