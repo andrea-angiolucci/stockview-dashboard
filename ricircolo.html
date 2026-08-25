@@ -176,23 +176,36 @@ async function run(){
 }
 function render(){
   var rows=RIC_ROWS.slice();
-  var sel=$("#store"); var ff=(sel && RC_ROLE!=="vendita")?sel.value:"";
-  if(ff){ rows=rows.filter(function(x){return x.filiale_da===ff||x.filiale_a===ff;}); }
+  var sel=$("#store");
+  var store=(RC_ROLE==="vendita")?(RC_FILIALE||""):((sel&&sel.value)?sel.value:"");
+  if(store){ rows=rows.filter(function(x){return x.filiale_da===store||x.filiale_a===store;}); }
   $("#stat").innerHTML='<b>'+rows.length+'</b> ricircoli attivi';
   var body=$("#body");
-  if(!rows.length){ body.innerHTML='<div class="empty">Nessun ricircolo attivo. ✅</div>'; return; }
-  var email=($("#who")&&$("#who").textContent)||"";
+  if(!rows.length){ body.innerHTML='<div class="empty">Nessun ricircolo attivo. \u2705</div>'; return; }
   var today=Date.now();
   var head='<tr><th>Data richiesta</th><th>Giorni</th><th>Stato</th><th>Marchio</th><th>Da (invia)</th><th>A (riceve)</th><th>Referenza</th><th>Qta</th><th></th></tr>';
-  var b=rows.map(function(r){
+  function rowHTML(r){
     var cr=r.creato_il?new Date(r.creato_il):null;
     var days=cr?Math.floor((today-cr.getTime())/86400000):0;
     var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':'')+'>'+(cr?days+"g":"-")+'</td>';
     var az=rcActionBtns(r);
-    var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" · "));
+    var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" \u00b7 "));
     return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td>'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
-  }).join("");
-  body.innerHTML='<table><thead>'+head+'</thead><tbody>'+b+'</tbody></table>';
+  }
+  function tableHTML(list){ return '<table><thead>'+head+'</thead><tbody>'+list.map(rowHTML).join("")+'</tbody></table>'; }
+  if(store){
+    var out=rows.filter(function(x){return x.filiale_da===store;});
+    var inc=rows.filter(function(x){return x.filiale_a===store;});
+    var sName=filName(store);
+    var html='';
+    html+='<div class="sec" style="color:var(--bad);margin:12px 2px 4px;font-weight:700">\ud83d\udce4 In uscita \u2014 '+esc(sName)+' \u00b7 <b>'+out.length+'</b></div>';
+    html+=(out.length?tableHTML(out):'<div class="muted" style="padding:6px 2px">Niente in uscita.</div>');
+    html+='<div class="sec" style="color:var(--ok);margin:18px 2px 4px;font-weight:700">\ud83d\udce5 In ingresso \u2014 '+esc(sName)+' \u00b7 <b>'+inc.length+'</b></div>';
+    html+=(inc.length?tableHTML(inc):'<div class="muted" style="padding:6px 2px">Niente in ingresso.</div>');
+    body.innerHTML=html;
+  } else {
+    body.innerHTML=tableHTML(rows);
+  }
   body.querySelectorAll(".rcAct").forEach(function(bt){ bt.onclick=function(){ rcClickStato(bt); }; });
   body.querySelectorAll(".rcDel").forEach(function(bt){ bt.onclick=function(){ rcAnnulla(bt.dataset.id); }; });
 }
