@@ -35,7 +35,12 @@
   .sec{font-weight:700;padding:14px 2px 6px}
   .muted{color:var(--muted)}
   .empty{padding:50px;text-align:center;color:var(--muted)}
-</style>
+
+  .rctabs{display:flex;gap:6px;margin:2px 0 12px;border-bottom:1px solid var(--line)}
+  .rctab{background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-family:inherit;font-size:13.5px;font-weight:600;padding:8px 14px;cursor:pointer;transition:.15s}
+  .rctab:hover{color:var(--txt)}
+  .rctab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  </style>
 </head>
 <body>
 <header>
@@ -193,21 +198,28 @@ function render(){
     return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td>'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
   }
   function tableHTML(list){ return '<table><thead>'+head+'</thead><tbody>'+list.map(rowHTML).join("")+'</tbody></table>'; }
+  function wireActions(){
+    body.querySelectorAll(".rcAct").forEach(function(bt){ bt.onclick=function(){ rcClickStato(bt); }; });
+    body.querySelectorAll(".rcDel").forEach(function(bt){ bt.onclick=function(){ rcAnnulla(bt.dataset.id); }; });
+  }
   if(store){
     var out=rows.filter(function(x){return x.filiale_da===store;});
     var inc=rows.filter(function(x){return x.filiale_a===store;});
-    var sName=filName(store);
-    var html='';
-    html+='<div class="sec" style="color:var(--bad);margin:12px 2px 4px;font-weight:700">\ud83d\udce4 In uscita \u2014 '+esc(sName)+' \u00b7 <b>'+out.length+'</b></div>';
-    html+=(out.length?tableHTML(out):'<div class="muted" style="padding:6px 2px">Niente in uscita.</div>');
-    html+='<div class="sec" style="color:var(--ok);margin:18px 2px 4px;font-weight:700">\ud83d\udce5 In ingresso \u2014 '+esc(sName)+' \u00b7 <b>'+inc.length+'</b></div>';
-    html+=(inc.length?tableHTML(inc):'<div class="muted" style="padding:6px 2px">Niente in ingresso.</div>');
-    body.innerHTML=html;
+    var active=sessionStorage.getItem("rc_vtab"); if(active!=="inc"&&active!=="out")active="out";
+    var paint=function(a){
+      sessionStorage.setItem("rc_vtab",a);
+      var list=(a==="inc")?inc:out;
+      var tabs='<div class="rctabs"><button class="rctab'+(a==="out"?" active":"")+'" data-tab="out">\ud83d\udce4 In uscita ('+out.length+')</button><button class="rctab'+(a==="inc"?" active":"")+'" data-tab="inc">\ud83d\udce5 In ingresso ('+inc.length+')</button></div>';
+      var content=list.length?tableHTML(list):'<div class="muted" style="padding:10px 2px">'+(a==="inc"?"Niente in ingresso.":"Niente in uscita.")+'</div>';
+      body.innerHTML=tabs+content;
+      body.querySelectorAll(".rctab").forEach(function(tb){ tb.onclick=function(){ paint(tb.dataset.tab); }; });
+      wireActions();
+    };
+    paint(active);
   } else {
     body.innerHTML=tableHTML(rows);
+    wireActions();
   }
-  body.querySelectorAll(".rcAct").forEach(function(bt){ bt.onclick=function(){ rcClickStato(bt); }; });
-  body.querySelectorAll(".rcDel").forEach(function(bt){ bt.onclick=function(){ rcAnnulla(bt.dataset.id); }; });
 }
 async function rcSetStato(id,stato,email){ try{ var r=await sb.from("ricircoli").update({stato:stato,aggiornato_da:email||null,aggiornato_il:new Date().toISOString()}).eq("id",id); if(r.error)throw r.error; run(); }catch(e){ alert("Errore: "+String((e&&e.message)||e)); } }
 function rcAnnulla(id){
