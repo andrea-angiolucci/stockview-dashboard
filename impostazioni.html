@@ -118,6 +118,11 @@
   .fmitem:hover{background:var(--panel2)}
   .fmitem.off{opacity:.55}
   .fmitem.off span{text-decoration:line-through}
+  .ufil{font-size:11px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:5px}
+  .ufilmiss{margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .ubadge.miss{background:rgba(255,107,107,.18);color:var(--bad)}
+  .ufilbtn{padding:3px 9px;font-size:11px}
+  .ufilsel{margin-top:5px}
 </style>
 </head>
 <body>
@@ -254,17 +259,30 @@ function drawUtenti(){
     const dis=!!u.disabled, self=(u.email&&u.email===U_ME);
     const roleSel='<select class="urole" data-id="'+esc(u.id)+'"><option value="gestore"'+(u.role!=="admin"&&u.role!=="vendita"?" selected":"")+'>gestore</option><option value="vendita"'+(u.role==="vendita"?" selected":"")+'>vendita</option><option value="admin"'+(u.role==="admin"?" selected":"")+'>admin</option></select>';
     const pending=(!u.last_sign_in_at && !dis); const stato=dis?'<span class="ubadge off">Disattivato</span>':(pending?'<span class="ubadge" style="background:rgba(245,165,36,.2);color:#f5a524">In attesa</span>':'<span class="ubadge on">Attivo</span>');
+    const filInfo=(u.role==="vendita")?(u.filiale?('<div class="ufil">\ud83c\udfec Filiale: <b>'+esc(FIL_NAME[u.filiale]||u.filiale)+'</b></div>'):('<div class="ufilmiss"><span class="ubadge miss">\u26a0 Filiale mancante</span><button class="ghost usm ufilbtn" data-act="setfil" data-id="'+esc(u.id)+'">Imposta filiale</button></div>')):"";
     const toggleBtn='<button class="ghost usm" data-act="status" data-id="'+esc(u.id)+'" data-dis="'+(dis?"0":"1")+'">'+(dis?"Riattiva":"Disattiva")+'</button>';
     const delBtn=self?'':'<button class="ghost usm udel" data-act="del" data-id="'+esc(u.id)+'" data-email="'+esc(u.email||"")+'">Elimina</button>';
     const resetBtn=(!pending && !dis)?'<button class="ghost usm" data-act="reset" data-email="'+esc(u.email||"")+'">🔑 Reset password</button>':'';
-    return '<tr'+(dis?' class="disrow"':'')+'><td>'+esc(u.email||"\u2014")+(self?' <span class="umuted">(tu)</span>':'')+'</td><td>'+roleSel+'</td><td>'+stato+'</td><td>'+uFmt(u.created_at)+'</td><td>'+uFmt(u.last_sign_in_at)+'</td><td class="uacts">'+(pending?'<button class="ghost usm" data-act="reinvite" data-id="'+esc(u.id)+'" data-email="'+esc(u.email||"")+'">Re-invia invito</button>':'')+resetBtn+toggleBtn+delBtn+'</td></tr>';
+    return '<tr'+(dis?' class="disrow"':'')+'><td>'+esc(u.email||"\u2014")+(self?' <span class="umuted">(tu)</span>':'')+'</td><td>'+roleSel+filInfo+'</td><td>'+stato+'</td><td>'+uFmt(u.created_at)+'</td><td>'+uFmt(u.last_sign_in_at)+'</td><td class="uacts">'+(pending?'<button class="ghost usm" data-act="reinvite" data-id="'+esc(u.id)+'" data-email="'+esc(u.email||"")+'">Re-invia invito</button>':'')+resetBtn+toggleBtn+delBtn+'</td></tr>';
   }).join("");
   $("#uwrap").innerHTML='<div class="utblwrap"><table class="utbl"><thead><tr><th>Email</th><th>Ruolo</th><th>Stato</th><th>Creazione</th><th>Ultimo accesso</th><th>Azioni</th></tr></thead><tbody>'+rows+'</tbody></table></div><div class="umuted" style="margin-top:8px">'+U_LIST.length+' utenti registrati</div>';
   $("#uwrap").querySelectorAll("select.urole").forEach(function(sel){ sel.onchange=function(){ changeRole(sel.dataset.id, sel.value, sel); }; });
-  $("#uwrap").querySelectorAll("button.usm").forEach(function(b){ b.onclick=function(){ if(b.dataset.act==="status") toggleStatus(b.dataset.id, b.dataset.dis==="1"); else if(b.dataset.act==="reinvite") reinvite(b.dataset.email, b); else if(b.dataset.act==="reset") resetPassword(b.dataset.email, b); else delUser(b.dataset.id, b.dataset.email); }; });
+  $("#uwrap").querySelectorAll("button.usm").forEach(function(b){ b.onclick=function(){ if(b.dataset.act==="status") toggleStatus(b.dataset.id, b.dataset.dis==="1"); else if(b.dataset.act==="reinvite") reinvite(b.dataset.email, b); else if(b.dataset.act==="reset") resetPassword(b.dataset.email, b); else if(b.dataset.act==="setfil") setFilInline(b); else delUser(b.dataset.id, b.dataset.email); }; });
 }
 async function reinvite(email, btn){ if(!email)return; if(btn)btn.disabled=true; try{ await efCall("POST","/reinvite",{email:email}); toast("Invito re-inviato a "+email); }catch(e){ toast(String((e&&e.message)||e),true); } if(btn)btn.disabled=false; }
 async function resetPassword(email, btn){ if(!email)return; if(btn)btn.disabled=true; try{ await efCall("POST","/reset_password",{email:email}); toast("Email di reset inviata a "+email); }catch(e){ toast(String((e&&e.message)||e),true); } if(btn)btn.disabled=false; }
+function setFilInline(btn){
+  var id=btn.dataset.id;
+  var sel=document.createElement("select"); sel.className="urole ufilsel";
+  sel.innerHTML='<option value="">\u2014 filiale \u2014</option>'+FIL_ORDER.map(function(c){return '<option value="'+c+'">'+esc(FIL_NAME[c])+'</option>';}).join("");
+  btn.replaceWith(sel); try{sel.focus();}catch(e){}
+  sel.onchange=async function(){
+    var code=sel.value; if(!code) return;
+    sel.disabled=true;
+    try{ await efCall("PATCH","/role",{id:id, role:"vendita", filiale:code}); var u=U_LIST.find(function(x){return x.id===id;}); if(u){u.role="vendita"; u.filiale=code;} toast("Filiale impostata: "+(FIL_NAME[code]||code)); drawUtenti(); }
+    catch(e){ toast(String((e&&e.message)||e),true); sel.disabled=false; }
+  };
+}
 async function changeRole(id, role, sel){
   sel.disabled=true;
   try{ var _fil=null; if(role==="vendita"){ _fil=await uPickFiliale(); if(!_fil){ sel.disabled=false; loadUtenti(); return; } } await efCall("PATCH","/role",{id:id, role:role, filiale:_fil}); const u=U_LIST.find(function(x){return x.id===id;}); if(u){u.role=role; u.filiale=_fil;} toast("Ruolo aggiornato: "+role); }
