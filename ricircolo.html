@@ -40,7 +40,10 @@
   .rctab{background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-family:inherit;font-size:13.5px;font-weight:600;padding:8px 14px;cursor:pointer;transition:.15s}
   .rctab:hover{color:var(--txt)}
   .rctab.active{color:var(--accent);border-bottom-color:var(--accent)}
-  </style>
+    #body td.refcell{cursor:pointer}
+  #body td.refcell:hover{color:var(--accent)}
+  #body tr.selrow>td{background:rgba(61,169,252,.12)}
+</style>
 </head>
 <body>
 <header>
@@ -195,7 +198,7 @@ function render(){
     var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':'')+'>'+(cr?days+"g":"-")+'</td>';
     var az=rcActionBtns(r);
     var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" \u00b7 "));
-    return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td>'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
+    return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td class="refcell" data-img="'+esc([r.marchio,r.modello,r.colore].filter(Boolean).join(" ")+" occhiali")+'">'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
   }
   function tableHTML(list){ return '<table><thead>'+head+'</thead><tbody>'+list.map(rowHTML).join("")+'</tbody></table>'; }
   function wireActions(){
@@ -284,7 +287,7 @@ function render(){
     var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':"")+'>'+(cr?days+"g":"-")+'</td>';
     var az=rcActionBtns(r);
     var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" · "));
-    return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.fornitore||"")+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td>'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
+    return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.fornitore||"")+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td class="refcell" data-img="'+esc([r.marchio,r.modello,r.colore].filter(Boolean).join(" ")+" occhiali")+'">'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
   }).join("");
   body.innerHTML='<table><thead>'+head+'</thead><tbody>'+b+'</tbody></table>';
   body.querySelectorAll("th.sortable").forEach(function(th){ th.onclick=function(){ var k=th.getAttribute("data-k"); if(RC_SORT_KEY===k){ RC_SORT_DIR=(RC_SORT_DIR==="asc"?"desc":"asc"); } else { RC_SORT_KEY=k; RC_SORT_DIR=(k==="data"?"desc":"asc"); } render(); }; });
@@ -355,6 +358,21 @@ async function rcClickStato(bt){
 boot();
 
 (async function(){try{const {data:{session}}=await sb.auth.getSession();const _r=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.role;if(_r==='admin'){var e=document.getElementById('navRevisioni');if(e)e.style.display='';}}catch(e){}})();
+
+document.addEventListener("dblclick",function(e){
+  var td=e.target.closest("#body td.refcell[data-img]");
+  if(!td) return;
+  var q=td.getAttribute("data-img");
+  if(q) window.open("https://www.google.com/search?tbm=isch&q="+encodeURIComponent(q),"_blank");
+  var tr=td.closest("tr");
+  if(tr){ document.querySelectorAll("#body tr.selrow").forEach(function(x){x.classList.remove("selrow");}); tr.classList.add("selrow"); }
+});
+document.addEventListener("click",function(e){
+  var td=e.target.closest("#body td.refcell[data-img]");
+  if(!td) return;
+  var tr=td.closest("tr");
+  if(tr) tr.classList.toggle("selrow");
+});
 </script>
 </body>
 </html>
