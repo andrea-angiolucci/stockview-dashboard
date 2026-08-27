@@ -43,6 +43,9 @@
     #body td.refcell{cursor:pointer}
   #body td.refcell:hover{color:var(--accent)}
   #body tr.selrow>td{background:rgba(61,169,252,.12)}
+  .vistabadge{display:inline-flex;align-items:center;gap:10px;margin:0 0 12px;padding:7px 12px;border:1px solid var(--accent);border-radius:20px;background:rgba(61,169,252,.10);color:var(--txt);font-size:13px;font-weight:600}
+  .vistabadge .vr{color:var(--muted);cursor:pointer;text-decoration:none;font-size:12px}
+  .vistabadge .vr:hover{color:var(--txt);text-decoration:underline}
 </style>
 </head>
 <body>
@@ -65,12 +68,13 @@
     <div style="font-size:18px;font-weight:700">🔄 Ricircolo automatico</div>
     <div class="stat muted" id="stat"></div>
     <div class="spacer"></div>
-    <span class="muted" style="font-size:12px">Vista negozio</span>
+    <span class="muted" style="font-size:12px">&#128065; Vista negozio</span>
     <select id="store"><option value="">Tutti i negozi</option></select>
     <button class="btn acc" id="reload">Aggiorna</button>
     <button class="btn" id="goStorici" onclick="location.href='ricircoli_storici.html'">Ricircoli effettuati</button>
     <button class="btn ok" id="xls">Esporta Excel</button>
   </div>
+  <div id="vistaBadge" class="vistabadge" style="display:none"></div>
   <div id="body"><div class="empty">Caricamento…</div></div>
 </div>
 
@@ -244,7 +248,8 @@ async function boot(){
   if(location.search.indexOf('denied=1')>-1){ var _bd=document.createElement('div'); _bd.textContent='Accesso non autorizzato: sei stato reindirizzato al Ricircolo.'; _bd.style.cssText='background:rgba(245,165,36,.15);border:1px solid var(--truck);color:var(--txt);padding:8px 12px;border-radius:8px;margin:0 0 10px;font-size:13px'; var _b=$("#body"); if(_b&&_b.parentElement)_b.parentElement.insertBefore(_bd,_b); }
   run();
 }
-$("#store").addEventListener("change",function(){render(this.value);});
+$("#store").addEventListener("change",function(){render(this.value); updVista();});
+function updVista(){ var b=document.getElementById("vistaBadge"); if(!b) return; var sel=document.getElementById("store"); var code=(sel&&RC_ROLE!=="vendita")?sel.value:""; if(code){ b.style.display="inline-flex"; b.innerHTML='\ud83d\udc41 Vista: <b>'+esc(filName(code))+'</b> <span class="vr" id="vistaReset">\u2715 Torna alla vista completa</span>'; var r=document.getElementById("vistaReset"); if(r) r.onclick=function(){ var s=document.getElementById("store"); if(s) s.value=""; render(); updVista(); }; } else { b.style.display="none"; b.innerHTML=""; } }
 $("#reload").addEventListener("click",run);
 $("#xls").addEventListener("click",exportRic);
 $("#logout").addEventListener("click",async()=>{await sb.auth.signOut();location.href="presenza.html";});
@@ -281,18 +286,37 @@ function render(){
   var email=($("#who")&&$("#who").textContent)||"";
   var today=Date.now();
   var head='<tr>'+rcTh("data","Data richiesta")+rcTh("giorni","Giorni")+rcTh("stato","Stato")+rcTh("fornitore","Fornitore")+rcTh("marchio","Marchio")+rcTh("da","Da (invia)")+rcTh("a","A (riceve)")+'<th>Referenza</th>'+rcTh("qta","Qta")+'<th></th></tr>';
-  var b=rows.map(function(r){
+  function __rowsHTML(__list){ return __list.map(function(r){
     var cr=r.creato_il?new Date(r.creato_il):null;
     var days=cr?Math.floor((today-cr.getTime())/86400000):0;
     var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':"")+'>'+(cr?days+"g":"-")+'</td>';
     var az=rcActionBtns(r);
     var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" · "));
     return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.fornitore||"")+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td class="refcell" data-img="'+esc([r.marchio,r.modello,r.colore].filter(Boolean).join(" ")+" occhiali")+'">'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
-  }).join("");
-  body.innerHTML='<table><thead>'+head+'</thead><tbody>'+b+'</tbody></table>';
-  body.querySelectorAll("th.sortable").forEach(function(th){ th.onclick=function(){ var k=th.getAttribute("data-k"); if(RC_SORT_KEY===k){ RC_SORT_DIR=(RC_SORT_DIR==="asc"?"desc":"asc"); } else { RC_SORT_KEY=k; RC_SORT_DIR=(k==="data"?"desc":"asc"); } render(); }; });
+  }).join(""); }
+  var __store=(RC_ROLE==="vendita")?(RC_FILIALE||""):ff;
+  if(__store){
+    var __out=rows.filter(function(x){return x.filiale_da===__store;});
+    var __inc=rows.filter(function(x){return x.filiale_a===__store;});
+    var __a=sessionStorage.getItem("rc_vtab"); if(__a!=="inc"&&__a!=="out")__a="out";
+    var __paint=function(a){
+      sessionStorage.setItem("rc_vtab",a);
+      var __list=(a==="inc")?__inc:__out;
+      var __tabs='<div class="rctabs"><button class="rctab'+(a==="out"?" active":"")+'" data-tab="out">\ud83d\udce4 In uscita ('+__out.length+')</button><button class="rctab'+(a==="inc"?" active":"")+'" data-tab="inc">\ud83d\udce5 In ingresso ('+__inc.length+')</button></div>';
+      var __tbl=__list.length?('<table><thead>'+head+'</thead><tbody>'+__rowsHTML(__list)+'</tbody></table>'):('<div class="muted" style="padding:10px 2px">'+(a==="inc"?"Niente in ingresso.":"Niente in uscita.")+'</div>');
+      body.innerHTML=__tabs+__tbl;
+      body.querySelectorAll(".rctab").forEach(function(tb){ tb.onclick=function(){ __paint(tb.dataset.tab); }; });
+      __wire();
+    };
+    __paint(__a);
+  } else {
+    body.innerHTML='<table><thead>'+head+'</thead><tbody>'+__rowsHTML(rows)+'</tbody></table>';
+    __wire();
+  }
+  function __wire(){ body.querySelectorAll("th.sortable").forEach(function(th){ th.onclick=function(){ var k=th.getAttribute("data-k"); if(RC_SORT_KEY===k){ RC_SORT_DIR=(RC_SORT_DIR==="asc"?"desc":"asc"); } else { RC_SORT_KEY=k; RC_SORT_DIR=(k==="data"?"desc":"asc"); } render(); }; });
   body.querySelectorAll(".rcAct").forEach(function(bt){ bt.onclick=function(){ rcClickStato(bt); }; });
   body.querySelectorAll(".rcDel").forEach(function(bt){ bt.onclick=function(){ rcAnnulla(bt.dataset.id); }; });
+}
 }
 
 /* ==== FIX pulsanti stato compatti + aggiornamento in-place + feedback ==== */
