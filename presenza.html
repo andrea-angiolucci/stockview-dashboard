@@ -773,14 +773,16 @@ async function loadAgePrev(){
     ve.forEach(function(r){ var k=r.barcode+"|"+r.filiale; PREV[k]=(PREV[k]||0)+(r.quantita||1); });
   }
 }
+var CAT_CON_IDEALE=new Set(['ST','P1','P2','P3','P4','SN','SC']);
+function cellHasIdeal(categoria,marchio,idealSetU){ var catU=String(categoria||'').trim().toUpperCase(); if(CAT_CON_IDEALE.has(catU)) return true; var marU=String(marchio||'').trim().toUpperCase(); return !!(idealSetU&&idealSetU.has(marU)); }
 var NOIDEAL_ROWS=null;
 async function ensureNoIdealCache(){
   if(NOIDEAL_ROWS) return;
-  var idealM={}; ASSORT.forEach(function(r){ idealM[r.marchio]=1; });
+  var idealSetU=new Set(); ASSORT.forEach(function(r){ if(r.marchio) idealSetU.add(String(r.marchio).trim().toUpperCase()); });
   var acc=[], from=0, page=1000, guard=0;
   while(guard<60){ guard++;
     var g=await sb.from("giacenze").select("barcode,filiale,marchio,modello,colore,calibro,categoria,tipo_lenti,quantita_disponibile").in("filiale",ACTIVEFIL).gt("quantita_disponibile",0).order("barcode").range(from,from+page-1);
-    var d=g.data||[]; for(var j=0;j<d.length;j++){ if(!idealM[d[j].marchio]) acc.push(d[j]); }
+    var d=g.data||[]; for(var j=0;j<d.length;j++){ if(!cellHasIdeal(d[j].categoria,d[j].marchio,idealSetU)) acc.push(d[j]); }
     if(d.length<page) break; from+=page;
   }
   NOIDEAL_ROWS=acc;
@@ -854,6 +856,7 @@ var IDEALMAR=null;
 function idealMarName(x){ if(!IDEALMAR){ IDEALMAR={}; (ASSORT||[]).forEach(function(r){ if(r.marchio) IDEALMAR[String(r.marchio).toUpperCase()]=r.marchio; }); } return IDEALMAR[String(x).toUpperCase()]||x; }
 async function loadGiacExtra(m,t,c){
   if(!m||!m.length) return;
+  var idealSetU=new Set(); (typeof ASSORT!=='undefined'?ASSORT:[]).forEach(function(r){ if(r.marchio) idealSetU.add(String(r.marchio).trim().toUpperCase()); });
   var tips=(t&&t.length)?t.map(function(x){return String(x).toLowerCase();}):null;
   var cats=(c&&c.length)?c.slice():null;
   var FN={B:"Paternò",C:"Acireale",D:"Catania",E:"Augusta",G:"Giarre",H:"Lentini",I:"Portali",Z:"Viale Africa"};
@@ -866,7 +869,7 @@ async function loadGiacExtra(m,t,c){
     var g=await q.order("barcode").range(from,from+999);
     var d=g.data||[];
     for(var j=0;j<d.length;j++){ var r=d[j]; var k=r.barcode+"|"+r.filiale; if(have[k])continue; have[k]=1;
-      lastCells.push({fornitore:null,marchio:r.marchio,tipo_lenti:_tcT(r.tipo_lenti),categoria:r.categoria,barcode:r.barcode,modello:r.modello,colore:r.colore,calibro:r.calibro,filiale:r.filiale,negozio:FN[r.filiale]||r.filiale,disponibile:r.quantita_disponibile||0,magazzino:r.quantita_magazzino||0,prenotati:r.quantita_prenotata||0,in_arrivo:r.quantita_in_arrivo||0,presente:false,venduto:0,_x:true,_noideal:true});
+      lastCells.push({fornitore:null,marchio:r.marchio,tipo_lenti:_tcT(r.tipo_lenti),categoria:r.categoria,barcode:r.barcode,modello:r.modello,colore:r.colore,calibro:r.calibro,filiale:r.filiale,negozio:FN[r.filiale]||r.filiale,disponibile:r.quantita_disponibile||0,magazzino:r.quantita_magazzino||0,prenotati:r.quantita_prenotata||0,in_arrivo:r.quantita_in_arrivo||0,presente:false,venduto:0,_x:true,_noideal:!cellHasIdeal(r.categoria,r.marchio,idealSetU)});
       added.push(lastCells[lastCells.length-1]);
     }
     if(d.length<1000)break; from+=1000;
