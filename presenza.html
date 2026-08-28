@@ -65,6 +65,9 @@
   .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11.5px;font-weight:600}
   .pill.bad{background:rgba(255,107,107,.15);color:var(--bad)}
   .filcol{text-align:center;border-left:1px solid var(--line);position:relative}
+  .depcol{text-align:center;border-left:1px solid var(--line);background:rgba(148,163,184,.06);position:relative}
+  thead th.depcol-h{text-align:center;background:#2a3546;color:var(--muted);border-left:2px solid var(--line);font-weight:700}
+  tfoot td.depcol{background:var(--panel2);font-weight:700}
   .cell0{color:var(--bad);font-weight:700;background:rgba(255,107,107,.1)}
   .cellordered{color:var(--ok);font-weight:700;background:rgba(54,201,141,.13)}
   .cellok{color:var(--ok);font-weight:600}
@@ -891,7 +894,7 @@ async function _runOnce(){
   const bcs=[...new Set(lastCells.map(c=>c.barcode))];
   if(bcs.length){const vb=await sb.rpc("vendite_per_barcode",{p_barcodes:bcs});(vb.data||[]).forEach(r=>vbarcode[r.barcode]=Number(r.pezzi));}
   if(m.length)await loadGiacExtra(m,t,c);
-  if(showExtra)await loadExtraStock();
+  await loadExtraStock();
   await loadExtraCats();
   await fillGhostCells(); if(dataMarchi==="tutti")await loadNoIdeal(); if(ageOn||prevOn)await loadAgePrev();
   if(_moSet){ lastCells=lastCells.filter(function(x){return _moSet.has(String(x.modello||"").trim().toUpperCase());}); }
@@ -970,7 +973,7 @@ function drawMatrix(cells,negozi){
   if(showMode==="mancanti") rows=rows.filter(r=>r._buchi>0);
   sortRows(rows);
   const xf=(showExtra&&extraFil.length)?extraFil:[];
-  let h="<tr><th class='mar'>Referenza</th>"+negozi.map(n=>`<th class="filcol">${esc(n)}</th>`).join("")+xf.map(f=>`<th class="filcol" style="opacity:.75" title="${esc(filName(f))} (fuori linea)">${esc(filShort(f))}</th>`).join("")+"<th class='tot'>Totali</th></tr>";
+  let h="<tr><th class='mar'>Referenza</th>"+negozi.map(n=>`<th class="filcol">${esc(n)}</th>`).join("")+xf.map(f=>`<th class="filcol" style="opacity:.75" title="${esc(filName(f))} (fuori linea)">${esc(filShort(f))}</th>`).join("")+"<th class='depcol-h' title='Deposito centrale (magazzino A)'>Deposito</th><th class='tot'>Totali</th></tr>";
   $("#tbl").tHead.innerHTML=h;
   const colTot={},colVend={}; negozi.forEach(n=>{colTot[n]=0;colVend[n]=0;}); let grand=0,grandVend=0;
   const TIN='<input class="tgtin" type="number" min="0" style="width:34px;padding:1px 3px;font-size:11px;background:var(--panel);border:1px solid var(--accent);color:var(--txt);border-radius:4px" value="';
@@ -999,10 +1002,10 @@ function drawMatrix(cells,negozi){
       const og=editOrder?((OIN.replace("var(--truck)",o>0?"var(--ok)":"var(--truck)"))+o+'">'):(o>0?`<span style="position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--ok);font-weight:700">✎${o}</span>`:"");
       tr+=`<td class="filcol ${cls}" data-bc="${esc(r.info.barcode)}" data-fil="${esc(f)}" data-tgt="${t}" data-ord="${o}" style="background:rgba(255,255,255,.02)" title="${esc(filName(f))} · obiettivo ${t} · disp ${disp} · mag ${s?s.m:0} · pren ${s?s.p:0} · in arrivo ${s?s.a:0} · venduto ${vend} · ord.man ${o}"><div class="cg">${disp}</div>${tg}<div class="cv" title="venduto anno">${vend}</div>${og}${ex2?`<span class="bdgs">${ex2}</span>`:""}</td>`;
     }
-    tr+=`<td class="tot"><div class="cg">${r._tot}</div><div class="cv">${r._vtot}</div></td></tr>`; return tr;
+    {const _de=(extraStock[r.info.barcode]&&extraStock[r.info.barcode]["A"])||null;const _dd=_de?(_de.d||0):0;const _da=_de?(_de.a||0):0;tr+=`<td class="depcol" title="Deposito · disp ${_dd} · in arrivo ${_da}"><div class="cg">${_dd}</div>${_da?`<div class="cv" style="color:var(--truck)">+${_da}</div>`:``}</td>`;tr+=`<td class="tot"><div class="cg">${r._tot+_dd}</div><div class="cv">${r._vtot}</div></td></tr>`;} return tr;
   });
-  $("#tbl").tBodies[0].innerHTML=body.join("")||'<tr><td class="mar" colspan="'+(negozi.length+xf.length+2)+'" style="text-align:center;color:var(--muted);padding:24px">Nessuna referenza con mancanti. ✅</td></tr>';
-  $("#tbl").tFoot.innerHTML="<tr><td class='mar'>Totale giac. / vend.</td>"+negozi.map(n=>`<td><div class="cg">${colTot[n]}</div><div class="cv">${colVend[n]}</div></td>`).join("")+xf.map(()=>"<td></td>").join("")+`<td class='tot'><div class="cg">${grand}</div><div class="cv">${grandVend}</div></td></tr>`;
+  $("#tbl").tBodies[0].innerHTML=body.join("")||'<tr><td class="mar" colspan="'+(negozi.length+xf.length+3)+'" style="text-align:center;color:var(--muted);padding:24px">Nessuna referenza con mancanti. ✅</td></tr>';
+  const _depG=rows.reduce(function(s,r){var e=extraStock[r.info.barcode]&&extraStock[r.info.barcode]["A"];return s+((e&&e.d)||0);},0);const _depA=rows.reduce(function(s,r){var e=extraStock[r.info.barcode]&&extraStock[r.info.barcode]["A"];return s+((e&&e.a)||0);},0);$("#tbl").tFoot.innerHTML="<tr><td class='mar'>Totale giac. / vend.</td>"+negozi.map(n=>`<td><div class="cg">${colTot[n]}</div><div class="cv">${colVend[n]}</div></td>`).join("")+xf.map(()=>"<td></td>").join("")+`<td class='depcol'><div class="cg">${_depG}</div>${_depA?`<div class="cv" style="color:var(--truck)">+${_depA}</div>`:``}</td><td class='tot'><div class="cg">${grand+_depG}</div><div class="cv">${grandVend}</div></td></tr>`;
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
 var ROLE='gestore',isAdmin=false,curEmail='',editCat=false; var PENDING=new Set(); var PEND_CAT={};
