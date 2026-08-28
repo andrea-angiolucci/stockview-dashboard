@@ -972,7 +972,7 @@ function drawMatrix(cells,negozi){
   let rows=[...refs.values()];
   if(showMode==="mancanti") rows=rows.filter(r=>r._buchi>0);
   sortRows(rows);
-  const xf=(showExtra&&extraFil.length)?extraFil:[];
+  const xf=(showExtra&&extraFil.length)?extraFil.filter(function(f){return f!=="A";}):[];
   let h="<tr><th class='mar'>Referenza</th>"+negozi.map(n=>`<th class="filcol">${esc(n)}</th>`).join("")+xf.map(f=>`<th class="filcol" style="opacity:.75" title="${esc(filName(f))} (fuori linea)">${esc(filShort(f))}</th>`).join("")+"<th class='depcol-h' title='Deposito centrale (magazzino A)'>Deposito</th><th class='tot'>Totali</th></tr>";
   $("#tbl").tHead.innerHTML=h;
   const colTot={},colVend={}; negozi.forEach(n=>{colTot[n]=0;colVend[n]=0;}); let grand=0,grandVend=0;
