@@ -46,6 +46,31 @@
   .vistabadge{display:inline-flex;align-items:center;gap:10px;margin:0 0 12px;padding:7px 12px;border:1px solid var(--accent);border-radius:20px;background:rgba(61,169,252,.10);color:var(--txt);font-size:13px;font-weight:600}
   .vistabadge .vr{color:var(--muted);cursor:pointer;text-decoration:none;font-size:12px}
   .vistabadge .vr:hover{color:var(--txt);text-decoration:underline}
+  .rcdrawer{position:fixed;top:0;right:0;width:380px;max-width:92vw;height:100vh;background:var(--panel);border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(0,0,0,.45);transform:translateX(100%);transition:transform .25s ease;z-index:50;overflow-y:auto;padding:16px 16px 40px}
+  .rcdrawer.open{transform:translateX(0)}
+  .rcdr-x{position:absolute;top:10px;right:10px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:14px;line-height:1}
+  .rcdr-x:hover{background:var(--line)}
+  .rcdr-hd{padding-right:34px;margin-bottom:6px}
+  .rcdr-title{font-size:15px;font-weight:700;line-height:1.3}
+  .rcdr-bc{color:var(--muted);font-size:12px;margin-top:2px;font-family:monospace}
+  .rcdr-badges{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+  .rcdr-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;background:var(--panel2);border:1px solid var(--line);color:var(--txt)}
+  .rcdr-badge.tl{background:rgba(61,169,252,.15);color:var(--accent);border-color:transparent}
+  .rcdr-sec{margin-top:16px}
+  .rcdr-sec-t{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+  .rcdr-tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .rcdr-tbl th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;padding:4px 8px;border-bottom:1px solid var(--line)}
+  .rcdr-tbl td{padding:5px 8px;border-bottom:1px solid var(--line)}
+  .rcdr-tbl td.num{text-align:right;font-weight:600}
+  .rcdr-tbl tr.da td{background:rgba(255,107,107,.14)}
+  .rcdr-tbl tr.da td:first-child{border-left:3px solid var(--bad)}
+  .rcdr-tbl tr.a td{background:rgba(54,201,141,.14)}
+  .rcdr-tbl tr.a td:first-child{border-left:3px solid var(--ok)}
+  .rcdr-info>div{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .rcdr-info span{color:var(--muted)}
+  .rcdr-loading{color:var(--muted);padding:14px 2px}
+  #body tr[data-ricid]{cursor:pointer}
+  #body tr.rcrow-active>td{background:rgba(61,169,252,.10)}
 </style>
 </head>
 <body>
@@ -202,7 +227,7 @@ function render(){
     var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':'')+'>'+(cr?days+"g":"-")+'</td>';
     var az=rcActionBtns(r);
     var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" \u00b7 "));
-    return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td class="refcell" data-img="'+esc([r.marchio,r.modello,r.colore].filter(Boolean).join(" ")+" occhiali")+'">'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
+    return '<tr data-ricid="'+esc(r.id)+'"><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td class="refcell" data-img="'+esc([r.marchio,r.modello,r.colore].filter(Boolean).join(" ")+" occhiali")+'">'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
   }
   function tableHTML(list){ return '<table><thead>'+head+'</thead><tbody>'+list.map(rowHTML).join("")+'</tbody></table>'; }
   function wireActions(){
@@ -292,7 +317,7 @@ function render(){
     var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':"")+'>'+(cr?days+"g":"-")+'</td>';
     var az=rcActionBtns(r);
     var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" · "));
-    return '<tr><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.fornitore||"")+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td class="refcell" data-img="'+esc([r.marchio,r.modello,r.colore].filter(Boolean).join(" ")+" occhiali")+'">'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
+    return '<tr data-ricid="'+esc(r.id)+'"><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+statoBadge(r.stato)+'</td><td>'+esc(r.fornitore||"")+'</td><td>'+esc(r.marchio||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td class="refcell" data-img="'+esc([r.marchio,r.modello,r.colore].filter(Boolean).join(" ")+" occhiali")+'">'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
   }).join(""); }
   var __store=(RC_ROLE==="vendita")?(RC_FILIALE||""):ff;
   if(__store){
@@ -397,6 +422,63 @@ document.addEventListener("click",function(e){
   var tr=td.closest("tr");
   if(tr) tr.classList.toggle("selrow");
 });
+</script>
+<script>
+(function(){
+  var FN={B:"Patern\u00f2",C:"Acireale",D:"Catania",E:"Augusta",G:"Giarre",H:"Lentini",I:"Portali",Z:"Viale Africa"};
+  var FORDER=["D","I","G","Z","C","E","H","B"];
+  function E(s){ return (typeof esc==="function")?esc(s):String(s==null?"":s); }
+  var dr=document.createElement("div"); dr.id="rcDrawer"; dr.className="rcdrawer";
+  dr.innerHTML='<button class="rcdr-x" id="rcDrX" title="Chiudi">\u2715</button><div id="rcDrBody"></div>';
+  document.body.appendChild(dr);
+  document.getElementById("rcDrX").addEventListener("click", closeDrawer);
+  var curId=null;
+  function clearActive(){ var l=document.querySelectorAll("#body tr.rcrow-active"); for(var i=0;i<l.length;i++) l[i].classList.remove("rcrow-active"); }
+  function closeDrawer(){ dr.classList.remove("open"); curId=null; clearActive(); }
+  function markActive(id){ clearActive(); var tr=document.querySelector('#body tr[data-ricid="'+id+'"]'); if(tr) tr.classList.add("rcrow-active"); }
+  async function openDrawer(row){
+    curId=String(row.id); var myId=curId; markActive(row.id);
+    var body=document.getElementById("rcDrBody");
+    body.innerHTML='<div class="rcdr-hd"><div class="rcdr-title">'+E((row.marchio||"")+" \u00b7 "+(row.modello||"")+" \u00b7 "+(row.colore||""))+'</div><div class="rcdr-bc">'+E(row.barcode||"")+'</div><div class="rcdr-badges"><span class="rcdr-badge">'+E(row.categoria||"\u2014")+'</span><span class="rcdr-badge tl" id="rcDrTipo"></span></div></div><div id="rcDrSec" class="rcdr-loading">Caricamento\u2026</div>';
+    dr.classList.add("open");
+    try{
+      var g=await sb.from("giacenze").select("filiale,quantita_disponibile,quantita_in_arrivo,tipo_lenti").eq("barcode",row.barcode).in("filiale",FORDER);
+      if(curId!==myId) return;
+      var gm={}, tl=""; (g.data||[]).forEach(function(r){ gm[r.filiale]={disp:r.quantita_disponibile||0,arr:r.quantita_in_arrivo||0}; if(!tl && r.tipo_lenti) tl=r.tipo_lenti; });
+      var te=document.getElementById("rcDrTipo"); if(te){ var tll=String(tl||"").toLowerCase(); te.textContent = tll==="sole"?"Sole":(tll==="vista"?"Vista":(tl||"\u2014")); }
+      var v=await sb.from("vendite").select("filiale,quantita,data").eq("barcode",row.barcode).gte("data","2026-01-01").lte("data","2026-12-31");
+      if(curId!==myId) return;
+      var vm={}; (v.data||[]).forEach(function(r){ if(FORDER.indexOf(r.filiale)>-1) vm[r.filiale]=(vm[r.filiale]||0)+(Number(r.quantita)||0); });
+      var s1='<div class="rcdr-sec"><div class="rcdr-sec-t">Giacenza per filiale</div><table class="rcdr-tbl"><thead><tr><th>Filiale</th><th>Disp.</th><th>In arrivo</th></tr></thead><tbody>';
+      FORDER.forEach(function(f){ var cls=(f===row.filiale_da)?" class=\"da\"":((f===row.filiale_a)?" class=\"a\"":""); var gg=gm[f]||{disp:0,arr:0}; s1+="<tr"+cls+"><td>"+E(FN[f]||f)+"</td><td class=\"num\">"+gg.disp+"</td><td class=\"num\">"+gg.arr+"</td></tr>"; });
+      s1+="</tbody></table></div>";
+      var s2='<div class="rcdr-sec"><div class="rcdr-sec-t">Vendite 2026 per filiale</div><table class="rcdr-tbl"><thead><tr><th>Filiale</th><th>Vendite 2026</th></tr></thead><tbody>';
+      FORDER.forEach(function(f){ var cls=(f===row.filiale_da)?" class=\"da\"":((f===row.filiale_a)?" class=\"a\"":""); s2+="<tr"+cls+"><td>"+E(FN[f]||f)+"</td><td class=\"num\">"+(vm[f]||0)+"</td></tr>"; });
+      s2+="</tbody></table></div>";
+      var cr=row.creato_il?new Date(row.creato_il):null;
+      var days=cr?Math.floor((Date.now()-cr.getTime())/86400000):0;
+      var motivo="Surplus alla mittente ("+E(FN[row.filiale_da]||row.filiale_da)+") \u2192 deficit alla destinataria ("+E(FN[row.filiale_a]||row.filiale_a)+")";
+      var s3='<div class="rcdr-sec"><div class="rcdr-sec-t">Info ricircolo</div><div class="rcdr-info">'
+        +"<div><span>Data richiesta</span><b>"+(cr?((typeof fmtDate==="function")?fmtDate(cr):cr.toLocaleDateString()):"\u2014")+"</b></div>"
+        +"<div><span>Giorni in attesa</span><b>"+days+"g</b></div>"
+        +"<div><span>Stato</span><b>"+E(row.stato||"\u2014")+"</b></div>"
+        +"<div><span>Motivo</span><b>"+motivo+"</b></div>"
+        +"</div></div>";
+      var el=document.getElementById("rcDrSec"); if(el){ el.className=""; el.innerHTML=s1+s2+s3; }
+    }catch(e){ var el2=document.getElementById("rcDrSec"); if(el2) el2.innerHTML='<div style="color:var(--bad);padding:10px">Errore: '+E((e&&e.message)||e)+'</div>'; }
+  }
+  document.addEventListener("click", function(e){
+    if(typeof RC_ROLE==="undefined" || RC_ROLE!=="admin") return;
+    if(e.target.closest("#rcDrawer")) return;
+    var tr=e.target.closest("#body tr[data-ricid]");
+    if(!tr) return;
+    if(e.target.closest(".refcell, button, select, a")) return;
+    var id=tr.getAttribute("data-ricid");
+    if(curId===String(id)){ closeDrawer(); return; }
+    var row=(typeof RIC_ROWS!=="undefined")?RIC_ROWS.find(function(x){return String(x.id)===String(id);}):null;
+    if(row) openDrawer(row);
+  });
+})();
 </script>
 </body>
 </html>
