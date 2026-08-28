@@ -464,7 +464,18 @@ document.addEventListener("click",function(e){
         +"<div><span>Stato</span><b>"+E(row.stato||"\u2014")+"</b></div>"
         +"<div><span>Motivo</span><b>"+motivo+"</b></div>"
         +"</div></div>";
-      var el=document.getElementById("rcDrSec"); if(el){ el.className=""; el.innerHTML=s1+s2+s3; }
+      var _oth=await sb.from("ricircoli").select("id,filiale_da,filiale_a,stato,creato_il").eq("barcode",row.barcode).neq("id",row.id).in("stato",["pending","trovato","non_trovato"]).order("creato_il",{ascending:false});
+      if(curId!==myId) return;
+      function _stb(st){ var m={pending:"#f5a524",trovato:"#36c98d",non_trovato:"#ff6b6b",trasferito:"#8aa0b6",annullato:"#8aa0b6"}; var c=m[st]||"#8aa0b6"; return '<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;background:'+c+'22;color:'+c+';border:1px solid '+c+'55">'+E(st||"\u2014")+'</span>'; }
+      var _others=(_oth&&_oth.data)||[]; var s4="";
+      if(_others.length){
+        s4='<div class="rcdr-sec"><div class="rcdr-sec-t">\ud83d\udccb Altri ricircoli attivi su questo barcode</div><table class="rcdr-tbl"><thead><tr><th>Da</th><th>A</th><th>Stato</th><th>Giorni</th></tr></thead><tbody>';
+        _others.forEach(function(o){ var _oc=o.creato_il?new Date(o.creato_il):null; var _od=_oc?Math.floor((Date.now()-_oc.getTime())/86400000):0; s4+='<tr><td>'+E(FN[o.filiale_da]||o.filiale_da||"\u2014")+'</td><td>'+E(FN[o.filiale_a]||o.filiale_a||"\u2014")+'</td><td>'+_stb(o.stato)+'</td><td class="num">'+_od+'g</td></tr>'; });
+        s4+='</tbody></table></div>';
+      }
+      var s5="";
+      try{ var _lg=await sb.from("log_aggiornamenti").select("data_caricamento").eq("tabella","giacenze").eq("esito","OK").order("data_caricamento",{ascending:false}).limit(1); if(curId!==myId) return; var _dc=(_lg&&_lg.data&&_lg.data[0])?_lg.data[0].data_caricamento:null; var _dt=_dc?new Date(_dc).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"\u2014"; s5='<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;text-align:center">Dati aggiornati al: '+E(_dt)+'</div>'; }catch(e){}
+      var el=document.getElementById("rcDrSec"); if(el){ el.className=""; el.innerHTML=s1+s2+s3+s4+s5; }
     }catch(e){ var el2=document.getElementById("rcDrSec"); if(el2) el2.innerHTML='<div style="color:var(--bad);padding:10px">Errore: '+E((e&&e.message)||e)+'</div>'; }
   }
   document.addEventListener("click", function(e){
