@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="robots" content="noindex" />
+<title>StockView</title>
+<script>
+/* GitHub Pages 404 fallback: instrada i link di invito/recovery a reset-password.html, il resto a index.html */
+(function(){
+  var BASE = "/stockview-dashboard/";
+  try{
+    var h = location.hash ? location.hash.slice(1) : "";
+    var q = location.search ? location.search.slice(1) : "";
+    var raw = h || q;
+    var type = null, hasToken = false;
+    if(raw){
+      var p = new URLSearchParams(raw);
+      type = p.get("type");
+      hasToken = !!(p.get("access_token") || p.get("token_hash") || p.get("code"));
+    }
+    if(hasToken && (type === "invite" || type === "recovery")){
+      var suffix = location.hash || ("#" + location.search.slice(1));
+      location.replace(BASE + "reset-password.html" + suffix);
+    } else {
+      location.replace(BASE + "index.html");
+    }
+  }catch(e){ location.replace(BASE + "index.html"); }
+})();
+</script>
+</head>
+<body></body>
+</html>
