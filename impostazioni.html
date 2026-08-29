@@ -269,8 +269,8 @@ function drawUtenti(){
   $("#uwrap").querySelectorAll("select.urole").forEach(function(sel){ sel.onchange=function(){ changeRole(sel.dataset.id, sel.value, sel); }; });
   $("#uwrap").querySelectorAll("button.usm").forEach(function(b){ b.onclick=function(){ if(b.dataset.act==="status") toggleStatus(b.dataset.id, b.dataset.dis==="1"); else if(b.dataset.act==="reinvite") reinvite(b.dataset.email, b); else if(b.dataset.act==="reset") resetPassword(b.dataset.email, b); else if(b.dataset.act==="setfil") setFilInline(b); else delUser(b.dataset.id, b.dataset.email); }; });
 }
-async function reinvite(email, btn){ if(!email)return; if(btn)btn.disabled=true; try{ await efCall("POST","/reinvite",{email:email}); toast("Invito re-inviato a "+email); }catch(e){ toast(String((e&&e.message)||e),true); } if(btn)btn.disabled=false; }
-async function resetPassword(email, btn){ if(!email)return; if(btn)btn.disabled=true; try{ await efCall("POST","/reset_password",{email:email}); toast("Email di reset inviata a "+email); }catch(e){ toast(String((e&&e.message)||e),true); } if(btn)btn.disabled=false; }
+async function reinvite(email, btn){ if(!email)return; if(btn)btn.disabled=true; try{ await efCall("POST","/reinvite",{email:email, redirectTo:"https://andrea-angiolucci.github.io/stockview-dashboard/reset-password.html"}); toast("Invito re-inviato a "+email); }catch(e){ toast(String((e&&e.message)||e),true); } if(btn)btn.disabled=false; }
+async function resetPassword(email, btn){ if(!email)return; if(btn)btn.disabled=true; try{ await efCall("POST","/reset_password",{email:email, redirectTo:"https://andrea-angiolucci.github.io/stockview-dashboard/reset-password.html"}); toast("Email di reset inviata a "+email); }catch(e){ toast(String((e&&e.message)||e),true); } if(btn)btn.disabled=false; }
 function setFilInline(btn){
   var id=btn.dataset.id;
   var sel=document.createElement("select"); sel.className="urole ufilsel";
@@ -306,7 +306,7 @@ function openInvite(){
     const email=($("#invEmail").value||"").trim(); const role=$("#invRole").value; const err=$("#invErr");
     if(!email || email.indexOf("@")<1 || email.lastIndexOf(".")<email.indexOf("@")){ err.textContent="Inserisci un'email valida."; return; }
     $("#invSend").disabled=true;
-    try{ if(role==="vendita" && !$("#invFiliale").value){ $("#invSend").disabled=false; err.textContent="Filiale obbligatoria per il ruolo vendita."; return; } await efCall("POST","/invite",{email:email, role:role, filiale:(role==="vendita"?$("#invFiliale").value:null), redirectTo:location.origin+"/presenza.html"}); closeModal(); toast("Invito inviato a "+email); await loadUtenti(); }
+    try{ if(role==="vendita" && !$("#invFiliale").value){ $("#invSend").disabled=false; err.textContent="Filiale obbligatoria per il ruolo vendita."; return; } await efCall("POST","/invite",{email:email, role:role, filiale:(role==="vendita"?$("#invFiliale").value:null), redirectTo:"https://andrea-angiolucci.github.io/stockview-dashboard/reset-password.html"}); closeModal(); toast("Invito inviato a "+email); await loadUtenti(); }
     catch(e){ err.textContent=String((e&&e.message)||e); $("#invSend").disabled=false; }
   };
 }
