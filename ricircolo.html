@@ -479,7 +479,7 @@ document.addEventListener("click",function(e){
     }catch(e){ var el2=document.getElementById("rcDrSec"); if(el2) el2.innerHTML='<div style="color:var(--bad);padding:10px">Errore: '+E((e&&e.message)||e)+'</div>'; }
   }
   document.addEventListener("click", function(e){
-    if(typeof RC_ROLE==="undefined" || RC_ROLE!=="admin") return;
+    /* drawer visibile a tutti i ruoli autenticati (admin, gestore, vendita) */
     if(e.target.closest("#rcDrawer")) return;
     var tr=e.target.closest("#body tr[data-ricid]");
     if(!tr) return;
