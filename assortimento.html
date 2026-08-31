@@ -89,6 +89,22 @@
   td.dep7,td.dep14,td.dep21,td.dep28{font-weight:700;text-align:center}
   input.qi{width:46px;text-align:center;background:transparent;border:1px solid var(--line);border-radius:5px;color:inherit;font-weight:700;font-size:12px;padding:3px 2px}
   input.qi:focus{outline:2px solid var(--accent);outline-offset:0}
+  #subToggles{display:none;gap:6px;align-items:center;margin-left:6px}
+  .dpill{background:#fff;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:5px 11px;cursor:pointer;font-size:12px}
+  .dpill.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .deltacell{line-height:1.3}
+  .deltacell.np{opacity:.8}
+  .deltacell .dl-ideale{font-weight:700}
+  .deltacell .dl-ideale.dep0{color:var(--muted)}
+  .deltacell .dl-ideale.dep7{color:#1aa974}
+  .deltacell .dl-ideale.dep14{color:#a9791a}
+  .deltacell .dl-ideale.dep21{color:#c76a12}
+  .deltacell .dl-ideale.dep28{color:var(--accent)}
+  .deltacell .dl-giac{color:var(--ink)}
+  .deltacell .dl-diff{font-weight:700}
+  .deltacell .dl-diff.dpos{color:var(--ok)}
+  .deltacell .dl-diff.dneg{color:var(--bad)}
+  .deltacell .dl-diff.dzero{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -130,7 +146,7 @@
         <button data-t="Sole">Sole</button>
       </div>
       <div class="spacer"></div>
-      <button class="dtoggle" id="deltaBtn" title="Delta disponibile vs ideale">△ Delta ideale</button>
+      <button class="dtoggle" id="deltaBtn" title="Delta disponibile vs ideale">△ Delta ideale</button><span id="subToggles"><button class="dpill" id="subIdealeBtn">Ideale</button><button class="dpill" id="subGiacBtn">Giacenza</button><button class="dpill" id="subDiffBtn">Differenza</button></span>
         <button class="addbtn adminonly" id="addBtn">+ Aggiungi marchio</button>
         <button class="savebtn adminonly" id="saveBtn">Salva modifiche</button>
     </div>
@@ -150,7 +166,7 @@ const $=s=>document.querySelector(s);
 let PDV=[];                  // [{codice,nome}]
 let DATA={Vista:{},Sole:{}}; // DATA[tipo][marchio][codice]=qty
 let FORN={};                 // marchio -> fornitore
-let tab="Vista"; let dirty=false; let isAdmin=false; let deltaOn=false; let ADISP={}; let ADISP_tab=null; const A_LADDER=["ST","P1","P2","P3","P4"]; const A_STEP=7;
+let tab="Vista"; let dirty=false; let isAdmin=false; let deltaOn=(sessionStorage.getItem("asqDelta")==="1"); let subIdeale=(sessionStorage.getItem("asqIdeale")!=="0"); let subGiac=(sessionStorage.getItem("asqGiac")!=="0"); let subDiff=(sessionStorage.getItem("asqDiff")!=="0"); let ADISP={}; let ADISP_tab=null; const A_LADDER=["ST","P1","P2","P3","P4"]; const A_STEP=7;
 
 async function boot(){const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex";}
 async function showApp(session){$("#login").style.display="none";$("#app").style.display="block";$("#who").textContent=session.user.email; isAdmin=!!(session.user.user_metadata&&session.user.user_metadata.role==="admin"); try{ var _rr=(session.user.user_metadata&&session.user.user_metadata.role)||'gestore'; var _pp=await sb.from('ruoli_permessi').select('puo_accedere,puo_modificare').eq('ruolo',_rr).eq('pagina','assortimento').maybeSingle(); var _pd=_pp.data; if(_rr!=='admin'){ if(!(_pd&&_pd.puo_accedere)){ location.replace('ricircolo.html?denied=1'); return; } isAdmin=!!(_pd&&_pd.puo_modificare); } }catch(e){} document.body.classList.toggle("notadmin",!isAdmin); await load();}
@@ -181,7 +197,14 @@ async function load(){
 
 $("#seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#seg").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");tab=b.dataset.t; if(deltaOn){loadDelta().then(render);}else{render();}});
 $("#forn").addEventListener("change",render);
-$("#deltaBtn").addEventListener("click",async function(){ deltaOn=!deltaOn; $("#deltaBtn").classList.toggle("on",deltaOn); if(deltaOn){ await loadDelta(); } render(); });
+$("#deltaBtn").addEventListener("click",async function(){ deltaOn=!deltaOn; sessionStorage.setItem("asqDelta",deltaOn?"1":"0"); $("#deltaBtn").classList.toggle("on",deltaOn); applyDeltaUI(); if(deltaOn){ await loadDelta(); } render(); });
+function applyDeltaUI(){ var st=document.getElementById("subToggles"); if(st) st.style.display=deltaOn?"inline-flex":"none"; var a=document.getElementById("subIdealeBtn"),b=document.getElementById("subGiacBtn"),c=document.getElementById("subDiffBtn"); if(a)a.classList.toggle("on",subIdeale); if(b)b.classList.toggle("on",subGiac); if(c)c.classList.toggle("on",subDiff); }
+function _subWire(id,fn){ var el=document.getElementById(id); if(el) el.addEventListener("click",function(){ fn(); applyDeltaUI(); render(); }); }
+_subWire("subIdealeBtn",function(){ subIdeale=!subIdeale; sessionStorage.setItem("asqIdeale",subIdeale?"1":"0"); });
+_subWire("subGiacBtn",function(){ subGiac=!subGiac; sessionStorage.setItem("asqGiac",subGiac?"1":"0"); });
+_subWire("subDiffBtn",function(){ subDiff=!subDiff; sessionStorage.setItem("asqDiff",subDiff?"1":"0"); });
+$("#deltaBtn").classList.toggle("on",deltaOn); applyDeltaUI();
+if(deltaOn){ var _dn=0; var _div=setInterval(function(){ _dn++; if(typeof DATA!=="undefined" && DATA[tab] && Object.keys(DATA[tab]).length){ clearInterval(_div); loadDelta().then(render); } if(_dn>40) clearInterval(_div); },200); }
 
 function aQtyToN(q){ q=Number(q||0); return q>0?Math.min(Math.round(q/A_STEP),5):0; }
 function aDepthSelect(m,code,q){ var n=aQtyToN(q); var o='<option value="">Non previsto</option>'; for(var i=1;i<=5;i++){ o+='<option value="'+A_LADDER[i-1]+'"'+(i===n?" selected":"")+'>'+A_LADDER[i-1]+'</option>'; } return '<select class="qd" data-m="'+esc(m)+'" data-f="'+code+'">'+o+'</select>'; }
@@ -189,8 +212,9 @@ function aDepthClass(q){ q=Number(q||0); if(q<=0) return "dep0"; if(q<=7) return
 function aQiInput(m,code,q){ return '<input class="qi" type="number" min="0" step="7" inputmode="numeric" data-m="'+esc(m)+'" data-f="'+code+'" value="'+(q>0?q:"")+'" placeholder="·" title="Quantità ideale (multipli di 7)">'; }
 async function aSaveCell(m,f,qty){ try{ var d=await sb.from("assortimento_marchio").delete().match({marchio:m,tipo_lenti:tab,filiale:f}); if(d&&d.error) throw d.error; if(qty>0){ var ins=await sb.from("assortimento_marchio").insert({marchio:m,tipo_lenti:tab,filiale:f,qty_ideale:qty,fornitore:FORN[m]||"Luxottica"}); if(ins&&ins.error) throw ins.error; } if(typeof toast==="function")toast("Salvato"); }catch(e){ if(typeof toast==="function")toast("Errore: "+((e&&e.message)||e)); } }
 async function onEditQi(e){ var s=e.target; var m=s.dataset.m, f=s.dataset.f; var qty=Math.max(0,Math.round(Number(s.value||0))); if(!DATA[tab][m])DATA[tab][m]={}; if(qty>0)DATA[tab][m][f]=qty; else delete DATA[tab][m][f]; s.value=qty>0?qty:""; var td=s.closest("td"); if(td) td.className=(qty>0?"has ":"")+aDepthClass(qty); if(typeof recalc==="function")recalc(); await aSaveCell(m,f,qty); }
+function aDeltaCellHTML(m,code,q,disp,has){ var d=disp-q; var rows=""; if(subIdeale){ rows+='<div class="dl-ideale '+aDepthClass(q)+'">'+(q>0?q:"·")+'</div>'; } if(subGiac){ rows+='<div class="dl-giac">'+disp+'</div>'; } if(subDiff){ var dc=d<0?"dneg":(d>0?"dpos":"dzero"); rows+='<div class="dl-diff '+dc+'">'+(d>0?"+":"")+d+'</div>'; } if(!rows) rows='<div class="dl-diff dzero">·</div>'; return '<td class="deltacell'+(has?"":" np")+'" title="ideale '+q+' · giacenza '+disp+' · diff '+(d>0?"+":"")+d+'">'+rows+'</td>'; }
 function aCellHTML(m,code){ var has=DATA[tab][m]&&Object.prototype.hasOwnProperty.call(DATA[tab][m],code); var q=has?Number(DATA[tab][m][code]||0):0;
-  if(deltaOn){ var disp=Number(ADISP[m+"|"+code]||0); if(!has){ return '<td class="deltacell dgrey" title="filiale non prevista">'+(disp||"·")+'</td>'; } var d=disp-q; var cls=d<0?"dneg":"dpos"; return '<td class="deltacell '+cls+'" title="disp '+disp+' · ideale '+q+'">'+(d>0?"+":"")+d+'</td>'; }
+  if(deltaOn){ var disp=Number(ADISP[m+"|"+code]||0); return aDeltaCellHTML(m,code,q,disp,has); if(!has){ return '<td class="deltacell dgrey" title="filiale non prevista">'+(disp||"·")+'</td>'; } var d=disp-q; var cls=d<0?"dneg":"dpos"; return '<td class="deltacell '+cls+'" title="disp '+disp+' · ideale '+q+'">'+(d>0?"+":"")+d+'</td>'; }
   if(isAdmin){ return '<td class="'+(q>0?"has ":"")+aDepthClass(q)+'">'+aQiInput(m,code,q)+'</td>'; }
   return '<td class="'+(q>0?"has ":"")+aDepthClass(q)+'">'+(q>0?q:"·")+'</td>'; }
 function onEditSel(e){ var s=e.target; var m=s.dataset.m,f=s.dataset.f; var code=s.value; var qty=code?(A_LADDER.indexOf(code)+1)*A_STEP:0; if(!DATA[tab][m])DATA[tab][m]={}; if(qty>0)DATA[tab][m][f]=qty; else delete DATA[tab][m][f]; var td=s.closest("td"); if(td)td.classList.toggle("has",qty>0); dirty=true; recalc(); }
