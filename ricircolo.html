@@ -364,12 +364,15 @@ function rcActionBtns(r){
   var out="";
   function b(act,cls,label){ return '<button type="button" class="rcBtn rcAct '+cls+'" data-id="'+r.id+'" data-act="'+act+'">'+label+'</button>'; }
   var showVend=(RC_ROLE==="vendita" && r.stato==="pending" && (r.filiale_da===RC_FILIALE||r.filiale_a===RC_FILIALE));
+  var showVendReset=(RC_ROLE==="vendita" && r.stato==="non_trovato" && (r.filiale_da===RC_FILIALE||r.filiale_a===RC_FILIALE));
   if(RC_ROLE==="admin"){
     if(r.stato==="pending"){ out=b("trovato","rcFound","✓ Trovato")+" "+b("non_trovato","rcNot","✗ Non trovato"); }
     else if(r.stato==="trovato"||r.stato==="non_trovato"){ out=b("pending","rcReset","↩ Ripristina"); }
     out+=(out?" ":"")+'<button type="button" class="rcBtn rcDel" data-id="'+r.id+'" title="Annulla">🗑</button>';
   } else if(showVend){
     out=b("trovato","rcFound","✓ Trovato")+" "+b("non_trovato","rcNot","✗ Non trovato");
+  } else if(showVendReset){
+    out=b("pending","rcReset","↩ Ripristina");
   }
   return out;
 }
@@ -406,7 +409,7 @@ async function rcClickStato(bt){
 
 boot();
 
-(async function(){try{const {data:{session}}=await sb.auth.getSession();const _r=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.role;if(_r==='admin'){var e=document.getElementById('navRevisioni');if(e)e.style.display='';}}catch(e){}})();
+(async function(){try{const {data:{session}}=await sb.auth.getSession();const _r=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.role;if(_r==='admin'){var e=document.getElementById('navRevisioni');if(e)e.style.display='';} else if(_r==='vendita'){ document.querySelectorAll('nav a[href="presenza.html"], nav a[href="assortimento.html"], nav a[href="revisioni.html"], a[href="impostazioni.html"]').forEach(function(a){a.style.display='none';}); }}catch(e){}})();
 
 document.addEventListener("dblclick",function(e){
   var td=e.target.closest("#body td.refcell[data-img]");
