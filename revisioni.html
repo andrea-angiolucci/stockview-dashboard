@@ -173,7 +173,7 @@ async function showApp(session){
   const meta=session.user.user_metadata||{};
   ROLE=(meta.role==="admin")?"admin":"gestore"; isAdmin=ROLE==="admin"; try{ var _rr=meta.role||'gestore'; var _pp=await sb.from('ruoli_permessi').select('puo_accedere,puo_modificare').eq('ruolo',_rr).eq('pagina','aggiornamenti').maybeSingle(); var _pd=_pp.data; if(_rr!=='admin'){ if(!(_pd&&_pd.puo_accedere)){ location.replace('ricircolo.html?denied=1'); return; } isAdmin=!!(_pd&&_pd.puo_modificare); } }catch(e){}
   $("#who").innerHTML=esc(session.user.email)+' <span class="rolechip '+ROLE+'">'+ROLE+'</span>';
-  if(!isAdmin){ $("#content").innerHTML='<div class="notice">Sezione riservata agli amministratori.<br><span style="font-size:12px">Il tuo ruolo attuale è <b>gestore</b>.</span></div>'; return; }
+  if(false){ $("#content").innerHTML='<div class="notice">Sezione riservata agli amministratori.<br><span style="font-size:12px">Il tuo ruolo attuale è <b>gestore</b>.</span></div>'; return; }
   await loadAll();
   loadNonTrovati();
 }
@@ -206,7 +206,7 @@ async function loadAll(){
         '<td>'+esc(r.tipo_lenti||"—")+'</td>'+
         '<td>'+catArrow(r)+'</td>'+
         '<td class="muted">'+esc(r.richiesta_da||"—")+'</td>'+
-        '<td><button class="btn-annulla" data-del="'+r.id+'">Annulla</button></td>'+
+        (isAdmin?'<td><button class="btn-annulla" data-del="'+r.id+'">Annulla</button></td>':'<td></td>')+
       '</tr>').join("")+
       '</tbody></table></div>';
   }
