@@ -162,6 +162,41 @@
 const SUPABASE_URL="https://exrlurfvydxrqfzjdobp.supabase.co";
 const SUPABASE_KEY="sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+/* === Visualizza come... (simulazione ruolo admin) === */
+(function(){
+  if(window.__svSimInstalled) return; window.__svSimInstalled=true;
+  var FIL={D:'Catania',I:'Portali',G:'Giarre',Z:'Viale Africa',C:'Acireale',E:'Augusta',H:'Lentini',B:'Paternò'};
+  var ORDER=['D','I','G','Z','C','E','H','B'];
+  function sg(k){try{return sessionStorage.getItem(k);}catch(e){return null;}}
+  function ssv(k,v){try{sessionStorage.setItem(k,v);}catch(e){}}
+  function sd(k){try{sessionStorage.removeItem(k);}catch(e){}}
+  var simRole=sg('sv_sim_role'), simFil=sg('sv_sim_filiale');
+  var _orig=(typeof sb!=='undefined'&&sb.auth&&sb.auth.getSession)?sb.auth.getSession.bind(sb.auth):null;
+  var _origU=(typeof sb!=='undefined'&&sb.auth&&sb.auth.getUser)?sb.auth.getUser.bind(sb.auth):null;
+  function ovMeta(m){return Object.assign({},m||{},{role:simRole,filiale:(simRole==='vendita'?simFil:null)});}
+  if(_orig){ sb.auth.getSession=async function(){ var r=await _orig(); try{ var s=r&&r.data&&r.data.session; if(s){ var rr=s.user&&s.user.user_metadata&&s.user.user_metadata.role; window.__SV_REAL_ROLE=rr; if(rr==='admin'&&simRole&&simRole!=='admin'){ var nu=Object.assign({},s.user,{user_metadata:ovMeta(s.user.user_metadata)}); return {data:{session:Object.assign({},s,{user:nu})},error:r.error}; } } }catch(e){} return r; }; }
+  if(_origU){ sb.auth.getUser=async function(){ var r=await _origU(); try{ var u=r&&r.data&&r.data.user; if(u){ var rr=u.user_metadata&&u.user_metadata.role; if(rr==='admin'&&simRole&&simRole!=='admin'){ return {data:{user:Object.assign({},u,{user_metadata:ovMeta(u.user_metadata)})},error:r.error}; } } }catch(e){} return r; }; }
+  if(typeof sb!=='undefined'&&sb.auth&&sb.auth.signOut){ var _so=sb.auth.signOut.bind(sb.auth); sb.auth.signOut=function(){ sd('sv_sim_role'); sd('sv_sim_filiale'); return _so.apply(null,arguments); }; }
+  function lbl(role,fil){ if(role==='admin')return 'Admin'; if(role==='gestore')return 'Gestore'; if(role==='vendita')return 'Vendita → '+(FIL[fil]||fil||'?'); return role; }
+  function setSim(role,fil){ if(role==='admin'){ sd('sv_sim_role'); sd('sv_sim_filiale'); } else { ssv('sv_sim_role',role); if(role==='vendita'&&fil) ssv('sv_sim_filiale',fil); else sd('sv_sim_filiale'); } location.reload(); }
+  function buildUI(){
+    if(simRole){ var bn=document.createElement('div'); bn.id='svSimBanner'; bn.style.cssText='background:#f5a524;color:#3a2a00;font-weight:700;font-size:13px;text-align:center;padding:8px 12px;cursor:pointer'; bn.textContent='⚠ Vista simulata: '+lbl(simRole,simFil)+' — Clicca per tornare ad Admin'; bn.onclick=function(){ setSim('admin'); }; var nv=document.querySelector('nav'); var hdr=nv?(nv.closest('header')||nv.parentElement):null; if(hdr&&hdr.parentNode){ hdr.parentNode.insertBefore(bn,hdr.nextSibling); } else if(document.body.firstChild){ document.body.insertBefore(bn,document.body.firstChild); } else { document.body.appendChild(bn); } }
+    var logout=document.getElementById('logout');
+    var wrap=document.createElement('span'); wrap.style.cssText='position:relative;display:inline-block';
+    var btn=document.createElement('button'); btn.type='button'; btn.textContent='👁 Visualizza come…'; btn.style.cssText='cursor:pointer;font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid rgba(128,128,128,.4);background:transparent;color:inherit;font-weight:600;margin-right:8px';
+    var menu=document.createElement('div'); menu.style.cssText='position:absolute;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid #ccc;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:210px;z-index:99999;display:none;overflow:hidden';
+    var items=[['👤 Admin (attuale)','admin',null],['👤 Gestore','gestore',null]];
+    ORDER.forEach(function(c){ items.push(['👤 Vendita → '+FIL[c],'vendita',c]); });
+    items.forEach(function(it){ var a=document.createElement('div'); a.textContent=it[0]; var active=((it[1]==='admin'&&!simRole)||(it[1]===simRole&&(it[1]!=='vendita'||it[2]===simFil))); a.style.cssText='padding:8px 12px;cursor:pointer;font-size:13px;white-space:nowrap;color:#1f2a37;'+(active?'font-weight:700;background:#eef3f9':''); a.onmouseover=function(){a.style.background='#dce7f3';}; a.onmouseout=function(){a.style.background=active?'#eef3f9':'';}; a.onclick=function(ev){ ev.stopPropagation(); setSim(it[1],it[2]); }; menu.appendChild(a); });
+    btn.onclick=function(e){ e.stopPropagation(); menu.style.display=(menu.style.display==='none'?'block':'none'); };
+    document.addEventListener('click',function(){ menu.style.display='none'; });
+    wrap.appendChild(btn); wrap.appendChild(menu);
+    if(logout&&logout.parentNode){ logout.parentNode.insertBefore(wrap,logout); } else { var nav=document.querySelector('nav'); if(nav&&nav.parentNode) nav.parentNode.appendChild(wrap); }
+  }
+  function init(){ (async function(){ var realAdmin=false; try{ if(_orig){ var r=await _orig(); var s=r&&r.data&&r.data.session; var rr=s&&s.user&&s.user.user_metadata&&s.user.user_metadata.role; realAdmin=(rr==='admin'); window.__SV_REAL_ROLE=rr; } }catch(e){} if(!realAdmin){ if(simRole){ sd('sv_sim_role'); sd('sv_sim_filiale'); } return; } buildUI(); })(); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
 const $=s=>document.querySelector(s);
 let PDV=[];                  // [{codice,nome}]
 let DATA={Vista:{},Sole:{}}; // DATA[tipo][marchio][codice]=qty
