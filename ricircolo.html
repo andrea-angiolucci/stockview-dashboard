@@ -409,7 +409,7 @@ async function rcClickStato(bt){
 
 boot();
 
-(async function(){try{const {data:{session}}=await sb.auth.getSession();const _r=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.role;if(_r==='admin'){var e=document.getElementById('navRevisioni');if(e)e.style.display='';} else if(_r==='vendita'){ document.querySelectorAll('nav a[href="presenza.html"], nav a[href="assortimento.html"], nav a[href="revisioni.html"], a[href="impostazioni.html"]').forEach(function(a){a.style.display='none';}); }}catch(e){}})();
+(async function(){try{const {data:{session}}=await sb.auth.getSession();const _r=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.role;var _showAgg=(_r==='admin'); if(!_showAgg && _r && _r!=='vendita'){ try{ var _ppN=await sb.from('ruoli_permessi').select('puo_accedere').eq('ruolo',_r).eq('pagina','aggiornamenti').maybeSingle(); _showAgg=!!(_ppN.data && _ppN.data.puo_accedere); }catch(_e){} } if(_showAgg){ var e=document.getElementById('navRevisioni'); if(e)e.style.display=''; } if(_r==='vendita'){ document.querySelectorAll('nav a[href="presenza.html"], nav a[href="assortimento.html"], nav a[href="revisioni.html"], a[href="impostazioni.html"]').forEach(function(a){a.style.display='none';}); }}catch(e){}})();
 
 document.addEventListener("dblclick",function(e){
   var td=e.target.closest("#body td.refcell[data-img]");
