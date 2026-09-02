@@ -66,6 +66,18 @@
   .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:11px 18px;border-radius:10px;box-shadow:var(--shadow);font-size:13px;opacity:0;transition:.25s;z-index:80}
   .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
   .toast.err{border-color:var(--bad);color:var(--bad)}
+  th.rvsort{cursor:pointer;user-select:none}
+  th.rvsort:hover{color:var(--txt)}
+  th.rvsort.on{color:var(--accent)}
+  th.rvsort .arw{font-size:10px;margin-left:3px}
+  tbody tr.eseg td{color:var(--muted)}
+  .subline{display:block;color:var(--muted);font-size:11px;font-weight:400}
+  .pill-eseg{display:inline-block;background:var(--ok);color:#04121f;border:none;border-radius:10px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .pill-eseg:hover{filter:brightness(1.08)}
+  .pill-eseg:disabled{opacity:.55;cursor:wait}
+  .badge-wait{display:inline-block;background:rgba(245,165,36,.18);color:var(--warn);border:1px solid rgba(245,165,36,.4);border-radius:10px;padding:3px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+  .btn-undo{background:transparent;border:1px solid var(--muted);color:var(--muted);border-radius:8px;padding:3px 9px;font-size:12px;font-weight:600;cursor:pointer;margin-left:6px;white-space:nowrap}
+  .btn-undo:hover{border-color:var(--accent);color:var(--accent)}
 </style>
 </head>
 <body>
@@ -90,7 +102,7 @@
       <a href="presenza.html">Controllo presenza</a>
       <a href="assortimento.html">Assortimento ideale</a>
       <a href="ricircolo.html">Ricircolo</a>
-      
+
       <a href="revisioni.html" class="cur">Aggiornamenti</a>
     </nav>
     <div class="spacer"></div>
@@ -156,51 +168,142 @@ let ROLE="gestore", isAdmin=false;
 
 function fmtDate(s){ if(!s)return"—"; try{ const d=new Date(s); return d.toLocaleDateString("it-IT")+" "+d.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"}); }catch(e){return s;} }
 
+/* ==== FIX 1+2: ordinamento colonne cliccabili + flag "Eseguito" ==== */
+var RVF={D:"Catania",I:"Portali",G:"Giarre",Z:"Viale Africa",C:"Acireale",E:"Augusta",H:"Lentini",B:"Paternò",A:"Deposito"};
+function ntFn(c){ return RVF[c]||c||""; }
+var CC_PEND=[], CC_COMP=[], NT_ROWS=[];
+var CC_SORT={key:"data",dir:"desc"}, CO_SORT={key:"data",dir:"desc"}, NT_SORT={key:"data",dir:"desc"};
+function sArrow(st,k){ return st.key===k?'<span class="arw">'+(st.dir==="asc"?"↑":"↓")+'</span>':""; }
+function sTh(st,k,label){ return '<th class="rvsort'+(st.key===k?" on":"")+'" data-k="'+k+'">'+esc(label)+sArrow(st,k)+'</th>'; }
+function sApply(rows,st,fn){ var d=st.dir==="asc"?1:-1; rows.sort(function(a,b){ var va=fn(a,st.key),vb=fn(b,st.key),c; if(typeof va==="number"&&typeof vb==="number")c=va-vb; else c=String(va).localeCompare(String(vb)); return c*d; }); return rows; }
+function sWire(host,st,rerender){ if(!host)return; host.querySelectorAll("th.rvsort").forEach(function(th){ th.onclick=function(){ var k=th.getAttribute("data-k"); if(st.key===k){ st.dir=(st.dir==="asc"?"desc":"asc"); } else { st.key=k; st.dir=(k==="data"||k==="giorni")?"desc":"asc"; } rerender(); }; }); }
+function ccVal(r,k){ if(k==="data")return r.richiesta_il?new Date(r.richiesta_il).getTime():0; if(k==="barcode")return r.barcode||""; if(k==="marchio")return r.marchio||""; if(k==="modello")return r.modello||""; if(k==="fornitore")return r.fornitore||""; if(k==="tipo")return r.tipo_lenti||""; if(k==="cata")return r.categoria_attuale||""; if(k==="catp")return r.categoria_proposta||""; if(k==="richda")return r.richiesta_da||""; return ""; }
+function coVal(r,k){ if(k==="data")return r.completata_il?new Date(r.completata_il).getTime():0; return ccVal(r,k); }
+function ntVal(r,k){ if(k==="data")return r.aggiornato_il?new Date(r.aggiornato_il).getTime():0; if(k==="barcode")return r.barcode||""; if(k==="marchio")return r.marchio||""; if(k==="modello")return r.modello||""; if(k==="da")return ntFn(r.filiale_da); if(k==="a")return ntFn(r.filiale_a); if(k==="segn")return r.aggiornato_da||""; if(k==="giorni"){ var ag=r.aggiornato_il?new Date(r.aggiornato_il).getTime():0; return ag?(Date.now()-ag):0; } return ""; }
+function subline(r){ var x=[r.colore,r.calibro].filter(Boolean).map(esc).join(" · "); return x?'<span class="subline">'+x+'</span>':""; }
+function isEseg(note){ return String(note||"").indexOf("Eseguito")===0; }
+async function myEmail(){ try{ var s=await sb.auth.getSession(); return (s&&s.data&&s.data.session&&s.data.session.user&&s.data.session.user.email)||""; }catch(e){ return ""; } }
+
+async function ccEseguito(bt){ if(bt.disabled)return; bt.disabled=true; var id=bt.dataset.id, o=bt.textContent; bt.textContent="…"; var email=await myEmail();
+  try{ var r=await sb.from("richieste_cambio_categoria").update({stato_operatore:"eseguito",eseguito_da:email,eseguito_il:new Date().toISOString()}).eq("id",id); if(r.error)throw r.error; for(var i=0;i<CC_PEND.length;i++){ if(String(CC_PEND[i].id)===String(id)){ CC_PEND[i].stato_operatore="eseguito"; CC_PEND[i].eseguito_da=email; break; } } renderCC(); toast("Segnato come eseguito"); }catch(e){ bt.disabled=false; bt.textContent=o; toast("Errore: "+String((e&&e.message)||e),true); } }
+async function ccUndo(bt){ if(bt.disabled)return; bt.disabled=true; var id=bt.dataset.id;
+  try{ var r=await sb.from("richieste_cambio_categoria").update({stato_operatore:"pendente",eseguito_da:null,eseguito_il:null}).eq("id",id); if(r.error)throw r.error; for(var i=0;i<CC_PEND.length;i++){ if(String(CC_PEND[i].id)===String(id)){ CC_PEND[i].stato_operatore="pendente"; break; } } renderCC(); toast("Annullato"); }catch(e){ bt.disabled=false; toast("Errore: "+String((e&&e.message)||e),true); } }
+async function ntEseguito(bt){ if(bt.disabled)return; bt.disabled=true; var id=bt.dataset.id, o=bt.textContent; bt.textContent="…"; var email=await myEmail();
+  var note="Eseguito da "+email+" il "+new Date().toISOString().slice(0,10);
+  try{ var r=await sb.from("ricircoli").update({note:note}).eq("id",id).eq("stato","non_trovato"); if(r.error)throw r.error; for(var i=0;i<NT_ROWS.length;i++){ if(String(NT_ROWS[i].id)===String(id)){ NT_ROWS[i].note=note; break; } } renderNT(); toast("Segnato come eseguito"); }catch(e){ bt.disabled=false; bt.textContent=o; toast("Errore: "+String((e&&e.message)||e),true); } }
+async function ntUndo(bt){ if(bt.disabled)return; bt.disabled=true; var id=bt.dataset.id;
+  try{ var r=await sb.from("ricircoli").update({note:null}).eq("id",id); if(r.error)throw r.error; for(var i=0;i<NT_ROWS.length;i++){ if(String(NT_ROWS[i].id)===String(id)){ NT_ROWS[i].note=null; break; } } renderNT(); toast("Annullato"); }catch(e){ bt.disabled=false; toast("Errore: "+String((e&&e.message)||e),true); } }
+
+function renderCC(){
+  var host=$("#content"); if(!host)return;
+  var canEseg=(ROLE==="admin"||ROLE==="gestore");
+  var P=CC_PEND.slice(); sApply(P,CC_SORT,ccVal);
+  var C=CC_COMP.slice(); sApply(C,CO_SORT,coVal);
+  var h='';
+  h+='<div class="section-h">Richieste pendenti <span class="cnt">'+P.length+'</span></div>';
+  if(!P.length){ h+='<div class="notice">Nessuna richiesta pendente.</div>'; }
+  else{
+    var head='<tr>'+sTh(CC_SORT,"data","Data richiesta")+sTh(CC_SORT,"barcode","Barcode")+sTh(CC_SORT,"marchio","Marchio")+sTh(CC_SORT,"modello","Modello")+sTh(CC_SORT,"fornitore","Fornitore")+sTh(CC_SORT,"tipo","Tipo")+sTh(CC_SORT,"cata","Cat. attuale")+sTh(CC_SORT,"catp","Cat. proposta")+sTh(CC_SORT,"richda","Richiesta da")+'<th></th></tr>';
+    h+='<div class="tablewrap" id="ccPendWrap"><table><thead>'+head+'</thead><tbody>'+P.map(function(r){
+      var eseg=r.stato_operatore==="eseguito";
+      var act;
+      if(eseg){ act='<span class="badge-wait">⏳ Attesa conferma</span><button class="btn-undo ccUndo" data-id="'+esc(r.id)+'">↩ Annulla</button>'; }
+      else{ act=(canEseg?'<button class="pill-eseg ccEseg" data-id="'+esc(r.id)+'">✓ Eseguito</button>':''); if(isAdmin){ act+=(act?' ':'')+'<button class="btn-annulla ccDel" data-del="'+esc(r.id)+'" title="Elimina richiesta">🗑</button>'; } }
+      return '<tr class="'+(eseg?"eseg":"")+'">'+
+        '<td class="muted" style="white-space:nowrap">'+esc(fmtDate(r.richiesta_il))+'</td>'+
+        '<td>'+esc(r.barcode||"")+'</td>'+
+        '<td><b>'+esc(r.marchio||"—")+'</b></td>'+
+        '<td>'+esc(r.modello||"—")+subline(r)+'</td>'+
+        '<td>'+esc(r.fornitore||"—")+'</td>'+
+        '<td>'+esc(r.tipo_lenti||"—")+'</td>'+
+        '<td><span class="cat-att">'+esc(r.categoria_attuale||"—")+'</span></td>'+
+        '<td><span class="cat-pro">'+esc(r.categoria_proposta||"—")+'</span></td>'+
+        '<td class="muted">'+esc(r.richiesta_da||"—")+'</td>'+
+        '<td style="white-space:nowrap">'+act+'</td></tr>';
+    }).join("")+'</tbody></table></div>';
+  }
+  h+='<div class="section-h">Richieste completate <span class="cnt">'+C.length+(CC_COMP.length>=50?"+":"")+'</span></div>';
+  if(!C.length){ h+='<div class="notice">Nessuna richiesta completata.</div>'; }
+  else{
+    var head2='<tr>'+sTh(CO_SORT,"data","Completata il")+sTh(CO_SORT,"barcode","Barcode")+sTh(CO_SORT,"marchio","Marchio")+sTh(CO_SORT,"modello","Modello")+sTh(CO_SORT,"fornitore","Fornitore")+sTh(CO_SORT,"tipo","Tipo")+sTh(CO_SORT,"cata","Cat. attuale")+sTh(CO_SORT,"catp","Cat. proposta")+sTh(CO_SORT,"richda","Richiesta da")+'</tr>';
+    h+='<div class="tablewrap" id="ccCompWrap"><table><thead>'+head2+'</thead><tbody>'+C.map(function(r){
+      return '<tr>'+
+        '<td class="muted" style="white-space:nowrap">'+esc(fmtDate(r.completata_il))+'</td>'+
+        '<td>'+esc(r.barcode||"")+'</td>'+
+        '<td><b>'+esc(r.marchio||"—")+'</b></td>'+
+        '<td>'+esc(r.modello||"—")+subline(r)+'</td>'+
+        '<td>'+esc(r.fornitore||"—")+'</td>'+
+        '<td>'+esc(r.tipo_lenti||"—")+'</td>'+
+        '<td><span class="cat-att">'+esc(r.categoria_attuale||"—")+'</span></td>'+
+        '<td><span class="cat-pro">'+esc(r.categoria_proposta||"—")+'</span></td>'+
+        '<td class="muted">'+esc(r.richiesta_da||"—")+'</td></tr>';
+    }).join("")+'</tbody></table></div>';
+  }
+  host.innerHTML=h;
+  sWire(document.getElementById("ccPendWrap"),CC_SORT,renderCC);
+  sWire(document.getElementById("ccCompWrap"),CO_SORT,renderCC);
+  host.querySelectorAll(".ccEseg").forEach(function(b){ b.onclick=function(){ ccEseguito(b); }; });
+  host.querySelectorAll(".ccUndo").forEach(function(b){ b.onclick=function(){ ccUndo(b); }; });
+  host.querySelectorAll(".ccDel").forEach(function(b){ b.onclick=function(){ confirmDelete(b.dataset.del,b); }; });
+}
+
+function renderNT(){
+  var host=document.getElementById("nonTrovati"); if(!host)return;
+  var canEseg=(ROLE==="admin"||ROLE==="gestore");
+  if(!NT_ROWS.length){ host.innerHTML='<div style="color:var(--muted);padding:8px 0">Nessuna correzione richiesta. ✅</div>'; return; }
+  var rows=NT_ROWS.slice(); sApply(rows,NT_SORT,ntVal);
+  var head='<tr>'+sTh(NT_SORT,"data","Data segnalazione")+sTh(NT_SORT,"barcode","Barcode")+sTh(NT_SORT,"marchio","Marchio")+sTh(NT_SORT,"modello","Modello")+sTh(NT_SORT,"da","Da")+sTh(NT_SORT,"a","A")+sTh(NT_SORT,"segn","Segnalato da")+sTh(NT_SORT,"giorni","Giorni aperti")+'<th></th></tr>';
+  var today=Date.now();
+  var b=rows.map(function(x){
+    var ag=x.aggiornato_il?new Date(x.aggiornato_il):null;
+    var days=ag?Math.floor((today-ag.getTime())/86400000):0;
+    var eseg=isEseg(x.note);
+    var act;
+    if(eseg){ act='<span class="badge-wait">⏳ Attesa conferma</span><button class="btn-undo ntUndo" data-id="'+esc(x.id)+'">↩ Annulla</button>'; }
+    else{ act=(canEseg?'<button class="pill-eseg ntEseg" data-id="'+esc(x.id)+'">✓ Eseguito</button>':''); if(isAdmin){ act+=(act?' ':'')+'<button class="btn-ripristina ntRip" data-id="'+esc(x.id)+'">↩ Ripristina</button>'; } }
+    return '<tr class="'+(eseg?"eseg":"")+'" data-rid="'+esc(x.id)+'">'+
+      '<td style="white-space:nowrap">'+(ag?ag.toLocaleDateString("it-IT"):"-")+'</td>'+
+      '<td>'+esc(x.barcode||"")+'</td>'+
+      '<td><b>'+esc(x.marchio||"—")+'</b></td>'+
+      '<td>'+esc(x.modello||"—")+subline(x)+'</td>'+
+      '<td>'+esc(ntFn(x.filiale_da))+'</td>'+
+      '<td>'+esc(ntFn(x.filiale_a))+'</td>'+
+      '<td class="muted">'+esc(x.aggiornato_da||"")+'</td>'+
+      '<td>'+days+'g</td>'+
+      '<td style="white-space:nowrap">'+act+'</td></tr>';
+  }).join("");
+  host.innerHTML='<div class="tablewrap" id="ntWrap"><table><thead>'+head+'</thead><tbody>'+b+'</tbody></table></div>';
+  sWire(document.getElementById("ntWrap"),NT_SORT,renderNT);
+  host.querySelectorAll(".ntEseg").forEach(function(bt){ bt.onclick=function(){ ntEseguito(bt); }; });
+  host.querySelectorAll(".ntUndo").forEach(function(bt){ bt.onclick=function(){ ntUndo(bt); }; });
+  host.querySelectorAll(".ntRip").forEach(function(bt){ bt.onclick=function(){ rcRipristina(bt,host); }; });
+}
+
 async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex"; }
 async function loadNonTrovati(){
   var host=document.getElementById("nonTrovati"); if(!host)return;
-  var FN={D:"Catania",I:"Portali",G:"Giarre",Z:"Viale Africa",C:"Acireale",E:"Augusta",H:"Lentini",B:"Paternò",A:"Deposito"};
-  function fn(c){ return FN[c]||c||""; }
   host.innerHTML='<div style="color:var(--muted)">Caricamento…</div>';
   try{
     var r=await sb.from("ricircoli").select("*").eq("stato","non_trovato").order("aggiornato_il",{ascending:false});
     if(r.error)throw r.error;
-    var rows=r.data||[];
-    if(!rows.length){ host.innerHTML='<div style="color:var(--muted);padding:8px 0">Nessuna correzione richiesta. ✅</div>'; return; }
-    var today=Date.now();
-    var head='<tr><th>Data segnalazione</th><th>Barcode</th><th>Marchio · Modello · Colore</th><th>Da</th><th>A</th><th>Segnalato da</th><th>Giorni aperti</th><th></th></tr>';
-    var b=rows.map(function(x){
-      var ag=x.aggiornato_il?new Date(x.aggiornato_il):null;
-      var days=ag?Math.floor((today-ag.getTime())/86400000):0;
-      var desc=[x.marchio,x.modello,x.colore].filter(Boolean).join(" · ");
-      return '<tr data-rid="'+x.id+'"><td style="white-space:nowrap">'+(ag?ag.toLocaleDateString("it-IT"):"-")+'</td><td>'+esc(x.barcode||"")+'</td><td>'+esc(desc)+'</td><td>'+esc(fn(x.filiale_da))+'</td><td>'+esc(fn(x.filiale_a))+'</td><td>'+esc(x.aggiornato_da||"")+'</td><td>'+days+'g</td><td>'+(isAdmin?'<button class="btn-ripristina rcRip" data-id="'+x.id+'">↩ Ripristina</button>':"")+'</td></tr>';
-    }).join("");
-    host.innerHTML='<table style="width:100%;border-collapse:collapse"><thead>'+head+'</thead><tbody>'+b+'</tbody></table>';
-    host.querySelectorAll(".rcRip").forEach(function(bt){ bt.onclick=function(){ rcRipristina(bt,host); }; });
+    NT_ROWS=r.data||[];
+    renderNT();
   }catch(e){ host.innerHTML='<div style="color:var(--bad)">Errore: '+esc(String((e&&e.message)||e))+'</div>'; }
 }
 async function rcRipristina(bt, host){
   if(bt.disabled) return;
   var id=bt.dataset.id;
-  var tr=bt.closest("tr");
   bt.disabled=true; var orig=bt.textContent; bt.textContent="…";
   try{
-    var sess=await sb.auth.getSession();
-    var email=(sess&&sess.data&&sess.data.session&&sess.data.session.user&&sess.data.session.user.email)||null;
-    var res=await sb.from("ricircoli").update({stato:"pending",aggiornato_il:new Date().toISOString(),aggiornato_da:email}).eq("id",id);
+    var email=await myEmail();
+    var res=await sb.from("ricircoli").update({stato:"pending",aggiornato_il:new Date().toISOString(),aggiornato_da:email||null}).eq("id",id);
     if(res.error)throw res.error;
-    if(tr){
-      tr.style.transition="background .25s ease";
-      tr.style.background="rgba(54,201,141,.35)";
-      setTimeout(function(){
-        var tb=tr.parentNode;
-        tr.remove();
-        if(tb && tb.querySelectorAll("tr").length===0 && host){ host.innerHTML='<div style="color:var(--muted);padding:8px 0">Nessuna correzione richiesta. ✅</div>'; }
-      },500);
-    }
+    NT_ROWS=NT_ROWS.filter(function(x){ return String(x.id)!==String(id); });
+    renderNT();
+    toast("Ripristinato");
   }catch(e){
     bt.disabled=false; bt.textContent=orig;
-    alert("Errore: "+String((e&&e.message)||e));
+    toast("Errore: "+String((e&&e.message)||e),true);
   }
 }
 async function showApp(session){
@@ -208,7 +311,6 @@ async function showApp(session){
   const meta=session.user.user_metadata||{};
   ROLE=(meta.role==="admin")?"admin":"gestore"; isAdmin=ROLE==="admin"; try{ var _rr=meta.role||'gestore'; var _pp=await sb.from('ruoli_permessi').select('puo_accedere,puo_modificare').eq('ruolo',_rr).eq('pagina','aggiornamenti').maybeSingle(); var _pd=_pp.data; if(_rr!=='admin'){ if(!(_pd&&_pd.puo_accedere)){ location.replace('ricircolo.html?denied=1'); return; } isAdmin=!!(_pd&&_pd.puo_modificare); } }catch(e){}
   $("#who").innerHTML=esc(session.user.email)+' <span class="rolechip '+ROLE+'">'+ROLE+'</span>';
-  if(false){ $("#content").innerHTML='<div class="notice">Sezione riservata agli amministratori.<br><span style="font-size:12px">Il tuo ruolo attuale è <b>gestore</b>.</span></div>'; return; }
   await loadAll();
   loadNonTrovati();
 }
@@ -217,53 +319,13 @@ $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault(); const b
   b.disabled=false; b.textContent="Accedi"; if(error){er.textContent=error.message.includes("Invalid")?"Email o password non corretti.":error.message;return;} showApp(data.session); });
 $("#logout").addEventListener("click",async()=>{ await sb.auth.signOut(); location.reload(); });
 
-function refCell(r){ return '<td class="ref"><b>'+esc(r.marchio||"")+' '+esc(r.modello||"")+'</b><small>'+[r.colore,r.calibro,r.barcode].filter(Boolean).map(esc).join(" · ")+'</small></td>'; }
-function catArrow(r){ return '<span class="cat-att">'+esc(r.categoria_attuale||"—")+'</span><span class="arrow">→</span><span class="cat-pro">'+esc(r.categoria_proposta||"—")+'</span>'; }
-
 async function loadAll(){
   $("#content").innerHTML='<div class="status">Carico…</div>';
   const pend=await sb.from("richieste_cambio_categoria").select("*").eq("stato","pendente").order("richiesta_il",{ascending:false});
   const comp=await sb.from("richieste_cambio_categoria").select("*").eq("stato","completata").order("completata_il",{ascending:false}).limit(50);
   if(pend.error){ $("#content").innerHTML='<div class="notice" style="color:var(--bad)">Errore: '+esc(pend.error.message)+'</div>'; return; }
-  const P=pend.data||[], C=(comp.data||[]);
-  let html='';
-  html+='<div class="section-h">Richieste pendenti <span class="cnt">'+P.length+'</span></div>';
-  if(!P.length){ html+='<div class="notice">Nessuna richiesta pendente.</div>'; }
-  else{
-    html+='<div class="tablewrap"><table><thead><tr>'+
-      '<th>Data</th><th>Barcode</th><th>Referenza</th><th>Fornitore</th><th>Tipo lenti</th><th>Categoria</th><th>Richiesta da</th><th></th>'+
-      '</tr></thead><tbody>'+
-      P.map(r=>'<tr>'+
-        '<td class="muted">'+esc(fmtDate(r.richiesta_il))+'</td>'+
-        '<td>'+esc(r.barcode)+'</td>'+
-        refCell(r)+
-        '<td>'+esc(r.fornitore||"—")+'</td>'+
-        '<td>'+esc(r.tipo_lenti||"—")+'</td>'+
-        '<td>'+catArrow(r)+'</td>'+
-        '<td class="muted">'+esc(r.richiesta_da||"—")+'</td>'+
-        (isAdmin?'<td><button class="btn-annulla" data-del="'+r.id+'">Annulla</button></td>':'<td></td>')+
-      '</tr>').join("")+
-      '</tbody></table></div>';
-  }
-  html+='<div class="section-h">Richieste completate <span class="cnt">'+C.length+(C.length>=50?"+":"")+'</span></div>';
-  if(!C.length){ html+='<div class="notice">Nessuna richiesta completata.</div>'; }
-  else{
-    html+='<div class="tablewrap"><table><thead><tr>'+
-      '<th>Completata il</th><th>Barcode</th><th>Referenza</th><th>Fornitore</th><th>Tipo lenti</th><th>Categoria</th><th>Richiesta da</th>'+
-      '</tr></thead><tbody>'+
-      C.map(r=>'<tr>'+
-        '<td class="muted">'+esc(fmtDate(r.completata_il))+'</td>'+
-        '<td>'+esc(r.barcode)+'</td>'+
-        refCell(r)+
-        '<td>'+esc(r.fornitore||"—")+'</td>'+
-        '<td>'+esc(r.tipo_lenti||"—")+'</td>'+
-        '<td>'+catArrow(r)+'</td>'+
-        '<td class="muted">'+esc(r.richiesta_da||"—")+'</td>'+
-      '</tr>').join("")+
-      '</tbody></table></div>';
-  }
-  $("#content").innerHTML=html;
-  document.querySelectorAll("button.btn-annulla").forEach(b=>b.onclick=()=>confirmDelete(b.dataset.del, b));
+  CC_PEND=pend.data||[]; CC_COMP=comp.data||[];
+  renderCC();
 }
 
 function confirmDelete(id){
