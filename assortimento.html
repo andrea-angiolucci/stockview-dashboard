@@ -323,5 +323,10 @@ boot();
 
 (async function(){try{const {data:{session}}=await sb.auth.getSession();const _r=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.role;var _showAgg=(_r==='admin'); if(!_showAgg && _r && _r!=='vendita'){ try{ var _ppN=await sb.from('ruoli_permessi').select('puo_accedere').eq('ruolo',_r).eq('pagina','aggiornamenti').maybeSingle(); _showAgg=!!(_ppN.data && _ppN.data.puo_accedere); }catch(_e){} } if(_showAgg){var e=document.getElementById('navRevisioni');if(e)e.style.display='';}}catch(e){}})();
 </script>
+
+<script>
+/* STEP3-E redirect fornitore a presenza */
+(function(){ window.__fornRedirect=1; (async function(){ try{ if(sessionStorage.getItem('sv_sim_role')==='fornitore'){ location.replace('presenza.html'); return; } if(typeof sb==='undefined'||!sb) return; var u=await sb.auth.getUser(); var uid=u&&u.data&&u.data.user&&u.data.user.id; if(!uid) return; var r=await sb.from('user_fornitori').select('user_id').eq('user_id',uid).maybeSingle(); if(r&&r.data){ location.replace('presenza.html'); } }catch(e){} })(); })();
+</script>
 </body>
 </html>
