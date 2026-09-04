@@ -1106,5 +1106,28 @@ boot();
   mo.observe(document.body,{childList:true,subtree:true});
 })();
 </script>
+
+<script>
+/* FIX bug filtro fornitore: filtra le celle per giacenze.fornitore (per barcode) */
+(function(){
+  if(window.__fornCellFixInstalled) return; window.__fornCellFixInstalled=true;
+  var FBC={}; var pending=false;
+  function selForn(){ try{ return Array.from((FILTERS && FILTERS.msFornitore && FILTERS.msFornitore.selected) || []); }catch(e){ return []; } }
+  function matchForn(f, sel){ if(f==null) return true; var fn=String(f).toUpperCase().trim(); return sel.some(function(s){ var fa=String(s).toUpperCase().trim(); return fa && (fn.indexOf(fa)>=0 || fa.indexOf(fn)>=0); }); }
+  var _draw=window.draw;
+  window.draw=function(){
+    try{
+      var sel=selForn();
+      if(sel.length && typeof lastCells!=='undefined' && Array.isArray(lastCells) && lastCells.length){
+        var miss=[], seen={};
+        lastCells.forEach(function(c){ var b=c&&c.barcode; if(b && !(b in FBC) && !seen[b]){ seen[b]=1; miss.push(b); } });
+        if(miss.length && !pending){ pending=true; (async function(){ try{ for(var i=0;i<miss.length;i+=200){ var ch=miss.slice(i,i+200); var r=await sb.from('giacenze').select('barcode,fornitore').in('barcode',ch); (r.data||[]).forEach(function(x){ if(!(x.barcode in FBC)) FBC[x.barcode]=x.fornitore; }); } }catch(e){} miss.forEach(function(b){ if(!(b in FBC)) FBC[b]=null; }); pending=false; try{ window.draw(); }catch(e){} })(); }
+        lastCells=lastCells.filter(function(c){ if(!c||!c.barcode) return true; return matchForn(FBC[c.barcode], sel); });
+      }
+    }catch(e){}
+    return _draw.apply(this, arguments);
+  };
+})();
+</script>
 </body>
 </html>
