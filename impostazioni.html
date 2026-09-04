@@ -716,5 +716,10 @@ boot();
   function pick(cur){ return new Promise(function(resolve){ openModal('<h3 style="margin:0 0 12px">Seleziona fornitore</h3><input id="pfS" placeholder="cerca…" style="width:100%;margin-bottom:6px" /><select id="pfL" size="8" style="width:100%"></select><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="ghost" id="pfC">Annulla</button><button class="ubtn" id="pfO">Conferma</button></div>'); var L=document.getElementById('pfL'); function rnd(list){ L.innerHTML=list.map(function(f){ return '<option value="'+esch(f)+'"'+(f===cur?' selected':'')+'>'+esch(f)+'</option>'; }).join(''); } rnd(FORN); document.getElementById('pfS').addEventListener('input',function(){ var q=this.value.toLowerCase(); rnd(FORN.filter(function(f){return f.toLowerCase().indexOf(q)>-1;})); }); document.getElementById('pfC').onclick=function(){ closeModal(); resolve(null); }; document.getElementById('pfO').onclick=function(){ var v=L.value; closeModal(); resolve(v||null); }; }); }
 })();
 </script>
+
+<script>
+/* STEP3-E redirect fornitore a presenza */
+(function(){ window.__fornRedirect=1; (async function(){ try{ if(sessionStorage.getItem('sv_sim_role')==='fornitore'){ location.replace('presenza.html'); return; } if(typeof sb==='undefined'||!sb) return; var u=await sb.auth.getUser(); var uid=u&&u.data&&u.data.user&&u.data.user.id; if(!uid) return; var r=await sb.from('user_fornitori').select('user_id').eq('user_id',uid).maybeSingle(); if(r&&r.data){ location.replace('presenza.html'); } }catch(e){} })(); })();
+</script>
 </body>
 </html>
