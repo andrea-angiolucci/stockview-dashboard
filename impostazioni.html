@@ -721,5 +721,18 @@ boot();
 /* STEP3-E redirect fornitore a presenza */
 (function(){ window.__fornRedirect=1; (async function(){ try{ if(sessionStorage.getItem('sv_sim_role')==='fornitore'){ location.replace('presenza.html'); return; } if(typeof sb==='undefined'||!sb) return; var u=await sb.auth.getUser(); var uid=u&&u.data&&u.data.user&&u.data.user.id; if(!uid) return; var r=await sb.from('user_fornitori').select('user_id').eq('user_id',uid).maybeSingle(); if(r&&r.data){ location.replace('presenza.html'); } }catch(e){} })(); })();
 </script>
+
+<script>
+/* STEP5 colonna Fornitore in griglia Permessi (read-only) */
+(function(){
+  if(window.__fornPermInstalled) return; window.__fornPermInstalled=true;
+  var MAP=null;
+  async function loadMap(){ if(MAP) return MAP; MAP={}; try{ var r=await sb.from('ruoli_permessi').select('pagina,puo_accedere,puo_modificare').eq('ruolo','fornitore'); (r.data||[]).forEach(function(x){ MAP[x.pagina]={a:x.puo_accedere,m:x.puo_modificare}; }); }catch(e){} return MAP; }
+  function pk(t){ t=(t||'').toLowerCase(); if(t.indexOf('presenza')>-1)return 'presenza'; if(t.indexOf('assortimento')>-1)return 'assortimento'; if(t.indexOf('ricircolo')>-1)return 'ricircolo'; if(t.indexOf('aggiornamenti')>-1)return 'aggiornamenti'; if(t.indexOf('impostazioni')>-1)return 'impostazioni'; return ''; }
+  async function enh(tb){ if(tb.__fp) return; var h=(tb.querySelector('thead')||tb).textContent||''; if(!/Gestore/.test(h)||!/Vendita/.test(h)) return; tb.__fp=true; await loadMap(); var htr=tb.querySelector('thead tr'); if(htr && !htr.querySelector('.fpth')){ var th=document.createElement('th'); th.className='fpth'; th.textContent='Fornitore'; htr.appendChild(th); } [].slice.call(tb.querySelectorAll('tbody tr')).forEach(function(tr){ if(tr.querySelector('.fptd')) return; var k=pk((tr.children[0]||{}).textContent); var td=document.createElement('td'); td.className='fptd'; td.style.fontSize='12px'; var p=MAP[k]; td.innerHTML = (p&&p.a) ? ('\u2713 Accesso'+(p.m?' \u00b7 \u2713 Modifica':'')) : '<span style="color:var(--muted)">\u2014</span>'; tr.appendChild(td); }); }
+  var mo=new MutationObserver(function(){ [].slice.call(document.querySelectorAll('table.utbl')).forEach(function(tb){ var h=(tb.querySelector('thead')||tb).textContent||''; if(/Gestore/.test(h)&&/Vendita/.test(h)) enh(tb); }); });
+  mo.observe(document.body,{childList:true,subtree:true});
+})();
+</script>
 </body>
 </html>
