@@ -1069,7 +1069,7 @@ function openCatModal(bc,td){
     closeCatModal(); catToast('Proposta inviata: '+(c.categoria||'\u2014')+' \u2192 '+nc);
   };
 }
-(function(){ var mb=document.getElementById('catModalBack'); if(mb)mb.addEventListener('click',function(e){ if(e.target.id==='catModalBack')closeCatModal(); }); var eb=document.getElementById('editCatBtn'); if(eb)eb.addEventListener('click',function(){ editCat=!editCat; document.body.classList.toggle('editcat',editCat); eb.classList.toggle('on',editCat); catToast(editCat?'Modalit\u00e0 modifica categoria attiva: clicca una cella della matrice':'Modalit\u00e0 modifica categoria disattivata'); }); var tb=document.getElementById('tbl'); if(tb)tb.addEventListener('click',function(ev){ if(!editCat||!isAdmin)return; var td=ev.target.closest('td.mar.ref[data-bc]'); if(!td)return; ev.preventDefault(); ev.stopPropagation(); openCatModal(td.getAttribute('data-bc'),td); },true); })();
+(function(){ var mb=document.getElementById('catModalBack'); if(mb)mb.addEventListener('click',function(e){ if(e.target.id==='catModalBack')closeCatModal(); }); var eb=document.getElementById('editCatBtn'); if(eb)eb.addEventListener('click',function(){ editCat=!editCat; document.body.classList.toggle('editcat',editCat); eb.classList.toggle('on',editCat); catToast(editCat?'Modalit\u00e0 modifica categoria attiva: clicca una cella della matrice':'Modalit\u00e0 modifica categoria disattivata'); }); var tb=document.getElementById('tbl'); if(tb)tb.addEventListener('click',function(ev){ if(!editCat||!isAdmin)return; var hit=ev.target.closest('.catedit-hit'); if(!hit)return; var td=hit.closest('td.mar.ref[data-bc]'); if(!td)return; ev.preventDefault(); ev.stopPropagation(); openCatModal(td.getAttribute('data-bc'),td); },true); })();
 
 boot();
 </script>
@@ -1127,6 +1127,20 @@ boot();
     }catch(e){}
     return _draw.apply(this, arguments);
   };
+})();
+</script>
+
+<script>
+/* FIX doppio click referenza in modifica categoria: pencil hotspot apre il modal; dblclick apre sempre Google Immagini */
+(function(){
+  if(window.__catDblFix) return; window.__catDblFix=true;
+  var st=document.createElement('style');
+  st.textContent="#tbl td.mar.ref .catedit-hit{display:none} body.editcat #tbl td.mar.ref[data-bc]{position:relative} body.editcat #tbl td.mar.ref[data-bc] .catedit-hit{display:block;position:absolute;bottom:0;right:0;width:22px;height:22px;cursor:pointer;z-index:6}";
+  (document.head||document.documentElement).appendChild(st);
+  function addHits(){ try{ var cells=document.querySelectorAll('#tbl td.mar.ref[data-bc]'); cells.forEach(function(td){ if(!td.querySelector('.catedit-hit')){ var sp=document.createElement('span'); sp.className='catedit-hit'; sp.title='Modifica categoria'; td.appendChild(sp); } }); }catch(e){} }
+  var _d=window.draw;
+  if(typeof _d==='function'){ window.draw=function(){ var r=_d.apply(this,arguments); addHits(); return r; }; }
+  addHits();
 })();
 </script>
 </body>
