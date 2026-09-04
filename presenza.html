@@ -1094,5 +1094,17 @@ boot();
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', function(){ setTimeout(boot,300); }); } else { setTimeout(boot,300); }
 })();
 </script>
+
+<script>
+/* STEP4 Visualizza come -> Fornitori */
+(function(){
+  if(window.__fornSimInstalled) return; window.__fornSimInstalled=true;
+  var FA=['KERING EYEWEAR','LUXOTTICA ITALIA SRL','MARCHON','MOSCOT HOLDING SA','MYKITA','THELIOS SPA'];
+  try{ (async function(){ var r=await sb.from('marchi_fornitori_attivi').select('fornitore_attivo'); var s={}; (r.data||[]).forEach(function(x){ if(x.fornitore_attivo) s[x.fornitore_attivo]=1; }); var a=Object.keys(s).sort(); if(a.length) FA=a; })(); }catch(e){}
+  function add(menu){ if(menu.__fa) return; var t=menu.textContent||''; if(!/Gestore/.test(t)||!/Vendita/.test(t)) return; menu.__fa=true; var sample=[].slice.call(menu.children).find(function(c){ return /Gestore/.test(c.textContent||''); }); var hd=document.createElement('div'); hd.textContent='\uD83C\uDFED Fornitori'; hd.style.cssText='padding:6px 12px;font-size:11px;color:#888;border-top:1px solid #eee;text-transform:uppercase;letter-spacing:.04em'; menu.appendChild(hd); FA.forEach(function(f){ var d=sample?sample.cloneNode(true):document.createElement('div'); d.textContent='\uD83C\uDFED '+f; d.removeAttribute('onclick'); d.style.cursor='pointer'; d.onclick=function(ev){ if(ev)ev.stopPropagation(); try{ sessionStorage.setItem('sv_sim_role','fornitore'); sessionStorage.setItem('sv_sim_fornitore',f); sessionStorage.removeItem('sv_sim_filiale'); }catch(e){} location.href='presenza.html'; }; menu.appendChild(d); }); }
+  var mo=new MutationObserver(function(muts){ for(var i=0;i<muts.length;i++){ var an=muts[i].addedNodes; for(var j=0;j<an.length;j++){ var n=an[j]; if(n.nodeType!==1) continue; var t=n.textContent||''; if(/Gestore/.test(t)&&/Vendita/.test(t)&&/Admin/.test(t)) add(n); } } });
+  mo.observe(document.body,{childList:true,subtree:true});
+})();
+</script>
 </body>
 </html>
