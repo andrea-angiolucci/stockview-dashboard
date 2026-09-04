@@ -861,7 +861,7 @@ function decorate(){
     if(prevOn&&PREV[k]!==undefined){ var d=document.createElement("div"); d.className="cv2"; d.title="venduto 2025"; d.textContent=PREV[k]; td.appendChild(d); }
   });
   var rows=[].slice.call(tbl.querySelectorAll("tbody tr"));
-  var noBc={}; lastCells.forEach(function(c){ if(c._noideal)noBc[c.barcode]=1; });
+  var noBc={}; var _idU=new Set(); (typeof ASSORT!=='undefined'&&ASSORT?ASSORT:[]).forEach(function(r){ if(r&&r.marchio)_idU.add(String(r.marchio).trim().toUpperCase()); }); lastCells.forEach(function(c){ if(!c||!c.barcode)return; var _has=(typeof cellHasIdeal==='function')?cellHasIdeal(c.categoria,c.marchio,_idU):!c._noideal; if(!_has)noBc[c.barcode]=1; });
   rows.forEach(function(tr){ var ref=tr.querySelector("td.mar.ref"); if(!ref)return; var old=ref.querySelector(".badge-noideal"); var any=[].slice.call(tr.querySelectorAll("td.filcol[data-bc]")).some(function(td){return noBc[td.getAttribute("data-bc")];}); if(any&&!old){ var s=document.createElement("span"); s.className="badge-noideal"; s.textContent="senza ideale"; var bb=ref.querySelector("b"); if(bb)bb.appendChild(s); } else if(!any&&old){ old.remove(); } });
   rows.forEach(function(tr){
     var tot=tr.querySelector("td.tot"); if(!tot)return;
