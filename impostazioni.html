@@ -676,5 +676,45 @@ boot();
 
 (async function(){try{const {data:{session}}=await sb.auth.getSession();const _r=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.role;if(_r==='admin'){var e=document.getElementById('navRevisioni');if(e)e.style.display='';}}catch(e){}})();
 </script>
+
+<script>
+/* STEP2 ruolo fornitore (no-EF, tabella user_fornitori) */
+(function(){
+  if(window.__fornAdminInstalled) return; window.__fornAdminInstalled=true;
+  var UF={}, FORN=[];
+  function esch(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function UL(){ try{ return (typeof U_LIST!=='undefined'&&U_LIST)?U_LIST:(window.U_LIST||[]); }catch(e){ return window.U_LIST||[]; } }
+  async function loadFORN(){ if(FORN.length) return FORN; try{ var r=await sb.rpc('sv_g_fornitori'); FORN=(r.data||[]).map(function(x){return x.fornitore;}).filter(Boolean); }catch(e){ FORN=[]; } return FORN; }
+  async function loadUF(){ try{ var r=await sb.from('user_fornitori').select('user_id,fornitore'); UF={}; (r.data||[]).forEach(function(x){ UF[x.user_id]=x.fornitore; }); }catch(e){ UF={}; } return UF; }
+  function optsFrom(list,cur){ return '<option value="">— seleziona fornitore —</option>'+list.map(function(f){ return '<option value="'+esch(f)+'"'+(f===cur?' selected':'')+'>'+esch(f)+'</option>'; }).join(''); }
+  /* patch drawUtenti */
+  var _draw=window.drawUtenti;
+  window.drawUtenti=function(){ var r=_draw.apply(this,arguments); Promise.all([loadUF(),loadFORN()]).then(post).catch(post); return r; };
+  function post(){ var wrap=document.getElementById('uwrap'); if(!wrap) return;
+    wrap.querySelectorAll('select.urole[data-id]').forEach(function(sel){ if(!sel.querySelector('option[value="fornitore"]')){ var o=document.createElement('option'); o.value='fornitore'; o.textContent='fornitore'; sel.appendChild(o);} var id=sel.dataset.id; if(UF[id]){ sel.value='fornitore'; var td=sel.parentElement; td.querySelectorAll('.ufil,.ufilmiss').forEach(function(n){n.remove();}); var b=td.querySelector('.uforn-badge'); if(!b){ b=document.createElement('div'); b.className='uforn-badge'; b.style.marginTop='4px'; b.style.fontSize='12px'; b.style.color='#8aa0b6'; td.appendChild(b);} b.innerHTML='🏭 Fornitore: <b>'+esch(UF[id])+'</b>'; } });
+  }
+  /* patch changeRole */
+  var _cr=window.changeRole;
+  window.changeRole=async function(id,role,sel){
+    if(role==='fornitore'){ sel.disabled=true; await loadFORN(); var forn=await pick(UF[id]||''); if(!forn){ sel.disabled=false; loadUtenti(); return; } try{ var r=await sb.from('user_fornitori').upsert({user_id:id,fornitore:forn,updated_at:new Date().toISOString()},{onConflict:'user_id'}); if(r.error) throw r.error; UF[id]=forn; if(typeof toast==='function') toast('Fornitore impostato: '+forn); }catch(e){ if(typeof toast==='function') toast(String(e.message||e),true); } sel.disabled=false; loadUtenti(); return; }
+    if(UF[id]){ try{ await sb.from('user_fornitori').delete().eq('user_id',id); delete UF[id]; }catch(e){} }
+    return _cr.apply(this,arguments);
+  };
+  /* patch openInvite */
+  var _oi=window.openInvite;
+  window.openInvite=function(){ var r=_oi.apply(this,arguments); setTimeout(enh,30); return r; };
+  function enh(){ var role=document.getElementById('invRole'); if(!role) return;
+    if(!role.querySelector('option[value="fornitore"]')){ var o=document.createElement('option'); o.value='fornitore'; o.textContent='fornitore'; role.appendChild(o); }
+    var filRow=document.getElementById('invFilRow');
+    if(filRow && !document.getElementById('invFornRow')){ var d=document.createElement('div'); d.id='invFornRow'; d.style.display='none'; d.style.marginTop='10px'; d.innerHTML='<label>Fornitore</label><input id="invFornSearch" placeholder="cerca fornitore…" style="width:100%;margin-bottom:6px" /><select id="invFornitore" class="urole" style="width:100%"></select>'; filRow.parentNode.insertBefore(d, filRow.nextSibling); loadFORN().then(function(){ var s=document.getElementById('invFornitore'); if(s) s.innerHTML=optsFrom(FORN,''); }); var si=document.getElementById('invFornSearch'); si.addEventListener('input',function(){ var q=this.value.toLowerCase(); var s=document.getElementById('invFornitore'); s.innerHTML=optsFrom(FORN.filter(function(f){return f.toLowerCase().indexOf(q)>-1;}),''); }); }
+    function tgl(){ var v=role.value; var fr=document.getElementById('invFilRow'); if(fr) fr.style.display=(v==='vendita')?'block':'none'; var nr=document.getElementById('invFornRow'); if(nr) nr.style.display=(v==='fornitore')?'block':'none'; }
+    role.addEventListener('change',tgl); tgl();
+    var send=document.getElementById('invSend');
+    if(send && !send.__fw){ send.__fw=true; send.addEventListener('click',function(ev){ if(role.value!=='fornitore') return; ev.stopImmediatePropagation(); ev.preventDefault(); doInv(); }, true); }
+  }
+  async function doInv(){ var email=(document.getElementById('invEmail').value||'').trim(); var fs=document.getElementById('invFornitore'); var forn=fs?fs.value:''; var err=document.getElementById('invErr'); var send=document.getElementById('invSend'); if(email.indexOf('@')<1){ err.textContent='Inserisci un email valida.'; return; } if(!forn){ err.textContent='Seleziona un fornitore.'; return; } send.disabled=true; try{ await efCall('POST',{invite:email,email:email,role:'fornitore',filiale:null,redirectTo:'https://andrea-angiolucci.github.io/stockview-dashboard/reset-password.html'}); await loadUtenti(); var u=UL().find(function(x){ return (x.email||'').toLowerCase()===email.toLowerCase(); }); if(u){ await sb.from('user_fornitori').upsert({user_id:u.id,fornitore:forn,updated_at:new Date().toISOString()},{onConflict:'user_id'}); } closeModal(); if(typeof toast==='function') toast('Invito fornitore inviato a '+email); await loadUtenti(); }catch(e){ err.textContent=String(e.message||e); send.disabled=false; } }
+  function pick(cur){ return new Promise(function(resolve){ openModal('<h3 style="margin:0 0 12px">Seleziona fornitore</h3><input id="pfS" placeholder="cerca…" style="width:100%;margin-bottom:6px" /><select id="pfL" size="8" style="width:100%"></select><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="ghost" id="pfC">Annulla</button><button class="ubtn" id="pfO">Conferma</button></div>'); var L=document.getElementById('pfL'); function rnd(list){ L.innerHTML=list.map(function(f){ return '<option value="'+esch(f)+'"'+(f===cur?' selected':'')+'>'+esch(f)+'</option>'; }).join(''); } rnd(FORN); document.getElementById('pfS').addEventListener('input',function(){ var q=this.value.toLowerCase(); rnd(FORN.filter(function(f){return f.toLowerCase().indexOf(q)>-1;})); }); document.getElementById('pfC').onclick=function(){ closeModal(); resolve(null); }; document.getElementById('pfO').onclick=function(){ var v=L.value; closeModal(); resolve(v||null); }; }); }
+})();
+</script>
 </body>
 </html>
