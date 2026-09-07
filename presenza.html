@@ -330,7 +330,7 @@ async function checkDataFreshness(){
 }
 function marchiForFornitori(f){ if(!f||!f.length)return null; var s={}; ASSORT.forEach(function(r){ if(f.indexOf(r.fornitore)>=0&&r.marchio)s[r.marchio]=1; }); return Object.keys(s); }
 function _tcT(s){ s=String(s||""); return s?s.charAt(0).toUpperCase()+s.slice(1).toLowerCase():s; }
-function _caseAlts(s){ var keys=Object.keys(s); function tc(x){ return String(x).replace(/\w\S*/g,function(t){return t.charAt(0).toUpperCase()+t.slice(1).toLowerCase();}); } var forms=[function(x){return String(x).toUpperCase();},function(x){return String(x).toLowerCase();},tc]; var out=[]; forms.forEach(function(fmt){ var o={},changed=false; keys.forEach(function(k){ var v=s[k]; if(typeof v==='string'){ o[k]=fmt(v); if(o[k]!==v) changed=true; } else o[k]=v; }); if(changed) out.push(o); }); return out; }
+function _caseAlts(s){ var keys=Object.keys(s); function tc(x){ return String(x).replace(/\w+/g,function(t){return t.charAt(0).toUpperCase()+t.slice(1).toLowerCase();}); } var forms=[function(x){return String(x).toUpperCase();},function(x){return String(x).toLowerCase();},tc]; var out=[]; forms.forEach(function(fmt){ var o={},changed=false; keys.forEach(function(k){ var v=s[k]; if(typeof v==='string'){ o[k]=fmt(v); if(o[k]!==v) changed=true; } else o[k]=v; }); if(changed) out.push(o); }); return out; }
 async function _svCollect(fn, sets){ var out=new Set(); for(var i=0;i<sets.length;i++){ var s0=sets[i]; var r=await sb.rpc(fn, s0); var rows=(r&&r.data)||[]; if(!rows.length){ var alts=_caseAlts(s0); for(var k=0;k<alts.length&&!rows.length;k++){ var r2=await sb.rpc(fn, alts[k]); rows=(r2&&r2.data)||[]; } } rows.forEach(function(row){ var v=Object.values(row)[0]; if(v!=null) out.add(v); }); } return [...out]; }
 async function svFornitori(){var r=await sb.rpc("sv_g_fornitori");return (r.data||[]).map(function(x){return x.fornitore;}).filter(function(x){return x && !ESCLUSI_FORNITORI.has(x);}).sort();}
 async function svMarchi(f){var sets=(f&&f.length)?f.map(function(x){return {p_fornitore:x};}):[{p_fornitore:null}];return (await _svCollect("sv_g_marchi",sets)).filter(function(x){return !ESCLUSI_MARCHI.has(x);}).sort();}
@@ -1139,6 +1139,22 @@ boot();
   var mo=new MutationObserver(function(){ var o=document.getElementById('matOverlay'); if(o) addStop(o); });
   mo.observe(document.documentElement,{childList:true,subtree:true});
   var ex=document.getElementById('matOverlay'); if(ex) addStop(ex);
+})();
+</script>
+
+<script>
+/* FIX pulsante Aggiorna: refresh completo con i filtri correnti (RUN_GEN++ + scheduleRun) */
+(function(){
+  if(window.__refreshBtn) return; window.__refreshBtn=true;
+  var st=document.createElement('style');
+  st.textContent="#matOverlay .mat-refresh{pointer-events:auto;display:inline-flex;align-items:center;gap:5px;background:#3da9fc;color:#04121f;border:none;border-radius:999px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.35)} #matOverlay .mat-refresh:hover{background:#2f8fd8}";
+  (document.head||document.documentElement).appendChild(st);
+  function doRefresh(ev){ if(ev){ev.preventDefault();ev.stopPropagation();} try{ window._stopReq=false; }catch(e){} try{ RUN_GEN++; }catch(e){} try{ scheduleRun(); }catch(e){} }
+  function addToolbarBtn(){ var tb=document.getElementById('toolbar'); if(!tb || document.getElementById('refreshBtn')) return; var g=document.createElement('div'); g.className='tbgroup'; g.id='refreshGroup'; g.innerHTML='<div class=\"tbglabel\">Azioni</div><div class=\"tbrow\"></div>'; var b=document.createElement('button'); b.type='button'; b.id='refreshBtn'; b.className='ghost'; b.textContent='🔄 Aggiorna'; b.addEventListener('click',doRefresh); g.querySelector('.tbrow').appendChild(b); tb.appendChild(g); }
+  function addOverlayBtn(o){ if(!o || o.querySelector('.mat-refresh')) return; var b=document.createElement('button'); b.type='button'; b.className='mat-refresh'; b.textContent='🔄 Aggiorna'; b.addEventListener('click',doRefresh); o.appendChild(b); }
+  function tick(){ addToolbarBtn(); var o=document.getElementById('matOverlay'); if(o) addOverlayBtn(o); }
+  var mo=new MutationObserver(tick); mo.observe(document.documentElement,{childList:true,subtree:true});
+  if(document.readyState!=='loading') tick(); else document.addEventListener('DOMContentLoaded',tick);
 })();
 </script>
 </body>
