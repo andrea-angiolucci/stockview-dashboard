@@ -890,22 +890,7 @@ let _running=false,_rerun=false;
 let _busyT=null;
 function _showBusy(){ var tw=document.getElementById("tablewrap"); if(tw&&!document.getElementById("matOverlay")){ var o=document.createElement("div"); o.id="matOverlay"; o.innerHTML='<span class="spin"></span>'; tw.appendChild(o); } var tb=document.getElementById("toolbar"); if(tb)tb.classList.add("filters-locked"); if(window.__lastFilter){ var el=document.getElementById(window.__lastFilter); if(el)el.classList.add("ms-loading"); } }
 function _hideBusy(){ var o=document.getElementById("matOverlay"); if(o)o.remove(); var tb=document.getElementById("toolbar"); if(tb)tb.classList.remove("filters-locked"); document.querySelectorAll(".ms.ms-loading").forEach(function(e){e.classList.remove("ms-loading");}); }
-var RUN_GEN=0; var FORN_BC_CACHE={};
-async function fornBarcodesFor(nameUp){
- if(FORN_BC_CACHE[nameUp]) return FORN_BC_CACHE[nameUp];
- var s=new Set();
- try{ var r=await sb.rpc('sv_forn_barcodes',{p_fornitori:[nameUp]}); var a=(r&&r.data)||[]; for(var i=0;i<a.length;i++){ if(a[i]!=null) s.add(String(a[i])); } }catch(e){ console.warn('sv_forn_barcodes',e); }
- FORN_BC_CACHE[nameUp]=s; return s;
-}
-async function applyFornFilter(cells,f){
- if(!f||!f.length) return cells;
- var sel=f.map(function(x){return String(x).trim().toUpperCase();});
- var marFor=new Set();
- if(typeof ASSORT!=='undefined' && ASSORT){ ASSORT.forEach(function(r){ if(r && r.fornitore && r.marchio){ var fu=String(r.fornitore).trim().toUpperCase(); if(sel.some(function(s){return s&&(fu.indexOf(s)>=0||s.indexOf(fu)>=0);})) marFor.add(String(r.marchio).trim().toUpperCase()); } }); }
- var bc=new Set();
- for(var i=0;i<sel.length;i++){ var st=await fornBarcodesFor(sel[i]); st.forEach(function(b){ bc.add(b); }); }
- return cells.filter(function(c){ if(!c) return false; var b=c.barcode; if(b) return bc.has(String(b)); var mu=String(c.marchio||'').trim().toUpperCase(); return mu && marFor.has(mu); });
-}
+var RUN_GEN=0; 
 async function run(){ if(_running){RUN_GEN++;return;} _running=true; window._stopReq=false; _busyT=setTimeout(_showBusy,150); try{ var _g; do{ _g=RUN_GEN; await _runOnce(_g); }while(_g!==RUN_GEN && !window._stopReq); }finally{ _running=false; clearTimeout(_busyT); _hideBusy(); } }
 var IDEALMAR=null;
 function idealMarName(x){ if(!IDEALMAR){ IDEALMAR={}; (ASSORT||[]).forEach(function(r){ if(r.marchio) IDEALMAR[String(r.marchio).toUpperCase()]=r.marchio; }); } return IDEALMAR[String(x).toUpperCase()]||x; }
@@ -940,7 +925,7 @@ async function loadGiacExtra(m,t,c){
 async function _runOnce(gen){
   const f=[...FILTERS.msFornitore.selected],m=[...FILTERS.msMarchio.selected],t=[...FILTERS.msTipo.selected],c=[...FILTERS.msCategoria.selected],mo=[...(FILTERS.msModello?FILTERS.msModello.selected:[])];
   $("#status").innerHTML='<span class="spin"></span>Calcolo presenza…';
-  const {data,error}=await sb.rpc("presenza_celle2",{p_marchi:m.map(idealMarName),p_tipi:t,p_categorie:c,p_fornitori:[]}).range(0,49999); window.__rpcN=(data||[]).length;
+  const {data,error}=await sb.rpc("presenza_celle2",{p_marchi:(m.length?m:(f.length?((FILTERS.msMarchio&&FILTERS.msMarchio.items)||[]):[])).map(idealMarName),p_tipi:t,p_categorie:c,p_fornitori:[]}).range(0,49999); window.__rpcN=(data||[]).length;
   if(error){$("#status").innerHTML='<span style="color:var(--bad)">Errore: '+error.message+'</span>';$("#tablewrap").style.display="none";return;}
   var _moSet=(mo&&mo.length)?new Set(mo.map(function(v){return String(v).trim().toUpperCase();})):null; lastCells=buildMasterCells(data||[]); vbarcode={}; applyPendOverride(); refreshOrdCat();
   const bcs=[...new Set(lastCells.map(c=>c.barcode))];
@@ -950,7 +935,7 @@ async function _runOnce(gen){
   await loadExtraCats();
   await fillGhostCells(); if(dataMarchi==="tutti")await loadNoIdeal(); if(ageOn||prevOn)await loadAgePrev();
   if(_moSet){ lastCells=lastCells.filter(function(x){return _moSet.has(String(x.modello||"").trim().toUpperCase());}); }
-  lastCells=await applyFornFilter(lastCells,f);
+  /* filtro fornitore ora lato SQL via p_marchi */
   if(gen!==RUN_GEN)return;
   refreshOrdCat();
   draw();
