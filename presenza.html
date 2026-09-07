@@ -892,7 +892,7 @@ function _showBusy(){ var tw=document.getElementById("tablewrap"); if(tw&&!docum
 function _hideBusy(){ var o=document.getElementById("matOverlay"); if(o)o.remove(); var tb=document.getElementById("toolbar"); if(tb)tb.classList.remove("filters-locked"); document.querySelectorAll(".ms.ms-loading").forEach(function(e){e.classList.remove("ms-loading");}); }
 var RUN_GEN=0; var FBC={};
 async function applyFornFilter(cells,f){ if(!f||!f.length) return cells; var sel=f.map(function(x){return String(x).trim().toUpperCase();}); var marFor=new Set(); (typeof ASSORT!=='undefined'&&ASSORT?ASSORT:[]).forEach(function(r){ if(r&&r.marchio&&r.fornitore){ var fu=String(r.fornitore).toUpperCase().trim(); if(sel.some(function(s){return s&&(fu.indexOf(s)>=0||s.indexOf(fu)>=0);})) marFor.add(String(r.marchio).trim().toUpperCase()); } }); var miss=[],seen={}; cells.forEach(function(c){ var b=c&&c.barcode; if(b&&!(b in FBC)&&!seen[b]){seen[b]=1;miss.push(b);} }); for(var i=0;i<miss.length;i+=200){ var ch=miss.slice(i,i+200); try{ var r=await sb.from('giacenze').select('barcode,fornitore').in('barcode',ch); (r.data||[]).forEach(function(x){ FBC[x.barcode]=x.fornitore; }); }catch(e){} } miss.forEach(function(b){ if(!(b in FBC)) FBC[b]=null; }); return cells.filter(function(c){ if(!c) return false; var fo=c.barcode?FBC[c.barcode]:null; if(fo!=null){ var fu=String(fo).toUpperCase().trim(); return sel.some(function(s){return s&&(fu.indexOf(s)>=0||s.indexOf(fu)>=0);}); } var mu=c.marchio?String(c.marchio).trim().toUpperCase():''; return mu&&marFor.has(mu); }); }
-async function run(){ if(_running){RUN_GEN++;return;} _running=true; _busyT=setTimeout(_showBusy,150); try{ var _g; do{ _g=RUN_GEN; await _runOnce(_g); }while(_g!==RUN_GEN); }finally{ _running=false; clearTimeout(_busyT); _hideBusy(); } }
+async function run(){ if(_running){RUN_GEN++;return;} _running=true; window._stopReq=false; _busyT=setTimeout(_showBusy,150); try{ var _g; do{ _g=RUN_GEN; await _runOnce(_g); }while(_g!==RUN_GEN && !window._stopReq); }finally{ _running=false; clearTimeout(_busyT); _hideBusy(); } }
 var IDEALMAR=null;
 function idealMarName(x){ if(!IDEALMAR){ IDEALMAR={}; (ASSORT||[]).forEach(function(r){ if(r.marchio) IDEALMAR[String(r.marchio).toUpperCase()]=r.marchio; }); } return IDEALMAR[String(x).toUpperCase()]||x; }
 async function loadGiacExtra(m,t,c){
@@ -1125,6 +1125,20 @@ boot();
   var _d=window.draw;
   if(typeof _d==='function'){ window.draw=function(){ var r=_d.apply(this,arguments); addHits(); return r; }; }
   addHits();
+})();
+</script>
+
+<script>
+/* Pulsante Stop calcolo: compare nell'overlay durante una run; invalida la run in corso e sblocca i filtri (matrice invariata) */
+(function(){
+  if(window.__stopBtn) return; window.__stopBtn=true;
+  var st=document.createElement('style');
+  st.textContent="#matOverlay{flex-direction:column;gap:12px} #matOverlay .mat-stop{pointer-events:auto;display:inline-flex;align-items:center;gap:5px;background:#e5484d;color:#fff;border:none;border-radius:999px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.35)} #matOverlay .mat-stop:hover{background:#cf3a3f}";
+  (document.head||document.documentElement).appendChild(st);
+  function addStop(o){ if(!o||o.querySelector('.mat-stop'))return; var b=document.createElement('button'); b.type='button'; b.className='mat-stop'; b.textContent='\u23F9 Stop'; b.addEventListener('click',function(ev){ ev.preventDefault(); ev.stopPropagation(); try{ window._stopReq=true; }catch(e){} try{ RUN_GEN++; }catch(e){} try{ _hideBusy(); }catch(e){} }); o.appendChild(b); }
+  var mo=new MutationObserver(function(){ var o=document.getElementById('matOverlay'); if(o) addStop(o); });
+  mo.observe(document.documentElement,{childList:true,subtree:true});
+  var ex=document.getElementById('matOverlay'); if(ex) addStop(ex);
 })();
 </script>
 </body>
