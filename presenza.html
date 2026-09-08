@@ -1110,7 +1110,7 @@ boot();
     var hd=document.createElement('div'); hd.textContent='🏭 Fornitori'; hd.setAttribute('data-sim-sect','fornitori'); hd.style.cssText='padding:6px 12px;font-size:11px;color:#888;border-top:1px solid rgba(0,0,0,.15);margin-top:4px;';
     menu.appendChild(hd);
     FA.forEach(function(f){ var d=document.createElement('div'); if(tmpl){ try{ d.style.cssText=tmpl.style.cssText; }catch(e){} } d.textContent='🏭 Fornitore → '+f; d.setAttribute('data-sim-role','fornitore'); d.setAttribute('data-forn',f); d.style.cursor='pointer';
-      d.onclick=function(){ try{ sessionStorage.setItem('sv_sim_role','fornitore'); sessionStorage.setItem('sv_sim_fornitore',f); sessionStorage.removeItem('sv_sim_filiale'); }catch(e){} location.href='presenza.html'; };
+      d.onclick=function(){ var nome=this.getAttribute('data-forn'); try{ sessionStorage.setItem('sv_sim_role','fornitore'); sessionStorage.setItem('sv_sim_fornitore',nome); sessionStorage.removeItem('sv_sim_filiale'); }catch(e){} location.href='presenza.html'; };
       menu.appendChild(d); });
     try{ console.log('[STEP4] sezione Fornitori iniettata:', FA.length); }catch(e){}
   }
