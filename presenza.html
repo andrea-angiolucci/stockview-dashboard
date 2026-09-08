@@ -1103,7 +1103,7 @@ boot();
 <script>
 /* STEP4 Visualizza come → Fornitori (robust v2) */
 (function(){
-  if(window.__fornSimInstalled) return; window.__fornSimInstalled=true;
+  if(window.__fornSimInstalled) return; window.__fornSimInstalled=true; try{ if(sessionStorage.getItem('sv_sim_role')==='fornitore') return; }catch(e){}
   var FA=['KERING EYEWEAR','LUXOTTICA ITALIA SRL','MARCHON','MOSCOT HOLDING SA','MYKITA','THELIOS SPA'];
   try{ (async function(){ try{ var r=await sb.from('marchi_fornitori_attivi').select('fornitore_attivo'); var s={}; (r.data||[]).forEach(function(x){ if(x.fornitore_attivo) s[x.fornitore_attivo]=1; }); var a=Object.keys(s).sort(); if(a.length) FA=a; }catch(e){} try{ scan(); }catch(e){} })(); }catch(e){}
   function add(menu, tmpl){ if(menu.__fa) return; menu.__fa=true;
@@ -1114,7 +1114,7 @@ boot();
       menu.appendChild(d); });
     try{ console.log('[STEP4] sezione Fornitori iniettata:', FA.length); }catch(e){}
   }
-  function scan(){ try{ var all=document.getElementsByTagName('div'); for(var i=0;i<all.length;i++){ var m=all[i]; if(m.__fa) continue; var kids=m.children; if(!kids||kids.length<3||kids.length>40) continue; var hasG=false,hasV=false,tmpl=null; for(var k=0;k<kids.length;k++){ var tc=kids[k].textContent||''; if(/Gestore/.test(tc)){hasG=true; tmpl=kids[k];} if(/Vendita/.test(tc)&&/→/.test(tc)) hasV=true; } if(hasG&&hasV) add(m,tmpl); } }catch(e){} }
+  function scan(){ try{ var all=document.getElementsByTagName('div'); for(var i=0;i<all.length;i++){ var m=all[i]; if(m.__fa) continue; var kids=m.children; if(!kids||kids.length<3||kids.length>40) continue; var gEl=null,vEl=null,tmpl=null; for(var k=0;k<kids.length;k++){ var tc=kids[k].textContent||''; if(/Gestore/.test(tc)&&tc.length<40&&!gEl){gEl=kids[k]; tmpl=kids[k];} if(/Vendita/.test(tc)&&/→/.test(tc)&&tc.length<60&&!vEl){vEl=kids[k];} } if(gEl&&vEl&&gEl!==vEl) add(m,tmpl); } }catch(e){} }
   var _t=null; function sched(){ if(_t) return; _t=setTimeout(function(){ _t=null; scan(); }, 120); }
   try{ var mo=new MutationObserver(sched); mo.observe(document.documentElement,{childList:true,subtree:true}); }catch(e){}
   if(document.readyState!=='loading') sched(); else document.addEventListener('DOMContentLoaded',sched);
