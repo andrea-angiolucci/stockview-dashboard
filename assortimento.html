@@ -328,5 +328,46 @@ boot();
 /* STEP3-E redirect fornitore a presenza */
 (function(){ window.__fornRedirect=1; (async function(){ try{ if(sessionStorage.getItem('sv_sim_role')==='fornitore'){ location.replace('presenza.html'); return; } if(typeof sb==='undefined'||!sb) return; var u=await sb.auth.getUser(); var uid=u&&u.data&&u.data.user&&u.data.user.id; if(!uid) return; var r=await sb.from('user_fornitori').select('user_id').eq('user_id',uid).maybeSingle(); if(r&&r.data){ location.replace('presenza.html'); } }catch(e){} })(); })();
 </script>
+
+
+<script>
+/* Vista ridotta ruolo fornitore (assortimento) - sola lettura + filtro bloccato */
+(function(){
+  if(window.__asqFornView) return; window.__asqFornView=true;
+  var css=document.createElement('style');
+  css.textContent='body.asqforn .tablewrap{visibility:hidden} body.asqforn.asqforn-ready .tablewrap{visibility:visible}';
+  (document.head||document.documentElement).appendChild(css);
+  function who(){ return new Promise(function(resolve){
+    try{ if(sessionStorage.getItem('sv_sim_role')==='fornitore'){ return resolve({name:sessionStorage.getItem('sv_sim_fornitore')||''}); } }catch(e){}
+    (async function(){ try{ var u=await sb.auth.getUser(); var uu=u&&u.data&&u.data.user; var role=uu&&uu.user_metadata&&uu.user_metadata.role; if(role!=='fornitore'){ return resolve(null); } var nm=''; try{ var uid=uu&&uu.id; if(uid){ var r=await sb.from('user_fornitori').select('fornitore').eq('user_id',uid).maybeSingle(); if(r&&r.data&&r.data.fornitore) nm=r.data.fornitore; } }catch(e){} if(!nm) nm=(uu.user_metadata&&uu.user_metadata.fornitore)||''; return resolve({name:nm}); }catch(e){ return resolve(null); } })();
+  }); }
+  function simplifyNav(){ try{ document.querySelectorAll('header nav a').forEach(function(a){ var h=(a.getAttribute('href')||''); if(h.indexOf('presenza.html')<0 && h.indexOf('assortimento.html')<0) a.style.display='none'; }); }catch(e){} try{ var imp=document.querySelector('header a[href="impostazioni.html"]'); if(imp) imp.style.display='none'; }catch(e){} }
+  function lockFilter(name){ var tries=0; var iv=setInterval(function(){ tries++; var sel=document.getElementById('forn'); if(sel){ var has=[].some.call(sel.options,function(o){return o.value===name;}); if(has||tries>50){ if(!has && name){ var op=document.createElement('option'); op.value=name; op.textContent=name; sel.appendChild(op); } if(sel.value!==name){ sel.value=name; try{ sel.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){} } [].forEach.call(sel.options,function(o){ if(o.value==='') o.style.display='none'; }); sel.disabled=true; sel.title='Bloccato sul tuo fornitore'; clearInterval(iv); setTimeout(function(){ document.body.classList.add('asqforn-ready'); },200); } } else if(tries>60){ clearInterval(iv); document.body.classList.add('asqforn-ready'); } },100); }
+  function boot(){ who().then(function(info){ if(!info) return; window.__asqIsForn=true; document.body.classList.add('asqforn','notadmin'); simplifyNav(); lockFilter(String(info.name||'')); }); }
+  if(document.readyState!=='loading') boot(); else document.addEventListener('DOMContentLoaded',boot);
+})();
+</script>
+
+<script>
+/* STEP4 Visualizza come → Fornitori (robust v2) */
+(function(){
+  if(window.__fornSimInstalled) return; window.__fornSimInstalled=true; try{ if(sessionStorage.getItem('sv_sim_role')==='fornitore') return; }catch(e){}
+  var FA=['KERING EYEWEAR','LUXOTTICA ITALIA SRL','MARCHON','MOSCOT HOLDING SA','MYKITA','THELIOS SPA'];
+  try{ (async function(){ try{ var r=await sb.from('marchi_fornitori_attivi').select('fornitore_attivo'); var s={}; (r.data||[]).forEach(function(x){ if(x.fornitore_attivo) s[x.fornitore_attivo]=1; }); var a=Object.keys(s).sort(); if(a.length) FA=a; }catch(e){} try{ scan(); }catch(e){} })(); }catch(e){}
+  function add(menu, tmpl){ if(menu.__fa) return; menu.__fa=true;
+    var hd=document.createElement('div'); hd.textContent='🏭 Fornitori'; hd.setAttribute('data-sim-sect','fornitori'); hd.style.cssText='padding:6px 12px;font-size:11px;color:#888;border-top:1px solid rgba(0,0,0,.15);margin-top:4px;';
+    menu.appendChild(hd);
+    FA.forEach(function(f){ var d=document.createElement('div'); if(tmpl){ try{ d.style.cssText=tmpl.style.cssText; }catch(e){} } d.textContent='🏭 Fornitore → '+f; d.setAttribute('data-sim-role','fornitore'); d.setAttribute('data-forn',f); d.style.cursor='pointer';
+      d.onclick=function(){ var nome=this.getAttribute('data-forn'); try{ sessionStorage.setItem('sv_sim_role','fornitore'); sessionStorage.setItem('sv_sim_fornitore',nome); sessionStorage.removeItem('sv_sim_filiale'); }catch(e){} location.href='assortimento.html'; };
+      menu.appendChild(d); });
+    try{ console.log('[STEP4] sezione Fornitori iniettata:', FA.length); }catch(e){}
+  }
+  function scan(){ try{ var all=document.getElementsByTagName('div'); for(var i=0;i<all.length;i++){ var m=all[i]; if(m.__fa) continue; var kids=m.children; if(!kids||kids.length<3||kids.length>40) continue; var gEl=null,vEl=null,tmpl=null; for(var k=0;k<kids.length;k++){ var tc=kids[k].textContent||''; if(/Gestore/.test(tc)&&tc.length<40&&!gEl){gEl=kids[k]; tmpl=kids[k];} if(/Vendita/.test(tc)&&/→/.test(tc)&&tc.length<60&&!vEl){vEl=kids[k];} } if(gEl&&vEl&&gEl!==vEl) add(m,tmpl); } }catch(e){} }
+  var _t=null; function sched(){ if(_t) return; _t=setTimeout(function(){ _t=null; scan(); }, 120); }
+  try{ var mo=new MutationObserver(sched); mo.observe(document.documentElement,{childList:true,subtree:true}); }catch(e){}
+  if(document.readyState!=='loading') sched(); else document.addEventListener('DOMContentLoaded',sched);
+})();
+</script>
+
 </body>
 </html>
