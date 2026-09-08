@@ -951,8 +951,8 @@ function negList(cells){
 function draw(){
   const cells=lastCells;
   if(!cells.length){$("#tablewrap").style.display="none";$("#status").innerHTML="Nessuna referenza prevista per la selezione.";return;}
-  nomeSales={}; const seen=new Set();
-  cells.forEach(c=>{ if(!seen.has(c.filiale)){seen.add(c.filiale); nomeSales[c.negozio]=(nomeSales[c.negozio]||0)+(vfiliale[c.filiale]||0);} });
+  nomeSales={};
+  cells.forEach(c=>{ nomeSales[c.negozio]=(nomeSales[c.negozio]||0)+(c.venduto||0); });
   const buchi=cells.filter(c=>c.disponibile<effTargetActive(c));
   const arrivi=cells.filter(c=>c.in_arrivo>0);
   const negozi=negList(cells);
