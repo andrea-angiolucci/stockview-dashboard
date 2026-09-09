@@ -237,7 +237,7 @@
       </div></div>
     </div>
     <div class="legend">
-      <span><span class="pill bad">0</span> 0 da riordinare (buco)</span>
+      <span id="legBuco" style="cursor:pointer" title="Apri riepilogo buchi"><span class="pill bad">0</span> 0 da riordinare (buco)</span>
       <span><span class="cellordered" style="padding:1px 7px;border-radius:5px">0</span> 0 ma già ordinato (in arrivo)</span>
       <span><span class="bdg pkg">📦</span> prenotato</span>
       <span><span class="bdg truck">🚚</span> in arrivo</span>
@@ -1333,10 +1333,10 @@ function ordRender(){
 }
 function wireBtn(){
  if(document.getElementById('svAllocFcol'))return;
- var ord=document.getElementById('ordine');if(!ord||!ord.parentElement||!ord.parentElement.parentElement)return;
+ var _anch=document.getElementById('refreshBtn');var _row=_anch&&_anch.closest?_anch.closest('.tbrow'):null;if(!_row)return;
  var fcol=document.createElement('div');fcol.className='fcol';fcol.id='svAllocFcol';
  fcol.innerHTML='<span>Fornitore</span><button id="svAllocBtn">\uD83D\uDCCB Da ordinare</button>';
- ord.parentElement.parentElement.insertBefore(fcol,ord.parentElement.nextSibling);
+ _row.appendChild(fcol);
  document.getElementById('svAllocBtn').onclick=openOrd;
  updBtn();
 }
@@ -1352,5 +1352,6 @@ if(document.readyState!=='loading')setTimeout(boot,900);else document.addEventLi
 })();
 </script>
 
+<script>document.addEventListener("click",function(e){try{if(e.target&&e.target.closest&&e.target.closest("#legBuco")){var rb=document.getElementById("riepilogo");if(rb)rb.click();}}catch(_e){}},true);</script>
 </body>
 </html>
