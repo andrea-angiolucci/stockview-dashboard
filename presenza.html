@@ -922,6 +922,26 @@ async function loadGiacExtra(m,t,c){
     added.forEach(function(cell){ cell.venduto=vm[cell.barcode+"|"+cell.filiale]||0; });
   }
 }
+async function applyFornGiacFilter(){
+  try{
+    var fset=new Set();
+    try{var _sf=sessionStorage.getItem('sv_sim_fornitore'); if(_sf)fset.add(_sf);}catch(e){}
+    if(FILTERS.msFornitore&&FILTERS.msFornitore.selected)FILTERS.msFornitore.selected.forEach(function(x){fset.add(x);});
+    var farr=Array.from(fset);
+    if(!farr.length||!lastCells.length)return;
+    var bcs=Array.from(new Set(lastCells.map(function(c){return c.barcode;})));
+    var allowed=new Set();
+    for(var i=0;i<bcs.length;i+=200){
+      var part=bcs.slice(i,i+200), from=0;
+      while(true){
+        var r=await sb.from("giacenze").select("barcode").in("barcode",part).in("fornitore",farr).range(from,from+999);
+        var d=r.data||[]; for(var j=0;j<d.length;j++)allowed.add(d[j].barcode);
+        if(d.length<1000)break; from+=1000;
+      }
+    }
+    lastCells=lastCells.filter(function(c){return allowed.has(c.barcode);});
+  }catch(e){ console.log("applyFornGiacFilter err",e); }
+}
 async function _runOnce(gen){
   const f=[...FILTERS.msFornitore.selected],m=[...FILTERS.msMarchio.selected],t=[...FILTERS.msTipo.selected],c=[...FILTERS.msCategoria.selected],mo=[...(FILTERS.msModello?FILTERS.msModello.selected:[])];
   if(f.length && !m.length){ lastCells=[]; if(gen!==RUN_GEN)return; $("#tablewrap").style.display="none"; $("#status").innerHTML="Seleziona un marchio per visualizzare le referenze"; return; }
@@ -936,7 +956,8 @@ async function _runOnce(gen){
   await loadExtraCats();
   await fillGhostCells(); if(dataMarchi==="tutti")await loadNoIdeal(); if(ageOn||prevOn)await loadAgePrev();
   if(_moSet){ lastCells=lastCells.filter(function(x){return _moSet.has(String(x.modello||"").trim().toUpperCase());}); }
-  /* filtro fornitore ora lato SQL via p_marchi */
+  /* filtro fornitore: escludi barcode con giacenze.fornitore diverso da quello selezionato */
+  await applyFornGiacFilter();
   if(gen!==RUN_GEN)return;
   refreshOrdCat();
   draw();
@@ -1322,7 +1343,7 @@ function ensureModal(){
 }
 function closeOrd(){var o=document.getElementById('svOrdOv');if(o)o.style.display='none';}
 function openOrd(){ensureModal();document.getElementById('svOrdOv').style.display='block';ordRender();}
-var COLS=[['marchio','Marchio'],['modello','Modello'],['colore','Colore'],['calibro','Calibro'],['tipo_lenti','Tipo lenti'],['categoria','Categoria'],['negozio','Filiale']];
+var COLS=[['marchio','Marchio'],['modello','Modello'],['colore','Colore'],['barcode','Barcode'],['calibro','Calibro'],['tipo_lenti','Tipo lenti'],['categoria','Categoria'],['negozio','Filiale']];
 function rowState(c){var kk=K(c.barcode,c.filiale);if(c.in_arrivo>0)return 'arrivo';if(ALLOC[kk])return 'allocato';return 'da';}
 function ordRows(){var f=curForn();var ORD=['ST','P1','P2','P3','P4','SN','SC'];var out=[];cells().forEach(function(c){var cat=String(c.categoria||'').trim().toUpperCase();if(ORD.indexOf(cat)<0)return;var tg;try{tg=(typeof effTargetActive==='function')?effTargetActive(c):(c.disponibile===0?1:0);}catch(e){tg=(c.disponibile===0?1:0);}if(!(c.disponibile<tg))return;if(f&&c.fornitore!==f)return;out.push(c);});return out;}
 function ordFilterSort(){
