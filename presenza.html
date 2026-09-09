@@ -161,6 +161,9 @@
   .rightlink{color:var(--muted);text-decoration:none;font-size:13px;font-weight:600;margin-right:14px}
   .rightlink:hover{color:var(--accent)}
   .bdg.stor{background:rgba(138,160,182,.22);color:var(--muted);font-size:9px}
+
+.depo-cov{ background: rgba(240,147,43,.16) !important; }
+.depo-cov .depo-truck{ filter:none; }
 </style>
 <style>.ms-btn.svfpending{opacity:.55}.ms-btn.svfpending::after{content:"";display:inline-block;width:8px;height:8px;margin-left:5px;border:2px solid #888;border-top-color:transparent;border-radius:50%;animation:svfspin .6s linear infinite;vertical-align:middle}@keyframes svfspin{to{transform:rotate(360deg)}}</style></head>
 <body>
@@ -523,7 +526,7 @@ $("#riepilogo").addEventListener("click",()=>{
 });
 async function svBuchiModal(cells){
   const ex=document.getElementById("ovbuchi"); if(ex)ex.remove();
-  const buchi=cells.filter(c=>c.disponibile<effTargetActive(c));
+  const buchi = (function(_h){ try{ window.__DEPOCOV = _svDepoCovSet(); }catch(_e){ window.__DEPOCOV = new Set(); } return _h.filter(function(c){ return !window.__DEPOCOV.has(c.barcode + "|" + c.filiale); }); })(cells.filter(c => c.disponibile < effTargetActive(c)));
   const totB=buchi.length, totRef=new Set(buchi.map(c=>c.barcode)).size, inArr=buchi.filter(c=>c.in_arrivo>0).length;
   const _bbcs=[...new Set(buchi.map(c=>c.barcode))]; const depo={};
   try{ const _dg=await svFetchAll("giacenze","barcode,quantita_disponibile,quantita_in_arrivo",_bbcs,function(q){return q.eq("filiale","A");}); _dg.forEach(function(g){ depo[g.barcode]=(depo[g.barcode]||0)+(g.quantita_disponibile||0)+(g.quantita_in_arrivo||0); }); }catch(e){}
@@ -1357,7 +1360,7 @@ function closeOrd(){var o=document.getElementById('svOrdOv');if(o)o.style.displa
 function openOrd(){ensureModal();document.getElementById('svOrdOv').style.display='block';ordRender();}
 var COLS=[['marchio','Marchio'],['modello','Modello'],['colore','Colore'],['barcode','Barcode'],['calibro','Calibro'],['tipo_lenti','Tipo lenti'],['categoria','Categoria'],['negozio','Filiale']];
 function rowState(c){var kk=K(c.barcode,c.filiale);if(c.in_arrivo>0)return 'arrivo';if(ALLOC[kk])return 'allocato';return 'da';}
-function ordRows(){var f=curForn();var ORD=['ST','P1','P2','P3','P4','SN','SC'];var out=[];cells().forEach(function(c){var cat=String(c.categoria||'').trim().toUpperCase();if(ORD.indexOf(cat)<0)return;var tg;try{tg=(typeof effTargetActive==='function')?effTargetActive(c):(c.disponibile===0?1:0);}catch(e){tg=(c.disponibile===0?1:0);}if(!(c.disponibile<tg))return;if(f&&c.fornitore!==f)return;out.push(c);});return out;}
+function ordRows(){var f=curForn();var ORD=['ST','P1','P2','P3','P4','SN','SC'];var out=[];cells().forEach(function(c){var cat=String(c.categoria||'').trim().toUpperCase();if(ORD.indexOf(cat)<0)return;var tg;try{tg=(typeof effTargetActive==='function')?effTargetActive(c):(c.disponibile===0?1:0);}catch(e){tg=(c.disponibile===0?1:0);}if(!(c.disponibile<tg))return; if((window.__DEPOCOV||(window.__DEPOCOV=_svDepoCovSet())).has(c.barcode+"|"+c.filiale))return;if(f&&c.fornitore!==f)return;out.push(c);});return out;}
 function ordFilterSort(){
  var rows=ordRows().filter(function(c){var st=rowState(c);if(qfilter==='tutti')return true;if(qfilter==='da')return st==='da';if(qfilter==='allocati')return st==='allocato';if(qfilter==='arrivo')return st==='arrivo';return true;});
  rows.sort(function(a,b){var va=(a[sortCol]==null?'':String(a[sortCol])).toLowerCase(),vb=(b[sortCol]==null?'':String(b[sortCol])).toLowerCase();return va<vb?-sortDir:va>vb?sortDir:0;});
@@ -1442,6 +1445,53 @@ if(document.readyState!=='loading')setTimeout(boot,900);else document.addEventLi
   function boot(){wire();try{mo.observe(document.body,{childList:true,subtree:true});}catch(e){}}
   if(document.readyState!=='loading')boot();else document.addEventListener('DOMContentLoaded',boot);
 })();
+
+/* --- Copertura virtuale buchi da arrivo al deposito (filiale A) --- */
+function _svDepoCovSet(){
+  var cov = new Set();
+  try{
+    if(typeof extraStock==="undefined" || !extraStock || typeof cells==="undefined" || !cells) return cov;
+    var holes = cells.filter(function(c){ var tg; try{ tg = effTargetActive(c); }catch(e){ tg = c.disponibile; } return (+c.disponibile||0) < tg; });
+    var byBc = {};
+    holes.forEach(function(c){ (byBc[c.barcode] = byBc[c.barcode] || []).push(c); });
+    Object.keys(byBc).forEach(function(bc){
+      var es = extraStock[bc]; var n = (es && +es.a) || 0; if(n <= 0) return;
+      var hs = byBc[bc].slice().sort(function(a,b){
+        var ia = (typeof TGT!=="undefined" && TGT[a.barcode+"|"+a.filiale]!==undefined) ? 0 : 1;
+        var ib = (typeof TGT!=="undefined" && TGT[b.barcode+"|"+b.filiale]!==undefined) ? 0 : 1;
+        if(ia !== ib) return ia - ib;
+        var va = +a.venduto||0, vb = +b.venduto||0; if(vb !== va) return vb - va;
+        return (+a.disponibile||0) - (+b.disponibile||0);
+      });
+      for(var i=0;i<hs.length && i<n;i++) cov.add(hs[i].barcode + "|" + hs[i].filiale);
+    });
+  }catch(e){}
+  return cov;
+}
+function _svPaintDepoCov(){
+  try{
+    var cov = window.__DEPOCOV; if(!cov || !cov.size) return;
+    cov.forEach(function(key){
+      var idx = key.indexOf("|"); if(idx < 0) return;
+      var bc = key.slice(0, idx), fil = key.slice(idx+1);
+      if(/[^0-9A-Za-z_\-]/.test(bc) || /[^0-9A-Za-z_\-]/.test(fil)) return;
+      var list = document.querySelectorAll("[data-bc=\""+bc+"\"][data-fil=\""+fil+"\"]");
+      for(var i=0;i<list.length;i++){
+        var cell = list[i];
+        cell.classList.add("depo-cov");
+        cell.setAttribute("title","In arrivo al deposito");
+        if(!cell.querySelector(".depo-truck")){
+          var s = document.createElement("span");
+          s.className = "depo-truck"; s.textContent = "\uD83D\uDE9A";
+          s.setAttribute("title","In arrivo al deposito");
+          s.style.cssText = "color:#f0932b;margin-left:2px;font-size:.85em";
+          cell.appendChild(s);
+        }
+      }
+    });
+  }catch(e){}
+}
+(function(){ try{ if(typeof drawMatrix==="function" && !drawMatrix.__depoWrap){ var _o = drawMatrix; drawMatrix = function(){ var r = _o.apply(this, arguments); try{ _svPaintDepoCov(); }catch(e){} return r; }; drawMatrix.__depoWrap = true; } }catch(e){} })();
 </script>
 </body>
 </html>
