@@ -247,7 +247,8 @@ const TABS=[
   {id:"marchiattivi", label:"Marchi attivi", render:renderMarchiAttivi, admin:true},
   {id:"utenti", label:"Utenti", render:renderUtenti, admin:true},
   {id:"ricircolo", label:"Ricircolo", render:renderRicircolo, admin:true},
-  {id:"permessi", label:"Permessi", render:renderPermessi, admin:true}
+  {id:"permessi", label:"Permessi", render:renderPermessi, admin:true},
+  {id:'sistema', label:'Sistema', render:renderSistema, admin:true}
   // future: {id:"marchi", label:"Marchi alias", render:...}, {id:"filiali",...}, {id:"sistema",...}
 ];
 let curTab=null;
@@ -255,6 +256,14 @@ function renderTabbar(){
   $("#tabbar").innerHTML=TABS.filter(t=>!t.admin||isAdmin).map(t=>'<button data-id="'+t.id+'"'+(t.id===curTab?' class="on"':'')+'>'+esc(t.label)+'</button>').join("");
   $("#tabbar").querySelectorAll("button").forEach(b=>b.onclick=()=>selectTab(b.dataset.id));
 }
+function renderSistema(host){
+  host.innerHTML='<div class="toolbar"><div class="fcol"><span>Sistema</span></div></div><div style="padding:14px;max-width:560px"><label style="display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer"><input type="checkbox" id="svAllocAdmin"> <b>Permetti allocazione agli admin</b></label><p style="color:var(--muted);font-size:13px;margin:6px 0 0 26px">Se attivo, anche gli admin possono allocare la merce come i fornitori.</p><div id="svAllocMsg" style="font-size:12px;color:var(--muted);margin:8px 0 0 26px"></div></div>';
+  var cb=host.querySelector("#svAllocAdmin"),msg=host.querySelector("#svAllocMsg");
+  cb.disabled=true;msg.textContent="Caricamento\u2026";
+  sb.from("impostazioni_sistema").select("valore").eq("chiave","allocazione_admin").maybeSingle().then(function(r){cb.checked=!!(r&&r.data&&String(r.data.valore)==="true");cb.disabled=false;msg.textContent="";}).catch(function(){cb.disabled=false;msg.textContent="";});
+  cb.onchange=function(){cb.disabled=true;msg.textContent="Salvataggio\u2026";var val=cb.checked?"true":"false";sb.from("impostazioni_sistema").update({valore:val,aggiornato_il:new Date().toISOString()}).eq("chiave","allocazione_admin").then(function(up){if(up&&up.error)throw up.error;msg.textContent="Salvato \u2713";setTimeout(function(){msg.textContent="";},1500);cb.disabled=false;}).catch(function(){msg.textContent="Errore salvataggio";cb.checked=!cb.checked;cb.disabled=false;});};
+}
+
 function selectTab(id){ curTab=id; renderTabbar(); const t=TABS.find(x=>x.id===id); $("#tabcontent").innerHTML=""; t.render($("#tabcontent")); }
 
 // ---------- Tab: Utenti (solo admin) ----------
