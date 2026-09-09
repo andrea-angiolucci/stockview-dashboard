@@ -609,7 +609,42 @@ async function rcRenderMF(wrap){
   }catch(e){ wrap.innerHTML='<div class="err">Errore caricamento marchi/fornitori: '+esc(String((e&&e.message)||e))+'</div>'; }
 }
 
-async function renderRicircolo(host){
+async function rcRenderRegole(host){
+  try{
+    if(!host) return;
+    var box=document.createElement('div');
+    box.style.cssText='background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;color:var(--txt)';
+    box.innerHTML=`<h3 style="margin:0 0 4px;font-size:16px">Regole ricircolo</h3>
+<div style="color:var(--muted);font-size:13px;margin-bottom:12px">Attiva o disattiva le regole applicate dal calcolo notturno dei ricircoli.</div>
+<label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;cursor:pointer">
+<input type="checkbox" id="rgReg1" style="margin-top:3px;width:16px;height:16px">
+<span><b>Sposta doppioni</b><br><span style="color:var(--muted);font-size:13px">Sposta i pezzi in eccesso verso filiali che ne sono sprovviste</span></span>
+</label>
+<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer">
+<input type="checkbox" id="rgReg2" style="margin-top:3px;width:16px;height:16px">
+<span><b>Sposta da filiali fuori ideale</b><br><span style="color:var(--muted);font-size:13px">Sposta i pezzi presenti in filiali non previste dall'assortimento ideale verso filiali con gap negativo</span></span>
+</label>
+<div id="rgMsg" style="font-size:12px;color:var(--muted);margin-top:8px;min-height:14px"></div>`;
+    host.insertBefore(box, host.firstChild);
+    var c1=box.querySelector('#rgReg1'), c2=box.querySelector('#rgReg2'), msg=box.querySelector('#rgMsg');
+    function rgSave(chiave, on){
+      if(msg) msg.textContent='Salvataggio…';
+      sb.from('impostazioni_sistema').update({valore: on?'true':'false'}).eq('chiave', chiave).then(function(r){
+        if(r && r.error){ if(msg) msg.textContent='Errore nel salvataggio'; try{toast(String((r.error&&r.error.message)||r.error), true);}catch(e){} }
+        else { if(msg){ msg.textContent='Salvato ✓'; setTimeout(function(){ if(msg) msg.textContent=''; }, 1800); } }
+      });
+    }
+    c1.addEventListener('change', function(){ rgSave('ricircolo_regola_1', c1.checked); });
+    c2.addEventListener('change', function(){ rgSave('ricircolo_regola_2', c2.checked); });
+    sb.from('impostazioni_sistema').select('chiave,valore').in('chiave', ['ricircolo_regola_1','ricircolo_regola_2']).then(function(r){
+      var mp={}; ((r&&r.data)||[]).forEach(function(x){ mp[x.chiave]=x.valore; });
+      c1.checked = (mp['ricircolo_regola_1']==null) ? true : String(mp['ricircolo_regola_1']).trim().toLowerCase()==='true';
+      c2.checked = (mp['ricircolo_regola_2']==null) ? true : String(mp['ricircolo_regola_2']).trim().toLowerCase()==='true';
+    });
+  }catch(e){}
+}
+
+function renderRicircolo(host){
   if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; }
   host.innerHTML='<div class="umuted">Caricamento…</div>';
   var rows;
@@ -642,7 +677,9 @@ async function renderRicircolo(host){
     chk.onchange=async function(){ try{ if(chk.checked){ await rcSaveOn(code,dir,nota.value); nota.style.display=""; } else { await rcSaveOff(code,dir); nota.style.display="none"; nota.value=""; } rcFlash(row); }catch(e){ chk.checked=!chk.checked; toast(String((e&&e.message)||e),true); } };
     nota.onblur=async function(){ if(!chk.checked)return; try{ await rcSaveOn(code,dir,nota.value); rcFlash(row); }catch(e){ toast(String((e&&e.message)||e),true); } };
   });
-}
+
+      rcRenderRegole(host);
+    }
 
 // ---------- Tab: Permessi ruoli (solo admin) ----------
 const RP_PAGES=[["presenza","Controllo presenza"],["assortimento","Assortimento ideale"],["ricircolo","Ricircolo"],["aggiornamenti","Aggiornamenti"],["impostazioni","Impostazioni"]];
