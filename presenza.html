@@ -222,7 +222,7 @@
         <div class="fcol"><span>Categorie da ordinare</span><div class="ms" id="msOrdCat"></div></div>
         <div class="fcol"><span>PDV da ordinare</span><div class="ms" id="msOrdPdv"></div></div>
         <div class="fcol"><span>&nbsp;</span><button id="ordine" style="border:none;border-radius:8px;background:var(--accent);color:#04121f;font-weight:700;padding:9px 16px;font-size:13.5px">Lista ordine</button></div><div class="fcol"><span>&nbsp;</span><button class="ghost" id="ricircolo" style="padding:9px 14px;border-color:var(--accent);color:var(--accent)">🔄 Ricircolo</button></div>
-        <div class="fcol"><span>&nbsp;</span><button class="ghost" id="riepilogo" style="padding:9px 16px">Riepilogo buchi</button></div>
+        <div class="fcol"><span>&nbsp;</span><button class="ghost" id="riepilogo" style="padding:9px 16px">Riepilogo buchi</button></div><div class="fcol" id="listaResiCol"><span>&nbsp;</span><button class="ghost" id="listaResi" style="padding:9px 16px">📋 Lista resi</button></div>
         <div class="fcol"><span>&nbsp;</span><button class="ghost" id="carrello" style="padding:9px 16px">🛒 Carrello (0)</button></div>
       </div></div>
       <div class="tbgroup"><div class="tbglabel">Ordinamento</div><div class="tbrow">
@@ -1408,5 +1408,40 @@ if(document.readyState!=='loading')setTimeout(boot,900);else document.addEventLi
 </script>
 
 <script>document.addEventListener("click",function(e){try{if(e.target&&e.target.closest&&e.target.closest("#legBuco")){var rb=document.getElementById("riepilogo");if(rb)rb.click();}}catch(_e){}},true);</script>
+<script>
+(function(){
+  function isFornRole(){try{return sessionStorage.getItem('sv_sim_role')==='fornitore'||window.__SV_REAL_ROLE==='fornitore';}catch(e){return false;}}
+  var RCOLS=[['barcode','Barcode'],['marchio','Marchio'],['modello','Modello'],['colore','Colore'],['calibro','Calibro'],['tipo_lenti','Tipo lenti'],['negozio','Filiale'],['disponibile','Disp.']];
+  var rsSort='marchio', rsDir=1;
+  function esc2(s){s=(s==null?'':String(s));return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function rsRows(){ var cells=[]; try{cells=(typeof lastCells!=='undefined'&&lastCells)||[];}catch(e){} return cells.filter(function(c){return String(c.categoria||'').trim().toUpperCase()==='SR' && Number(c.disponibile||0)>0;}); }
+  function ensureModal(){
+    if(document.getElementById('svResiOv'))return;
+    var ov=document.createElement('div');ov.id='svResiOv';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99997;display:none;align-items:flex-start;justify-content:center;padding:24px';
+    ov.innerHTML='<div id="svResiBox" style="background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:1100px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow);overflow:hidden"><div style="padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="font-size:16px;font-weight:700;color:var(--txt)">📋 Lista resi (SR)</div><div id="svResiCount" style="color:var(--muted);font-size:13px"></div><div style="flex:1"></div><button class="ghost" id="svResiXls" style="border-color:var(--ok);color:var(--ok)">Esporta Excel</button><button class="ghost" id="svResiClose">Chiudi</button></div><div style="overflow:auto;padding:0"><table id="svResiTbl" style="width:100%;border-collapse:collapse;font-size:13px"></table></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click',function(e){if(e.target===ov)ov.style.display='none';});
+    document.getElementById('svResiClose').onclick=function(){ov.style.display='none';};
+    document.getElementById('svResiXls').onclick=exportXls;
+    document.getElementById('svResiTbl').addEventListener('click',function(e){var th=e.target.closest('th[data-c]');if(!th)return;var c=th.getAttribute('data-c');if(rsSort===c)rsDir=-rsDir;else{rsSort=c;rsDir=1;}renderTbl();});
+  }
+  function sortRows(rows){ return rows.slice().sort(function(a,b){ var va=a[rsSort],vb=b[rsSort]; if(rsSort==='disponibile'){va=Number(va||0);vb=Number(vb||0);return (va-vb)*rsDir;} va=(va==null?'':String(va)).toLowerCase();vb=(vb==null?'':String(vb)).toLowerCase(); return va<vb?-rsDir:va>vb?rsDir:0; }); }
+  function renderTbl(){
+    var tbl=document.getElementById('svResiTbl');if(!tbl)return;
+    var rows=sortRows(rsRows());
+    var cn=document.getElementById('svResiCount'); if(cn)cn.textContent=rows.length+' referenze SR con giacenza';
+    var h='<thead><tr>'+RCOLS.map(function(c){return '<th data-c="'+c[0]+'" style="cursor:pointer;position:sticky;top:0;background:var(--panel2);color:var(--muted);text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);font-size:11.5px;text-transform:uppercase;white-space:nowrap">'+c[1]+(rsSort===c[0]?(rsDir>0?' ▲':' ▼'):'')+'</th>';}).join('')+'</tr></thead><tbody>';
+    h+=rows.map(function(r){return '<tr>'+RCOLS.map(function(c){return '<td style="padding:6px 10px;border-bottom:1px solid var(--line);color:var(--txt);white-space:nowrap">'+esc2(r[c[0]])+'</td>';}).join('')+'</tr>';}).join('')||('<tr><td colspan="'+RCOLS.length+'" style="padding:24px;text-align:center;color:var(--muted)">Nessun reso (SR con giacenza) nella selezione.</td></tr>');
+    h+='</tbody>'; tbl.innerHTML=h;
+  }
+  function exportXls(){ try{ var rows=sortRows(rsRows()); var data=rows.map(function(r){var o={};o.Barcode=r.barcode;o.Marchio=r.marchio;o.Modello=r.modello;o.Colore=r.colore;o.Calibro=r.calibro;o['Tipo lenti']=r.tipo_lenti;o.Filiale=r.negozio;o['Qta disponibile']=Number(r.disponibile||0);return o;}); var wb=XLSX.utils.book_new();var ws=XLSX.utils.json_to_sheet(data);XLSX.utils.book_append_sheet(wb,ws,'Resi SR'); XLSX.writeFile(wb,'lista_resi_'+new Date().toISOString().slice(0,10)+'.xlsx'); }catch(e){alert('Errore export: '+e.message);} }
+  function openResi(){ensureModal();renderTbl();document.getElementById('svResiOv').style.display='flex';}
+  function wire(){var b=document.getElementById('listaResi');if(b&&!b.__w){b.__w=1;b.onclick=openResi;} var col=document.getElementById('listaResiCol'); if(col)col.style.display=isFornRole()?'none':'';}
+  var mo=new MutationObserver(function(){wire();});
+  function boot(){wire();try{mo.observe(document.body,{childList:true,subtree:true});}catch(e){}}
+  if(document.readyState!=='loading')boot();else document.addEventListener('DOMContentLoaded',boot);
+})();
+</script>
 </body>
 </html>
