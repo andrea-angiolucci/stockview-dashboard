@@ -1213,7 +1213,15 @@ boot();
       if(sp && st.o && st.o.pdv!=null) sp.value=st.o.pdv;
     }catch(e){} suspend=false; try{ if(typeof scheduleRun==='function') scheduleRun(); else if(typeof run==='function') run(); }catch(e){} }
   function skuPanelHtml(){ var cells=(typeof lastCells!=='undefined'&&lastCells)||[]; try{var _fs=(typeof FILTERS!=='undefined'&&FILTERS.msFornitore&&FILTERS.msFornitore.selected);if(_fs&&_fs.size){cells=cells.filter(function(c){return _fs.has(c.fornitore);});}}catch(_e){} if(!cells.length) return 'Nessun dato'; var ORD=['ST','P1','P2','P3','P4','SN','SC']; var sku={}, pz={}, seen={}; cells.forEach(function(c){ var cat=String(c.categoria||'').trim().toUpperCase(); if(!cat)return; if(ORD.indexOf(cat)>=0){ var k=cat+'|'+c.barcode; if(!seen[k]){seen[k]=1; sku[cat]=(sku[cat]||0)+1;} } else { pz[cat]=(pz[cat]||0)+(c.disponibile||0); } }); var rows=[]; ORD.forEach(function(cat){ if(sku[cat]) rows.push('<b>'+cat+'</b>: '+sku[cat]+' SKU'); }); Object.keys(pz).sort().forEach(function(cat){ if(pz[cat]>0) rows.push('<b>'+cat+'</b>: '+pz[cat]+' pz'); }); return rows.length? rows.join('<br>') : 'Nessun dettaglio'; }
-  function wireSku(){ var st=document.getElementById('status'); if(!st)return; var info=document.getElementById('skuInfo'); if(!info){ info=document.createElement('span'); info.id='skuInfo'; info.textContent='\u24D8'; info.title='Dettaglio SKU per categoria'; info.style.cssText='margin-left:8px;cursor:help;color:var(--muted);position:relative;display:inline-block'; var pan=document.createElement('div'); pan.id='skuPanel'; pan.style.cssText='display:none;position:absolute;top:18px;left:0;z-index:40;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--txt);white-space:nowrap;box-shadow:0 6px 22px rgba(0,0,0,.4);text-align:left;line-height:1.5'; info.appendChild(pan); info.addEventListener('mouseenter',function(){ pan.innerHTML=skuPanelHtml(); pan.style.display='block'; }); info.addEventListener('mouseleave',function(){ pan.style.display='none'; }); } if(info.parentNode!==st) st.appendChild(info); }
+  function wireSku(){ var st=document.getElementById('status'); if(!st)return;
+  var info=document.getElementById('skuInfo');
+  if(!info){ info=document.createElement('span'); info.id='skuInfo'; info.textContent='Dettaglio categoria'; info.title='Mostra/nascondi dettaglio SKU per categoria'; info.style.cssText='margin-left:10px;cursor:pointer;color:var(--accent);font-size:12.5px;font-weight:600;text-decoration:underline;text-underline-offset:2px';
+    info.addEventListener('click',function(){ var d=document.getElementById('skuDetail'); if(!d)return; if(d.style.display==='none'||!d.style.display){ d.innerHTML=skuPanelHtml(); d.style.display='block'; info.textContent='Nascondi dettaglio'; } else { d.style.display='none'; info.textContent='Dettaglio categoria'; } });
+  }
+  if(info.parentNode!==st) st.appendChild(info);
+  var det=document.getElementById('skuDetail');
+  if(!det){ det=document.createElement('div'); det.id='skuDetail'; det.style.cssText='display:none;margin:8px 2px 0;padding:10px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;font-size:12.5px;color:var(--txt);line-height:1.6'; if(st.parentNode) st.parentNode.insertBefore(det, st.nextSibling); }
+}
   var mo=new MutationObserver(function(){ wireSku(); });
   function boot(){ wireSR(); wireSku(); try{ var st=document.getElementById('status'); if(st) mo.observe(st,{childList:true}); }catch(e){} document.addEventListener('change', SV_save, true); document.addEventListener('click', SV_save, true); var tries=0; var iv=setInterval(function(){ tries++; var ready=(typeof FILTERS!=='undefined') && FILTERS.msFornitore && document.getElementById('segShow') && (typeof lastCells!=='undefined'); if(ready){ clearInterval(iv); applyState(); } else if(tries>90){ clearInterval(iv); } },150); }
   if(document.readyState!=='loading') boot(); else document.addEventListener('DOMContentLoaded',boot);
@@ -1224,6 +1232,8 @@ boot();
 .svbadge{display:inline-block;font-size:10px;line-height:1.25;padding:1px 5px;border-radius:3px;margin:0 0 1px 0;cursor:pointer;font-weight:700}
 .svbadge.alloc{background:#2b7fd6;color:#fff}
 .svbadge.arr{background:#127a2e;color:#fff}
+.svzero-btn{cursor:pointer;display:inline-block;min-width:14px;padding:0 5px;border-radius:4px;font-weight:700}
+.svzero-btn:hover{background:rgba(255,107,107,.28);outline:1px solid var(--bad)}
 
 #svOrdOv{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99998;display:none}
 #svOrdBox{position:absolute;top:4%;left:50%;transform:translateX(-50%);width:94%;max-width:1120px;max-height:88vh;overflow:auto;background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:0 10px 44px rgba(0,0,0,.55)}
@@ -1269,9 +1279,10 @@ function buildDisp(){DISP={};cells().forEach(function(c){DISP[K(c.barcode,c.fili
 async function loadFlag(){try{var r=await sb.from('impostazioni_sistema').select('valore').eq('chiave','allocazione_admin').maybeSingle();FLAG=!!(r&&r.data&&String(r.data.valore)==='true');}catch(e){FLAG=false;}}
 async function loadEmail(){try{var u=await sb.auth.getUser();EMAIL=(u&&u.data&&u.data.user)?u.data.user.email:null;}catch(e){EMAIL=null;}}
 async function loadAlloc(){ALLOC={};var f=curForn();if(!f)return;try{var r=await sb.from('allocazioni_fornitore').select('*').eq('fornitore',f).eq('stato','allocato');(r.data||[]).forEach(function(a){ALLOC[K(a.barcode,a.filiale)]=a;});}catch(e){}}
-async function doAlloc(bc,fil){var f=curForn();if(!f||!EMAIL)return false;try{var r=await sb.from('allocazioni_fornitore').insert({barcode:bc,filiale:fil,fornitore:f,quantita:1,allocato_da:EMAIL,note:''}).select().maybeSingle();if(r&&r.data){ALLOC[K(bc,fil)]=r.data;return true;}}catch(e){}return false;}
-async function doUpd(id,q,n){try{await sb.from('allocazioni_fornitore').update({quantita:q,note:n}).eq('id',id);Object.keys(ALLOC).forEach(function(kk){if(ALLOC[kk].id===id){ALLOC[kk].quantita=q;ALLOC[kk].note=n;}});return true;}catch(e){return false;}}
-async function doCancel(id){try{await sb.from('allocazioni_fornitore').update({stato:'annullato',annullato_il:new Date().toISOString()}).eq('id',id);Object.keys(ALLOC).forEach(function(kk){if(ALLOC[kk].id===id)delete ALLOC[kk];});return true;}catch(e){return false;}}
+function bumpLegend(delta){try{var la=document.getElementById('legArr');if(la){var m=la.textContent.match(/\d+/g);var g=m?parseInt(m[m.length-1],10):0;g=Math.max(0,g+delta);la.innerHTML='<span class="cellordered" style="padding:1px 7px;border-radius:5px">'+g+'</span> '+g+' ma già ordinato (in arrivo)';}var lb=document.getElementById('legBuco');if(lb){var m2=lb.textContent.match(/\d+/g);var r=m2?parseInt(m2[m2.length-1],10):0;r=Math.max(0,r-delta);lb.innerHTML='<span class="pill bad">'+r+'</span> '+r+' da riordinare (buco)';}}catch(e){}}
+async function doAlloc(bc,fil){var f=curForn();if(!f||!EMAIL)return false;try{var r=await sb.from('allocazioni_fornitore').insert({barcode:bc,filiale:fil,fornitore:f,quantita:1,allocato_da:EMAIL,note:'',data_prevista:new Date().toISOString().split('T')[0]}).select().maybeSingle();if(r&&r.data){ALLOC[K(bc,fil)]=r.data;bumpLegend(1);return true;}}catch(e){}return false;}
+async function doUpd(id,q,n,d){try{await sb.from('allocazioni_fornitore').update({quantita:q,note:n,data_prevista:d||null}).eq('id',id);Object.keys(ALLOC).forEach(function(kk){if(ALLOC[kk].id===id){ALLOC[kk].quantita=q;ALLOC[kk].note=n;ALLOC[kk].data_prevista=d||null;}});return true;}catch(e){return false;}}
+async function doCancel(id){try{await sb.from('allocazioni_fornitore').update({stato:'annullato',annullato_il:new Date().toISOString()}).eq('id',id);Object.keys(ALLOC).forEach(function(kk){if(ALLOC[kk].id===id)delete ALLOC[kk];});bumpLegend(-1);return true;}catch(e){return false;}}
 function decorate2(){
  if(OBS)OBS.disconnect();
  try{
@@ -1282,6 +1293,7 @@ function decorate2(){
    var kk=K(bc,fil);var old=td.querySelector('.svbadge');if(old)old.remove();
    if(DISP[kk]!==0){td.classList.remove('svzero');return;}
    td.classList.add('svzero');
+   var _cg=td.querySelector('.cg');if(_cg&&!_cg.querySelector('.svzero-btn')){_cg.innerHTML='<span class="svzero-btn">'+(_cg.textContent||'0').trim()+'</span>';}
    var a=ALLOC[kk];
    if(a){var b=document.createElement('div');b.className='svbadge alloc';b.textContent='\uD83D\uDD12 '+ddmm(a.allocato_il);b.title='Allocato il '+ddmm(a.allocato_il)+(a.note?(' - '+a.note):'');td.insertBefore(b,td.firstChild);}
   });
@@ -1292,8 +1304,8 @@ function sched(){clearTimeout(tmr);tmr=setTimeout(function(){decorate2();},250);
 document.addEventListener('click',function(e){
  if(!allowed())return;
  if(e.target.closest&&e.target.closest('#svOrdOv'))return;
- if(e.target.closest&&e.target.closest('.svbadge.alloc'))return;
- var td=e.target.closest?e.target.closest('td.filcol[data-bc]'):null;if(!td)return;
+ var _zb=e.target.closest?e.target.closest('.svzero-btn'):null;if(!_zb)return;
+ var td=_zb.closest('td.filcol[data-bc]');if(!td)return;
  var bc=td.getAttribute('data-bc'),fil=td.getAttribute('data-fil');var kk=K(bc,fil);
  if(DISP[kk]!==0)return;
  e.stopPropagation();e.preventDefault();
@@ -1314,11 +1326,11 @@ document.addEventListener('dblclick',function(e){
 function openForm(a,anchor,after){
  closeForm();
  var f=document.createElement('div');f.className='svform';f.id='svFormBox';
- f.innerHTML='<label>Quantita</label><input id="svfQ" type="number" min="1" value="'+(a.quantita||1)+'"><label>Note</label><textarea id="svfN" rows="2">'+esc(a.note||'')+'</textarea><div class="r"><button id="svfOk">\u2713 Aggiorna</button><button id="svfDel">\u2717 Annulla</button></div>';
+ f.innerHTML='<label>Quantita</label><input id="svfQ" type="number" min="1" value="'+(a.quantita||1)+'"><label>Note</label><textarea id="svfN" rows="2">'+esc(a.note||'')+'</textarea><label>Data prevista</label><input id="svfD" type="date" value="'+(a.data_prevista||new Date().toISOString().split('T')[0])+'"><div class="r"><button id="svfOk">\u2713 Aggiorna</button><button id="svfDel">\u2717 Annulla</button></div>';
  document.body.appendChild(f);
  var rc=anchor.getBoundingClientRect();
  f.style.top=(window.scrollY+rc.bottom+4)+'px';f.style.left=(window.scrollX+Math.min(rc.left,window.innerWidth-200))+'px';
- f.querySelector('#svfOk').onclick=function(){var q=parseInt(f.querySelector('#svfQ').value,10)||1;var n=f.querySelector('#svfN').value;doUpd(a.id,q,n).then(function(){closeForm();if(after)after();});};
+ f.querySelector('#svfOk').onclick=function(){var q=parseInt(f.querySelector('#svfQ').value,10)||1;var n=f.querySelector('#svfN').value;var d=f.querySelector('#svfD').value;doUpd(a.id,q,n,d).then(function(){closeForm();if(after)after();});};
  f.querySelector('#svfDel').onclick=function(){doCancel(a.id).then(function(){closeForm();if(after)after();});};
 }
 function closeForm(){var x=document.getElementById('svFormBox');if(x)x.remove();}
