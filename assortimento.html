@@ -230,7 +230,7 @@ async function load(){
   render();
 }
 
-$("#seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#seg").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");tab=b.dataset.t; if(deltaOn){loadDelta().then(render);}else{render();}});
+$("#seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#seg").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");tab=b.dataset.t; asqShowSpin(); if(deltaOn){loadDelta().then(function(){render();asqHideSpin();});}else{requestAnimationFrame(function(){render();asqHideSpin();});}});
 $("#forn").addEventListener("change",render);
 $("#deltaBtn").addEventListener("click",async function(){ deltaOn=!deltaOn; sessionStorage.setItem("asqDelta",deltaOn?"1":"0"); $("#deltaBtn").classList.toggle("on",deltaOn); applyDeltaUI(); if(deltaOn){ await loadDelta(); } render(); });
 function applyDeltaUI(){ var st=document.getElementById("subToggles"); if(st) st.style.display=deltaOn?"inline-flex":"none"; var a=document.getElementById("subIdealeBtn"),b=document.getElementById("subGiacBtn"),c=document.getElementById("subDiffBtn"); if(a)a.classList.toggle("on",subIdeale); if(b)b.classList.toggle("on",subGiac); if(c)c.classList.toggle("on",subDiff); }
@@ -295,8 +295,8 @@ function recalc(){
   const fornSel=$("#forn").value;
   const marchi=Object.keys(DATA[tab]).filter(m=>(!fornSel||FORN[m]===fornSel)&&!ESCLUSI_MARCHI.has(m)&&!ESCLUSI_FORNITORI.has(FORN[m]));
   const col={}; PDV.forEach(p=>col[p.codice]=0); let grand=0;
-  marchi.forEach(m=>{ let rt=0; PDV.forEach(p=>{const q=DATA[tab][m][p.codice]||0; rt+=q; col[p.codice]+=q;}); grand+=rt;
-    const c=$(`[data-rowtot="${cssEsc(m)}"]`); if(c)c.textContent=rt; });
+  marchi.forEach(m=>{ let rt=0, rg=0; PDV.forEach(p=>{const q=DATA[tab][m][p.codice]||0; rt+=q; col[p.codice]+=q; rg+=Number((typeof ADISP!=='undefined'&&ADISP[m+"|"+p.codice])||0);}); grand+=rt;
+    const c=$(`[data-rowtot="${cssEsc(m)}"]`); if(c){ if(deltaOn){ var rd=rg-rt; var rows=""; if(subIdeale)rows+='<div class="dl-ideale">'+rt+'</div>'; if(subGiac)rows+='<div class="dl-giac">'+rg+'</div>'; if(subDiff){ var dc=rd<0?"dneg":(rd>0?"dpos":"dzero"); rows+='<div class="dl-diff '+dc+'">'+(rd>0?"+":"")+rd+'</div>'; } if(!rows)rows='<div class="dl-diff dzero">·</div>'; c.innerHTML=rows; } else { c.textContent=rt; } } });
   PDV.forEach(p=>{const c=$(`[data-coltot="${p.codice}"]`); if(c)c.textContent=col[p.codice];});
   const g=$("#grandtot"); if(g)g.textContent=grand;
 }
