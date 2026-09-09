@@ -1179,7 +1179,7 @@ boot();
   var FLBL={msFornitore:'Fornitore',msMarchio:'Marchio',msTipo:'Tipo lenti',msCategoria:'Categoria',msModello:'Modello'};
   var KEY='sv_pres_state', suspend=false, applied=false, _t=null;
   function segIdx(id){ var el=document.getElementById(id); if(!el)return -1; var bs=[].slice.call(el.querySelectorAll('button')); for(var i=0;i<bs.length;i++) if(bs[i].classList.contains('on'))return i; return -1; }
-  function readState(){ var st={f:{},s:{},o:{}}; FILT.forEach(function(id){ try{ if(typeof FILTERS!=='undefined'&&FILTERS[id]&&FILTERS[id].selected) st.f[id]=[].slice.call(FILTERS[id].selected); }catch(e){} }); SEGS.forEach(function(id){ var i=segIdx(id); if(i>=0) st.s[id]=i; }); var sr=document.getElementById('sortRef'), sp=document.getElementById('sortPdv'); if(sr)st.o.ref=sr.value; if(sp)st.o.pdv=sp.value; return st; }
+  function readState(){ var st={f:{},s:{},o:{}}; FILT.forEach(function(id){ try{ if(typeof FILTERS!=='undefined'&&FILTERS[id]&&FILTERS[id].selected) st.f[id]=Array.from(FILTERS[id].selected); }catch(e){} }); SEGS.forEach(function(id){ var i=segIdx(id); if(i>=0) st.s[id]=i; }); var sr=document.getElementById('sortRef'), sp=document.getElementById('sortPdv'); if(sr)st.o.ref=sr.value; if(sp)st.o.pdv=sp.value; return st; }
   function SV_save(){ if(suspend||isForn())return; clearTimeout(_t); _t=setTimeout(function(){ try{ localStorage.setItem(KEY, JSON.stringify(readState())); }catch(e){} },400); }
   window.SV_save=SV_save;
   async function applyState(){ if(applied||isForn())return; applied=true; var raw; try{ raw=localStorage.getItem(KEY); }catch(e){} if(!raw)return; var st; try{ st=JSON.parse(raw); }catch(e){return;} if(!st)return; suspend=true; try{
