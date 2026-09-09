@@ -976,11 +976,11 @@ function draw(){
   nomeSales={};
   cells.forEach(c=>{ nomeSales[c.negozio]=(nomeSales[c.negozio]||0)+(c.venduto||0); });
   const buchi=cells.filter(c=>c.disponibile<effTargetActive(c));
-  const arrivi=cells.filter(c=>c.in_arrivo>0);
+  const arrivi=cells.filter(c=>c.in_arrivo>0); let arriviN=arrivi.length; try{ if(typeof extraStock!=='undefined'&&extraStock){ for(var _bc in extraStock){ var _fm=extraStock[_bc]; for(var _f in _fm){ if(_fm[_f]&&_fm[_f].a>0)arriviN++; } } } }catch(_e){}
   try{var _bIn=buchi.filter(function(c){return c.in_arrivo>0;}).length;var _bNo=buchi.length-_bIn;var _lb=document.getElementById('legBuco');if(_lb)_lb.innerHTML='<span class="pill bad">'+_bNo+'</span> '+_bNo+' da riordinare (buco)';var _la=document.getElementById('legArr');if(_la)_la.innerHTML='<span class="cellordered" style="padding:1px 7px;border-radius:5px">'+_bIn+'</span> '+_bIn+' ma già ordinato (in arrivo)';}catch(_e){}
   const negozi=negList(cells);
   const nRef=new Set(cells.map(c=>c.barcode)).size;
-  $("#status").innerHTML=`<b>${nRef}</b> referenze · <b>${negozi.length}</b> negozi · <b style="color:var(--bad)">${buchi.length}</b> buchi · <b style="color:var(--truck)">${arrivi.length}</b> celle con arrivi`;
+  $("#status").innerHTML=`<b>${nRef}</b> referenze · <b>${negozi.length}</b> negozi · <b style="color:var(--bad)">${buchi.length}</b> buchi · <b style="color:var(--truck)">${arriviN}</b> celle con arrivi`;
   if(window.__rpcN>=50000)$("#status").innerHTML+=' · <b style="color:var(--truck)">⚠ risultati troncati a 50.000 righe: restringi i filtri per una lista completa</b>';
   view==="lista"?drawList(cells):drawMatrix(cells,negozi); decorate();
   $("#tablewrap").style.display="block";
