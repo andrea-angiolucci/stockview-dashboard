@@ -1507,18 +1507,17 @@ function _svPaintDepoCov(){
 }
 (function(){ try{ if(typeof drawMatrix==="function" && !drawMatrix.__depoWrap){ var _o = drawMatrix; drawMatrix = function(){ var r = _o.apply(this, arguments); try{ _svPaintDepoCov(); }catch(e){} return r; }; drawMatrix.__depoWrap = true; } }catch(e){} })();
 
-/* --- Drill-down drawer (dettaglio barcode su doppio click numeri matrice) --- */
+/* --- Drill-down drawer (dettaglio per filiale su doppio click numeri matrice) --- */
 (function(){
+  var ACTIVE=['A','B','C','D','E','G','H','I','Z'];
   var drawer, state={rows:[],sortKey:'disponibile',sortDir:-1,ctx:null};
   function esc2(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch];}); }
-  function ensure(){
-    if(drawer) return;
-    drawer=document.createElement('div'); drawer.className='svdrawer'; drawer.id='svDrawer';
-    document.body.appendChild(drawer);
-  }
+  function fName(f){ try{ if(typeof filName==='function') return filName(f); }catch(e){} return f; }
+  function ensure(){ if(drawer) return; drawer=document.createElement('div'); drawer.className='svdrawer'; drawer.id='svDrawer'; document.body.appendChild(drawer); }
   function closeDD(){ if(drawer) drawer.classList.remove('open'); }
   window.__closeDrill=closeDD;
   var COLS=[
+    {k:'filiale',l:'Filiale',n:false},
     {k:'barcode',l:'Barcode',n:false},
     {k:'modello',l:'Modello',n:false},
     {k:'colore',l:'Colore',n:false},
@@ -1529,13 +1528,7 @@ function _svPaintDepoCov(){
     {k:'venduto',l:'Venduto 26',n:true},
     {k:'anzianita',l:'Anni gg',n:true}
   ];
-  function render(){
-    if(!drawer) return;
-    var c=state.ctx||{};
-    var head='<button class="svdr-x" title="Chiudi">\u2715</button>'
-      +'<div class="svdr-h">'+esc2(c.marchio||'')+(c.modello?' \u00B7 '+esc2(c.modello):'')+(c.colore?' \u00B7 '+esc2(c.colore):'')+'</div>'
-      +'<div class="svdr-sub">'+esc2(c.filLabel||'')+'</div>'
-      +'<div class="svdr-num">'+esc2(c.numLabel||'')+'</div>';
+  function sortedRows(){
     var rows=state.rows.slice();
     var k=state.sortKey, dir=state.sortDir;
     var col=COLS.filter(function(x){return x.k===k;})[0];
@@ -1545,12 +1538,45 @@ function _svPaintDepoCov(){
       va=String(va==null?'':va).toLowerCase(); vb=String(vb==null?'':vb).toLowerCase();
       return (va<vb?-1:va>vb?1:0)*dir;
     });
+    return rows;
+  }
+  function san(s){ return String(s==null?'':s).replace(/[^0-9A-Za-z\u00C0-\u017F]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'x'; }
+  function exportXlsx(){
+    try{
+      if(typeof XLSX==='undefined'){ alert('Libreria Excel non disponibile'); return; }
+      var c=state.ctx||{}; var rows=sortedRows();
+      var head=COLS.map(function(x){return x.l;});
+      var aoa=[head].concat(rows.map(function(r){ return COLS.map(function(x){ var v=r[x.k]; if(x.k==='anzianita'&&v==null) v=''; return v==null?'':v; }); }));
+      var ws=XLSX.utils.aoa_to_sheet(aoa);
+      var wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Dettaglio');
+      var d=new Date(); var ds=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+      var fn='drill_'+san(c.marchio)+'_'+san(c.modello)+'_'+san(c.colore)+'_'+ds+'.xlsx';
+      XLSX.writeFile(wb, fn);
+    }catch(e){}
+  }
+  function headHtml(c, withBtns){
+    return '<button class="svdr-x" title="Chiudi">\u2715</button>'
+      +(withBtns?'<button class="svdr-xls" title="Esporta Excel" style="position:absolute;top:10px;right:46px;background:var(--accent);color:#04121f;border:none;border-radius:8px;height:28px;padding:0 10px;cursor:pointer;font-size:12px;font-weight:700;line-height:1;z-index:2">\u2B07 Excel</button>':'')
+      +'<div class="svdr-h">'+esc2(c.marchio||'')+(c.modello?' \u00B7 '+esc2(c.modello):'')+(c.colore?' \u00B7 '+esc2(c.colore):'')+'</div>'
+      +'<div class="svdr-sub">'+esc2(c.filLabel||'')+'</div>'
+      +'<div class="svdr-num">'+esc2(c.numLabel||'')+'</div>';
+  }
+  function wire(){
+    var xb=drawer.querySelector('.svdr-x'); if(xb) xb.addEventListener('click', closeDD);
+    var eb=drawer.querySelector('.svdr-xls'); if(eb) eb.addEventListener('click', exportXlsx);
+  }
+  function render(){
+    if(!drawer) return;
+    var c=state.ctx||{};
+    var rows=sortedRows();
+    var k=state.sortKey, dir=state.sortDir;
     var thead='<tr>'+COLS.map(function(cc){
       var cls=cc.k===k?('sorted'+(dir<0?' desc':'')):'';
       return '<th class="'+cls+'" data-k="'+cc.k+'">'+esc2(cc.l)+'</th>';
     }).join('')+'</tr>';
     var body;
-    if(!rows.length){ body='<tr><td colspan="'+COLS.length+'"><div class="svdr-empty">Nessun barcode.</div></td></tr>'; }
+    if(!rows.length){ body='<tr><td colspan="'+COLS.length+'"><div class="svdr-empty">Nessun dato per questa referenza.</div></td></tr>'; }
     else body=rows.map(function(r){
       return '<tr>'+COLS.map(function(cc){
         var v=r[cc.k];
@@ -1558,8 +1584,8 @@ function _svPaintDepoCov(){
         return '<td>'+esc2(v==null?'':v)+'</td>';
       }).join('')+'</tr>';
     }).join('');
-    drawer.innerHTML=head+'<table class="svdr-tbl"><thead>'+thead+'</thead><tbody>'+body+'</tbody></table>';
-    drawer.querySelector('.svdr-x').addEventListener('click', closeDD);
+    drawer.innerHTML=headHtml(c,true)+'<table class="svdr-tbl"><thead>'+thead+'</thead><tbody>'+body+'</tbody></table>';
+    wire();
     drawer.querySelectorAll('th[data-k]').forEach(function(th){
       th.addEventListener('click', function(){
         var nk=th.getAttribute('data-k');
@@ -1570,38 +1596,34 @@ function _svPaintDepoCov(){
     });
   }
   async function fetchData(ctx){
-    var q=sb.from('giacenze').select('barcode,modello,colore,calibro,categoria,quantita_disponibile,quantita_in_arrivo,data_ult_acquisto,filiale,fornitore,tipo_lenti').eq('marchio', ctx.marchio);
-    if(ctx.tipo_lenti) q=q.eq('tipo_lenti', ctx.tipo_lenti);
-    if(ctx.filiali&&ctx.filiali.length===1) q=q.eq('filiale', ctx.filiali[0]);
-    else if(ctx.filiali&&ctx.filiali.length) q=q.in('filiale', ctx.filiali);
-    if(ctx.fornitore) q=q.eq('fornitore', ctx.fornitore);
+    var fils=ctx.filiali||[];
+    var q=sb.from('giacenze').select('filiale,barcode,modello,colore,calibro,categoria,quantita_disponibile,quantita_in_arrivo,data_ult_acquisto').eq('barcode', ctx.barcode);
+    if(fils.length===1) q=q.eq('filiale', fils[0]); else if(fils.length) q=q.in('filiale', fils);
     var gi=await q; var grows=(gi&&gi.data)||[];
-    var byBc={};
+    var byFil={};
     grows.forEach(function(g){
-      var b=g.barcode; var e=byBc[b];
-      if(!e){ e=byBc[b]={barcode:b,modello:g.modello,colore:g.colore,calibro:g.calibro,categoria:g.categoria,disponibile:0,in_arrivo:0,venduto:0,_la:null}; }
-      e.disponibile+=(+g.quantita_disponibile||0);
-      e.in_arrivo+=(+g.quantita_in_arrivo||0);
-      if(g.data_ult_acquisto){ var t=new Date(g.data_ult_acquisto).getTime(); if(!isNaN(t)&&(e._la==null||t>e._la)) e._la=t; }
-      if(e.modello==null&&g.modello!=null) e.modello=g.modello;
+      byFil[g.filiale]={ _fil:g.filiale, filiale:fName(g.filiale), barcode:g.barcode, modello:g.modello, colore:g.colore, calibro:g.calibro, categoria:g.categoria, disponibile:(+g.quantita_disponibile||0), in_arrivo:(+g.quantita_in_arrivo||0), venduto:0, anzianita:(g.data_ult_acquisto?Math.max(0,Math.round((Date.now()-new Date(g.data_ult_acquisto).getTime())/86400000)):null) };
     });
-    var bcs=Object.keys(byBc);
-    if(bcs.length){
-      var vq=sb.from('vendite').select('barcode,quantita,filiale,data').in('barcode', bcs).gte('data','2026-01-01').lt('data','2027-01-01');
-      if(ctx.filiali&&ctx.filiali.length) vq=vq.in('filiale', ctx.filiali);
-      var ve=await vq;
-      ((ve&&ve.data)||[]).forEach(function(v){ var e=byBc[v.barcode]; if(e) e.venduto+=(+v.quantita||0); });
-    }
-    return Object.keys(byBc).map(function(b){ var e=byBc[b]; e.anzianita=(e._la==null?null:Math.max(0,Math.round((Date.now()-e._la)/86400000))); delete e._la; return e; });
+    var vq=sb.from('vendite').select('filiale,quantita,modello,colore,calibro,categoria').eq('barcode', ctx.barcode).gte('data','2026-01-01').lt('data','2027-01-01');
+    if(fils.length===1) vq=vq.eq('filiale', fils[0]); else if(fils.length) vq=vq.in('filiale', fils);
+    var ve=await vq;
+    ((ve&&ve.data)||[]).forEach(function(v){
+      var row=byFil[v.filiale];
+      if(!row){ row=byFil[v.filiale]={ _fil:v.filiale, filiale:fName(v.filiale), barcode:ctx.barcode, modello:v.modello||ctx.modello||'', colore:v.colore||ctx.colore||'', calibro:v.calibro||'', categoria:v.categoria||'', disponibile:0, in_arrivo:0, venduto:0, anzianita:null }; }
+      row.venduto+=(+v.quantita||0);
+    });
+    var out=Object.keys(byFil).map(function(f){ return byFil[f]; });
+    out=out.filter(function(r){ return (r.disponibile>0)||(r.in_arrivo>0)||(r.venduto>0); });
+    return out;
   }
   async function openDD(ctx){
     ensure();
     state.ctx=ctx; state.rows=[]; state.sortKey='disponibile'; state.sortDir=-1;
-    drawer.innerHTML='<button class="svdr-x" title="Chiudi">\u2715</button><div class="svdr-h">'+esc2(ctx.marchio||'')+'</div><div class="svdr-empty">Caricamento\u2026</div>';
-    drawer.querySelector('.svdr-x').addEventListener('click', closeDD);
+    drawer.innerHTML=headHtml(ctx,false)+'<div class="svdr-empty">Caricamento\u2026</div>';
+    wire();
     drawer.classList.add('open');
     try{ state.rows=await fetchData(ctx); render(); }
-    catch(err){ drawer.innerHTML='<button class="svdr-x" title="Chiudi">\u2715</button><div class="svdr-empty">Errore nel caricamento.</div>'; drawer.querySelector('.svdr-x').addEventListener('click', closeDD); }
+    catch(err){ drawer.innerHTML=headHtml(ctx,false)+'<div class="svdr-empty">Errore nel caricamento.</div>'; wire(); }
   }
   document.addEventListener('dblclick', function(e){
     try{
@@ -1615,21 +1637,13 @@ function _svPaintDepoCov(){
       if(!bc) return;
       var meta=null;
       try{ if(typeof lastCells!=='undefined'&&lastCells) meta=lastCells.filter(function(cc){return String(cc.barcode)===String(bc);})[0]; }catch(_e){}
-      if(!meta||!meta.marchio) return;
       var numEl=e.target.closest('.cv, .cg');
       var numTxt=numEl?String(numEl.textContent||'').trim():'';
       if(!/[0-9]/.test(numTxt)) return;
       var isVend=!!e.target.closest('.cv');
-      var forn=null;
-      try{ if(typeof curForn==='function') forn=curForn(); }catch(_e){}
-      if(!forn){ try{ if(typeof isFornRole==='function'&&isFornRole()) forn=meta.fornitore; }catch(_e){} }
-      var ctx={ marchio:meta.marchio, tipo_lenti:meta.tipo_lenti||null, modello:meta.modello||'', colore:meta.colore||'', fornitore:forn||null };
-      if(fc){ ctx.filiali=[fc.getAttribute('data-fil')]; ctx.filLabel='Filiale '+fc.getAttribute('data-fil'); }
-      else {
-        var all=[]; var seen={};
-        [].forEach.call(document.querySelectorAll('td.filcol[data-fil]'), function(td){ var f=td.getAttribute('data-fil'); if(f&&!seen[f]){seen[f]=1;all.push(f);} });
-        ctx.filiali=all; ctx.filLabel='Tutte le filiali';
-      }
+      var ctx={ barcode:bc, marchio:(meta&&meta.marchio)||'', modello:(meta&&meta.modello)||'', colore:(meta&&meta.colore)||'' };
+      if(fc){ var f=fc.getAttribute('data-fil'); ctx.filiali=[f]; ctx.filLabel='Filiale '+fName(f); }
+      else { ctx.filiali=ACTIVE.slice(); ctx.filLabel='Tutte le filiali'; }
       ctx.numLabel=(isVend?'Venduto 2026: ':'Disponibile: ')+numTxt;
       e.preventDefault();
       openDD(ctx);
