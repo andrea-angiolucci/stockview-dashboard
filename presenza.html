@@ -1651,7 +1651,7 @@ function _svPaintDepoCov(){
     try{ state.rows=await fetchData(ctx); render(); }
     catch(err){ drawer.innerHTML=headHtml(ctx,false)+'<div class="svdr-empty">Errore nel caricamento.</div>'; wire(); }
   }
-  document.addEventListener('dblclick', function(e){
+  document.addEventListener('dblclick', function(e){if(isFornDD&&isFornDD())return;
     try{
       if(e.target.closest('.svdrawer')) return;
       if(e.target.closest('.bdg, .svzero-btn, .svbadge, button, a, input, select, textarea')) return;
