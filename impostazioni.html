@@ -642,7 +642,7 @@ async function rcRenderRegole(host){
   }catch(e){}
 }
 
-function renderRicircolo(host){
+async function renderRicircolo(host){
   if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; }
   host.innerHTML='<div class="umuted">Caricamento…</div>';
   var rows;
