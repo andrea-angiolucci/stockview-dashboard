@@ -236,9 +236,34 @@ async function showApp(session){
   $("#who").innerHTML=esc(session.user.email)+' <span class="rolechip '+ROLE+'">'+ROLE+'</span>';
   renderTabbar(); var _v=TABS.filter(function(x){return !x.admin||isAdmin;}); if(_v.length)selectTab(_v[0].id); else $("#tabcontent").innerHTML='<div style="color:var(--muted);padding:16px">Nessuna sezione disponibile per il tuo ruolo.</div>';
 }
-$("#loginForm").addEventListener("submit",async e=>{ e.preventDefault(); const b=$("#loginBtn"),er=$("#loginErr"); er.textContent=""; b.disabled=true; b.textContent="Accesso…";
-  const {data,error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pwd").value});
-  b.disabled=false; b.textContent="Accedi"; if(error){er.textContent=error.message.includes("Invalid")?"Email o password non corretti.":error.message;return;} showApp(data.session); });
+$("#loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const b=$("#loginBtn"),er=$("#loginErr");
+  er.textContent=""; er.style.color="";
+  b.disabled=true; b.textContent="Accesso\u2026";
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pwd").value});
+    if(error){
+      b.disabled=false; b.textContent="Accedi";
+      const m=(error.message||"").toLowerCase();
+      er.style.color="var(--bad)";
+      er.textContent=(m.includes("invalid")||m.includes("credential")||m.includes("password"))?"Password non corretta":(error.message||"Accesso non riuscito");
+      return;
+    }
+    if(!data||!data.session){
+      b.disabled=false; b.textContent="Accedi";
+      er.style.color="var(--bad)"; er.textContent="Accesso non riuscito, riprova.";
+      return;
+    }
+    er.style.color="var(--ok)"; er.textContent="Accesso riuscito\u2026";
+    try{ sessionStorage.removeItem("sv_sim_role"); sessionStorage.removeItem("sv_sim_filiale"); localStorage.removeItem("sv_sim_role"); localStorage.removeItem("sv_sim_filiale"); }catch(_e){}
+    try{ await sb.auth.getSession(); }catch(_e){}
+    location.reload();
+  }catch(ex){
+    b.disabled=false; b.textContent="Accedi";
+    er.style.color="var(--bad)"; er.textContent="Errore di connessione";
+  }
+});
 $("#logout").addEventListener("click",async()=>{ await sb.auth.signOut(); location.reload(); });
 
 // ---------- Tab framework (estendibile) ----------
