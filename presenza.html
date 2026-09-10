@@ -1329,11 +1329,11 @@ document.addEventListener('click',function(e){
  if(ALLOC[kk])return;
  doAlloc(bc,fil).then(function(ok){if(ok){decorate2();if(ordOpen())ordRender();}});
 },true);
-document.addEventListener('dblclick',function(e){
+document.addEventListener('click',function(e){
  if(!allowed())return;
  var badge=e.target.closest?e.target.closest('.svbadge.alloc'):null;
- var td=e.target.closest?e.target.closest('td.filcol[data-bc]'):null;
- if(badge&&!td)td=badge.closest('td.filcol[data-bc]');
+ if(!badge)return;
+ var td=badge.closest('td.filcol[data-bc]');
  if(!td)return;
  var bc=td.getAttribute('data-bc'),fil=td.getAttribute('data-fil');var kk=K(bc,fil);
  if(!ALLOC[kk])return;
@@ -1654,7 +1654,7 @@ function _svPaintDepoCov(){
   document.addEventListener('dblclick', function(e){
     try{
       if(e.target.closest('.svdrawer')) return;
-      if(e.target.closest('.bdg, button, a, input, select, textarea')) return;
+      if(e.target.closest('.bdg, .svzero-btn, .svbadge, button, a, input, select, textarea')) return;
       var fc=e.target.closest('td.filcol[data-bc][data-fil]');
       var tc=fc?null:e.target.closest('td.tot');
       if(!fc&&!tc) return;
