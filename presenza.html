@@ -165,16 +165,16 @@
 .depo-cov{ background: rgba(240,147,43,.16) !important; }
 .depo-cov .depo-truck{ filter:none; }
 
-.svdrawer{position:fixed;top:0;right:0;width:480px;max-width:96vw;height:100vh;background:var(--panel);border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(0,0,0,.45);transform:translateX(100%);transition:transform .22s ease;z-index:60;overflow-y:auto;padding:16px 16px 40px;color:var(--txt)}
+.svdrawer{position:fixed;top:0;right:0;width:900px;max-width:96vw;height:100vh;background:var(--panel);border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(0,0,0,.45);transform:translateX(100%);transition:transform .22s ease;z-index:60;overflow:auto;padding:16px 16px 40px;color:var(--txt)}
 .svdrawer.open{transform:translateX(0)}
 .svdr-x{position:absolute;top:10px;right:10px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:14px;line-height:1;z-index:2}
 .svdr-h{font-size:15px;font-weight:700;margin:0 34px 2px 0}
 .svdr-sub{color:var(--muted);font-size:12.5px;margin-bottom:1px}
 .svdr-num{font-size:13px;font-weight:700;color:var(--accent);margin:6px 0 12px}
-.svdr-tbl{width:100%;border-collapse:collapse;font-size:12px}
-.svdr-tbl th{position:sticky;top:0;background:var(--panel2);border-bottom:1px solid var(--line);padding:6px 6px;text-align:right;cursor:pointer;white-space:nowrap;user-select:none}
+.svdr-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.svdr-tbl th{position:sticky;top:0;background:var(--panel2);border-bottom:1px solid var(--line);padding:5px 5px;text-align:right;cursor:pointer;white-space:nowrap;user-select:none}
 .svdr-tbl th:first-child,.svdr-tbl td:first-child{text-align:left}
-.svdr-tbl td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:right;white-space:nowrap}
+.svdr-tbl td{border-bottom:1px solid var(--line);padding:4px 5px;text-align:right;white-space:nowrap}
 .svdr-tbl th.sorted::after{content:" \25B4";font-size:9px}
 .svdr-tbl th.sorted.desc::after{content:" \25BE"}
 .svdr-empty{color:var(--muted);font-size:12.5px;padding:22px 4px}
@@ -1516,18 +1516,34 @@ function _svPaintDepoCov(){
   function ensure(){ if(drawer) return; drawer=document.createElement('div'); drawer.className='svdrawer'; drawer.id='svDrawer'; document.body.appendChild(drawer); }
   function closeDD(){ if(drawer) drawer.classList.remove('open'); }
   window.__closeDrill=closeDD;
-  var COLS=[
-    {k:'filiale',l:'Filiale',n:false},
-    {k:'barcode',l:'Barcode',n:false},
-    {k:'modello',l:'Modello',n:false},
-    {k:'colore',l:'Colore',n:false},
-    {k:'calibro',l:'Calibro',n:false},
-    {k:'categoria',l:'Cat.',n:false},
-    {k:'disponibile',l:'Disp.',n:true},
-    {k:'in_arrivo',l:'In arrivo',n:true},
-    {k:'venduto',l:'Venduto 26',n:true},
-    {k:'anzianita',l:'Anni gg',n:true}
-  ];
+  function isFornDD(){try{return sessionStorage.getItem('sv_sim_role')==='fornitore'||window.__SV_REAL_ROLE==='fornitore';}catch(e){return false;}}
+  function buildCols(){
+    var base=[
+      {k:'filiale',l:'Filiale',n:false},
+      {k:'barcode',l:'Barcode',n:false},
+      {k:'fornitore',l:'Fornitore',n:false},
+      {k:'tipo_lenti',l:'Tipo lenti',n:false},
+      {k:'modello',l:'Modello',n:false},
+      {k:'colore',l:'Colore',n:false},
+      {k:'calibro',l:'Calibro',n:false},
+      {k:'categoria',l:'Cat.',n:false},
+      {k:'q_mag',l:'Qt\u00E0 mag.',n:true},
+      {k:'q_pren',l:'Qt\u00E0 pren.',n:true},
+      {k:'disponibile',l:'Disp.',n:true},
+      {k:'in_arrivo',l:'In arrivo',n:true},
+      {k:'venduto',l:'Venduto 26',n:true},
+      {k:'venduto_prec',l:'Venduto 25',n:true},
+      {k:'data_ult_acq',l:'Ult. acquisto',n:false},
+      {k:'data_ult_vend',l:'Ult. vendita',n:false}
+    ];
+    if(!isFornDD()){
+      base.push({k:'p_acq',l:'P. Acq. Scontato',n:true});
+      base.push({k:'p_vend',l:'P. Vend. Scontato',n:true});
+    }
+    base.push({k:'anzianita',l:'Anni gg',n:true});
+    return base;
+  }
+  var COLS=buildCols();
   function sortedRows(){
     var rows=state.rows.slice();
     var k=state.sortKey, dir=state.sortDir;
@@ -1597,27 +1613,37 @@ function _svPaintDepoCov(){
   }
   async function fetchData(ctx){
     var fils=ctx.filiali||[];
-    var q=sb.from('giacenze').select('filiale,barcode,modello,colore,calibro,categoria,quantita_disponibile,quantita_in_arrivo,data_ult_acquisto').eq('barcode', ctx.barcode);
+    var _priceSel=isFornDD()?'':',prezzo_acquisto,prezzo_vendita';
+    var q=sb.from('giacenze').select('filiale,barcode,fornitore,tipo_lenti,modello,colore,calibro,categoria,quantita_magazzino,quantita_prenotata,quantita_disponibile,quantita_in_arrivo,data_ult_acquisto,data_ult_vendita'+_priceSel).eq('barcode', ctx.barcode);
     if(fils.length===1) q=q.eq('filiale', fils[0]); else if(fils.length) q=q.in('filiale', fils);
     var gi=await q; var grows=(gi&&gi.data)||[];
     var byFil={};
     grows.forEach(function(g){
-      byFil[g.filiale]={ _fil:g.filiale, filiale:fName(g.filiale), barcode:g.barcode, modello:g.modello, colore:g.colore, calibro:g.calibro, categoria:g.categoria, disponibile:(+g.quantita_disponibile||0), in_arrivo:(+g.quantita_in_arrivo||0), venduto:0, anzianita:(g.data_ult_acquisto?Math.max(0,Math.round((Date.now()-new Date(g.data_ult_acquisto).getTime())/86400000)):null) };
+      byFil[g.filiale]={ _fil:g.filiale, filiale:fName(g.filiale), barcode:g.barcode, fornitore:g.fornitore||'', tipo_lenti:g.tipo_lenti||'', modello:g.modello, colore:g.colore, calibro:g.calibro, categoria:g.categoria, q_mag:(+g.quantita_magazzino||0), q_pren:(+g.quantita_prenotata||0), disponibile:(+g.quantita_disponibile||0), in_arrivo:(+g.quantita_in_arrivo||0), venduto:0, venduto_prec:0, data_ult_acq:(g.data_ult_acquisto?String(g.data_ult_acquisto).slice(0,10):''), data_ult_vend:(g.data_ult_vendita?String(g.data_ult_vendita).slice(0,10):''), p_acq:(g.prezzo_acquisto!=null?+g.prezzo_acquisto:null), p_vend:(g.prezzo_vendita!=null?+g.prezzo_vendita:null), anzianita:(g.data_ult_acquisto?Math.max(0,Math.round((Date.now()-new Date(g.data_ult_acquisto).getTime())/86400000)):null) };
     });
-    var vq=sb.from('vendite').select('filiale,quantita,modello,colore,calibro,categoria').eq('barcode', ctx.barcode).gte('data','2026-01-01').lt('data','2027-01-01');
+    var vq=sb.from('vendite').select('filiale,quantita,tipo_lenti,modello,colore,calibro,categoria').eq('barcode', ctx.barcode).gte('data','2026-01-01').lt('data','2027-01-01');
     if(fils.length===1) vq=vq.eq('filiale', fils[0]); else if(fils.length) vq=vq.in('filiale', fils);
     var ve=await vq;
     ((ve&&ve.data)||[]).forEach(function(v){
       var row=byFil[v.filiale];
-      if(!row){ row=byFil[v.filiale]={ _fil:v.filiale, filiale:fName(v.filiale), barcode:ctx.barcode, modello:v.modello||ctx.modello||'', colore:v.colore||ctx.colore||'', calibro:v.calibro||'', categoria:v.categoria||'', disponibile:0, in_arrivo:0, venduto:0, anzianita:null }; }
+      if(!row){ row=byFil[v.filiale]={ _fil:v.filiale, filiale:fName(v.filiale), barcode:ctx.barcode, fornitore:'', tipo_lenti:v.tipo_lenti||'', modello:v.modello||ctx.modello||'', colore:v.colore||ctx.colore||'', calibro:v.calibro||'', categoria:v.categoria||'', q_mag:0, q_pren:0, disponibile:0, in_arrivo:0, venduto:0, venduto_prec:0, data_ult_acq:'', data_ult_vend:'', p_acq:null, p_vend:null, anzianita:null }; }
       row.venduto+=(+v.quantita||0);
     });
+    var vq2=sb.from('vendite').select('filiale,quantita').eq('barcode', ctx.barcode).gte('data','2025-01-01').lt('data','2026-01-01');
+    if(fils.length===1) vq2=vq2.eq('filiale', fils[0]); else if(fils.length) vq2=vq2.in('filiale', fils);
+    var ve2=await vq2;
+    ((ve2&&ve2.data)||[]).forEach(function(v){
+      var row=byFil[v.filiale];
+      if(!row){ row=byFil[v.filiale]={ _fil:v.filiale, filiale:fName(v.filiale), barcode:ctx.barcode, fornitore:'', tipo_lenti:'', modello:ctx.modello||'', colore:ctx.colore||'', calibro:'', categoria:'', q_mag:0, q_pren:0, disponibile:0, in_arrivo:0, venduto:0, venduto_prec:0, data_ult_acq:'', data_ult_vend:'', p_acq:null, p_vend:null, anzianita:null }; }
+      row.venduto_prec+=(+v.quantita||0);
+    });
     var out=Object.keys(byFil).map(function(f){ return byFil[f]; });
-    out=out.filter(function(r){ return (r.disponibile>0)||(r.in_arrivo>0)||(r.venduto>0); });
+    out=out.filter(function(r){ return (r.disponibile>0)||(r.in_arrivo>0)||(r.venduto>0)||(r.venduto_prec>0); });
     return out;
   }
   async function openDD(ctx){
     ensure();
+    COLS=buildCols();
     state.ctx=ctx; state.rows=[]; state.sortKey='disponibile'; state.sortDir=-1;
     drawer.innerHTML=headHtml(ctx,false)+'<div class="svdr-empty">Caricamento\u2026</div>';
     wire();
