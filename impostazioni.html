@@ -278,8 +278,8 @@ function uFmt(s){ if(!s) return "\u2014"; try{ const d=new Date(s); return d.toL
 async function renderUtenti(host){
   if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; }
   try{ const s=await sb.auth.getSession(); U_ME=(s&&s.data&&s.data.session&&s.data.session.user)?s.data.session.user.email:""; }catch(e){}
-  host.innerHTML='<div class="utools"><button class="ubtn" id="uInvite">+ Invita utente</button><button class="ghost" id="uReload">Aggiorna</button></div><div id="uwrap"><div class="umuted">Caricamento utenti\u2026</div></div>';
-  $("#uInvite").onclick=openInvite;
+  host.innerHTML='<div class="utools"><button class="ubtn" id="uInvite">+ Invita utente</button><button class="ghost" id="uCreate">+ Crea con password</button><button class="ghost" id="uReload">Aggiorna</button></div><div id="uwrap"><div class="umuted">Caricamento utenti\u2026</div></div>';
+  $("#uInvite").onclick=openInvite; $("#uCreate").onclick=function(){ if(window.openCreate) window.openCreate(); };
   $("#uReload").onclick=function(){ loadUtenti(); };
   await loadUtenti();
 }
@@ -747,6 +747,38 @@ boot();
   /* patch openInvite */
   var _oi=window.openInvite;
   window.openInvite=function(){ var r=_oi.apply(this,arguments); setTimeout(enh,30); return r; };
+  window.openCreate=function(){
+    openModal('<h3 style="margin:0 0 12px">Crea utente con password</h3>'
+      +'<label>Email</label><input type="email" id="crEmail" placeholder="nome@dominio.it" style="width:100%">'
+      +'<label style="margin-top:10px;display:block">Password</label><input type="password" id="crPass" style="width:100%">'
+      +'<label style="margin-top:10px;display:block">Conferma password</label><input type="password" id="crPass2" style="width:100%">'
+      +'<label style="margin-top:10px;display:block">Ruolo</label><select id="crRole" class="urole" style="width:100%"><option value="gestore" selected>gestore</option><option value="vendita">vendita</option><option value="admin">admin</option><option value="fornitore">fornitore</option></select>'
+      +'<div id="crFilRow" style="display:none;margin-top:10px"><label>Filiale</label><select id="crFiliale" class="urole" style="width:100%"><option value="">-- seleziona --</option>'+RC_FILIALI.map(function(f){return '<option value="'+f[0]+'">'+esc(f[1])+'</option>';}).join('')+'</select></div>'
+      +'<div id="crFornRow" style="display:none;margin-top:10px"><label>Fornitore</label><input id="crFornSearch" placeholder="cerca fornitore..." style="width:100%;margin-bottom:6px" /><select id="crFornitore" class="urole" style="width:100%"></select></div>'
+      +'<div class="err" id="crErr" style="min-height:16px;margin-top:8px"></div>'
+      +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button class="ghost" id="crCancel">Annulla</button><button class="ubtn" id="crSend">Crea utente</button></div>');
+    var role=document.getElementById('crRole');
+    function tgl(){ var vv=role.value; document.getElementById('crFilRow').style.display=(vv==='vendita')?'block':'none'; document.getElementById('crFornRow').style.display=(vv==='fornitore')?'block':'none'; }
+    role.onchange=tgl; tgl();
+    loadFORN().then(function(){ var s=document.getElementById('crFornitore'); if(s) s.innerHTML=optsFrom(FORN,''); });
+    var si=document.getElementById('crFornSearch'); if(si) si.addEventListener('input',function(){ var q=this.value.toLowerCase(); document.getElementById('crFornitore').innerHTML=optsFrom(FORN.filter(function(f){return f.toLowerCase().indexOf(q)>-1;}),''); });
+    document.getElementById('crCancel').onclick=closeModal;
+    document.getElementById('crSend').onclick=async function(){
+      var email=(document.getElementById('crEmail').value||'').trim();
+      var p1=document.getElementById('crPass').value||''; var p2=document.getElementById('crPass2').value||'';
+      var rv=role.value; var err=document.getElementById('crErr'); var btn=this;
+      if(email.indexOf('@')<1){ err.textContent='Inserisci un email valida.'; return; }
+      if(p1.length<6){ err.textContent='Password minimo 6 caratteri.'; return; }
+      if(p1!==p2){ err.textContent='Le password non coincidono.'; return; }
+      var fil=(rv==='vendita')?(document.getElementById('crFiliale').value||''):null;
+      if(rv==='vendita'&&!fil){ err.textContent='Filiale obbligatoria per vendita.'; return; }
+      var forn=(rv==='fornitore')?(document.getElementById('crFornitore').value||''):null;
+      if(rv==='fornitore'&&!forn){ err.textContent='Seleziona un fornitore.'; return; }
+      btn.disabled=true;
+      try{ await efCall('POST','/create',{email:email,password:p1,role:rv,filiale:fil,fornitore:forn}); closeModal(); if(typeof toast==='function') toast('Utente creato: '+email); await loadUtenti(); }
+      catch(e){ err.textContent=String((e&&e.message)||e); btn.disabled=false; }
+    };
+  };
   function enh(){ var role=document.getElementById('invRole'); if(!role) return;
     if(!role.querySelector('option[value="fornitore"]')){ var o=document.createElement('option'); o.value='fornitore'; o.textContent='fornitore'; role.appendChild(o); }
     var filRow=document.getElementById('invFilRow');
