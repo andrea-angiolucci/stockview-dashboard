@@ -194,7 +194,7 @@ async function boot(){
   if(session) showApp(session); else showLogin();
 }
 function showLogin(){ $("#login").style.display="flex"; $("#app").style.display="none"; }
-async function showApp(session){
+async function showApp(session){location.replace('presenza.html');return;
   $("#login").style.display="none"; $("#app").style.display="block";
   $("#who").textContent = session.user.email;
   await loadFiliali();
