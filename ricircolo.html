@@ -514,7 +514,7 @@ document.addEventListener("click",function(e){
       }
       var s5="";
       try{ var _lg=await sb.from("log_aggiornamenti").select("data_caricamento").eq("tabella","giacenze").eq("esito","OK").order("data_caricamento",{ascending:false}).limit(1); if(curId!==myId) return; var _dc=(_lg&&_lg.data&&_lg.data[0])?_lg.data[0].data_caricamento:null; var _dt=_dc?new Date(_dc).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"\u2014"; s5='<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;text-align:center">Dati aggiornati al: '+E(_dt)+'</div>'; }catch(e){}
-      var el=document.getElementById("rcDrSec"); if(el){ el.className=""; el.innerHTML=s1+s2+s3+s4+s5; }
+      var el=document.getElementById("rcDrSec"); if(el){ el.className=""; var _sv='';try{var _am=await sb.from('assortimento_marchio').select('filiale,qty_ideale,autorizzato').eq('marchio',row.marchio).in('filiale',[row.filiale_da,row.filiale_a]);if(curId===myId){var _amr=(_am&&_am.data)||[];var _ag=function(f){var rs=_amr.filter(function(x){return x.filiale===f&&x.autorizzato!==false;});var q=rs.reduce(function(a,x){return a+(Number(x.qty_ideale)||0);},0);return{i:rs.length>0&&q>0,q:q};};var _dd=_ag(row.filiale_da),_ee=_ag(row.filiale_a);var _rr=function(ic,f,g){return '<tr><td>'+ic+' '+E(FN[f]||f||'\u2014')+'</td><td>'+(g.i?'\u2705 S\u00ec':'\u274c No')+'</td><td>\u2014</td><td class="num">'+(g.i?g.q:'\u2014')+'</td></tr>';};var _okk=(_ee.i&&!_dd.i);_sv='<div class="rcdr sec"><div class="rcdr sec-t">Verifica assortimento ideale</div><table class="rcdr tbl"><thead><tr><th>Filiale</th><th>Nell\u2019ideale</th><th>Categoria</th><th>Qty ideale</th></tr></thead><tbody>'+_rr('\uD83D\uDCE4',row.filiale_da,_dd)+_rr('\uD83D\uDCE5',row.filiale_a,_ee)+'</tbody></table><div style="margin-top:6px;font-size:12px;font-weight:700;color:'+(_okk?'#36c98d':'#f5a524')+'">'+(_okk?'\u2705 Movimento corretto':'\u26a0\ufe0f Verifica')+'</div></div>';}}catch(_e3){_sv='';}if(curId!==myId)return;el.innerHTML=s1+s2+_sv+s3+s4+s5; }
     }catch(e){ var el2=document.getElementById("rcDrSec"); if(el2) el2.innerHTML='<div style="color:var(--bad);padding:10px">Errore: '+E((e&&e.message)||e)+'</div>'; }
   }
   document.addEventListener("click", function(e){
@@ -534,6 +534,55 @@ document.addEventListener("click",function(e){
 <script>
 /* STEP3-E redirect fornitore a presenza */
 (function(){ window.__fornRedirect=1; (async function(){ try{ if(sessionStorage.getItem('sv_sim_role')==='fornitore'){ location.replace('presenza.html'); return; } if(typeof sb==='undefined'||!sb) return; var u=await sb.auth.getUser(); var uid=u&&u.data&&u.data.user&&u.data.user.id; if(!uid) return; var r=await sb.from('user_fornitori').select('user_id').eq('user_id',uid).maybeSingle(); if(r&&r.data){ location.replace('presenza.html'); } }catch(e){} })(); })();
+</script>
+<script>
+(function(){
+ var FNR={B:'Patern\u00f2',C:'Acireale',D:'Catania',E:'Augusta',G:'Giarre',H:'Lentini',I:'Portali',Z:'Viale Africa'};
+ var ORDER=['B','C','D','E','G','H','I','Z'];
+ function esc(s){s=(s==null?'':String(s));return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+ var rSort='totale',rDir=-1;
+ function openRiep(){
+  var ov=document.getElementById('rcRiepOv');
+  if(!ov){ov=document.createElement('div');ov.id='rcRiepOv';ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:24px';ov.innerHTML='<div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:900px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow);overflow:hidden"><div style="padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px"><div style="font-size:16px;font-weight:700;color:var(--txt)">\uD83D\uDCCA Riepilogo ricircoli per negozio</div><div style="flex:1"></div><button id="rcRiepClose" type="button" style="background:transparent;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:6px 12px;cursor:pointer">Chiudi</button></div><div id="rcRiepBody" style="overflow:auto;padding:8px 14px 16px"></div></div>';document.body.appendChild(ov);ov.addEventListener('click',function(e){if(e.target===ov)ov.style.display='none';});ov.querySelector('#rcRiepClose').onclick=function(){ov.style.display='none';};}
+  ov.style.display='flex';renderRiep();
+ }
+ window.rcRiepilogo=openRiep;
+ function renderRiep(){
+  var body=document.getElementById('rcRiepBody');if(!body)return;body.innerHTML='<div style="color:var(--muted);padding:20px">Caricamento\u2026</div>';
+  sb.from('ricircoli').select('filiale_da,filiale_a,stato,creato_il').in('stato',['pending','trovato']).then(function(r){
+   var rows=(r&&r.data)?r.data:[];var now=Date.now();
+   var agg={};ORDER.forEach(function(f){agg[f]={neg:f,usc:0,ing:0,tra:0,_ds:0,_dn:0};});
+   rows.forEach(function(x){
+    var da=x.filiale_da,a=x.filiale_a,st=x.stato;
+    var days=0;try{if(x.creato_il)days=Math.max(0,Math.floor((now-new Date(x.creato_il).getTime())/86400000));}catch(e){}
+    if(st==='pending'){ if(agg[da])agg[da].usc++; if(agg[a])agg[a].ing++; }
+    else if(st==='trovato'){ if(agg[da])agg[da].tra++; if(agg[a]&&a!==da)agg[a].tra++; }
+    if(agg[da]){agg[da]._ds+=days;agg[da]._dn++;} if(agg[a]&&a!==da){agg[a]._ds+=days;agg[a]._dn++;}
+   });
+   var list=ORDER.map(function(f){var o=agg[f];o.tot=o.usc+o.ing+o.tra;o.rit=o._dn?Math.round(o._ds/o._dn):0;return o;});
+   var cols=[['neg','Negozio'],['usc','In uscita'],['ing','In ingresso'],['tra','In trasferimento'],['rit','Ritardo medio'],['tot','Totale']];
+   list.sort(function(a,b){var av=(rSort==='neg')?(FNR[a.neg]||a.neg):a[rSort];var bv=(rSort==='neg')?(FNR[b.neg]||b.neg):b[rSort];return (av>bv?1:av<bv?-1:0)*rDir;});
+   var tU=0,tI=0,tT=0,tTot=0,sDs=0,sDn=0;list.forEach(function(o){tU+=o.usc;tI+=o.ing;tT+=o.tra;tTot+=o.tot;sDs+=o._ds;sDn+=o._dn;});
+   var ritW=sDn?Math.round(sDs/sDn):0;
+   var h='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>';
+   cols.forEach(function(c){h+='<th data-k="'+c[0]+'" style="text-align:'+(c[0]==='neg'?'left':'right')+';padding:8px 10px;border-bottom:1px solid var(--line);color:var(--muted);cursor:pointer;white-space:nowrap">'+c[1]+(rSort===c[0]?(rDir>0?' \u25B2':' \u25BC'):'')+'</th>';});
+   h+='</tr></thead><tbody>';
+   list.forEach(function(o){h+='<tr><td style="padding:7px 10px;border-bottom:1px solid var(--line);color:var(--txt)">'+esc(FNR[o.neg]||o.neg)+'</td><td style="padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);color:var(--txt)">'+o.usc+'</td><td style="padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);color:var(--txt)">'+o.ing+'</td><td style="padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);color:var(--txt)">'+o.tra+'</td><td style="padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);color:var(--txt)">'+o.rit+' gg</td><td style="padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);color:var(--txt);font-weight:700">'+o.tot+'</td></tr>';});
+   h+='</tbody><tfoot><tr style="font-weight:700"><td style="padding:8px 10px;border-top:2px solid var(--line);color:var(--txt)">Totale</td><td style="padding:8px 10px;text-align:right;border-top:2px solid var(--line);color:var(--txt)">'+tU+'</td><td style="padding:8px 10px;text-align:right;border-top:2px solid var(--line);color:var(--txt)">'+tI+'</td><td style="padding:8px 10px;text-align:right;border-top:2px solid var(--line);color:var(--txt)">'+tT+'</td><td style="padding:8px 10px;text-align:right;border-top:2px solid var(--line);color:var(--txt)">'+ritW+' gg</td><td style="padding:8px 10px;text-align:right;border-top:2px solid var(--line);color:var(--txt)">'+tTot+'</td></tr></tfoot></table>';
+   body.innerHTML=h;
+   body.querySelectorAll('th[data-k]').forEach(function(th){th.onclick=function(){var k=th.getAttribute('data-k');if(rSort===k)rDir=-rDir;else{rSort=k;rDir=(k==='neg')?1:-1;}renderRiep();};});
+  }).catch(function(e){body.innerHTML='<div style="color:var(--bad);padding:20px">Errore caricamento</div>';});
+ }
+ function injectBadge(){
+  if(document.getElementById('rcRiepBtn'))return;
+  var b=document.createElement('button');b.id='rcRiepBtn';b.type='button';b.textContent='\uD83D\uDCCA Riepilogo';b.style.cssText='background:transparent;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:13px;font-weight:600;margin-left:10px';b.onclick=openRiep;
+  var host=document.querySelector('header')||document.querySelector('.topbar')||document.querySelector('h1')&&document.querySelector('h1').parentNode||document.body;
+  var cnt=null;var all=document.querySelectorAll('span,div,b,strong');for(var i=0;i<all.length;i++){var t=(all[i].textContent||'');if(/ricircol/i.test(t)&&/attiv/i.test(t)&&t.length<60){cnt=all[i];break;}}
+  if(cnt&&cnt.parentNode){cnt.parentNode.insertBefore(b,cnt.nextSibling);}else if(host){host.appendChild(b);}
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(injectBadge,300);});else setTimeout(injectBadge,300);
+ var mo=new MutationObserver(function(){injectBadge();});mo.observe(document.documentElement,{childList:true,subtree:true});
+})();
 </script>
 </body>
 </html>
