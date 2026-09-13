@@ -123,6 +123,7 @@
   .ubadge.miss{background:rgba(255,107,107,.18);color:var(--bad)}
   .ufilbtn{padding:3px 9px;font-size:11px}
   .ufilsel{margin-top:5px}
+@keyframes svspin{to{transform:rotate(360deg)}}.svspin{display:inline-block;width:12px;height:12px;border:2px solid var(--muted);border-top-color:var(--accent);border-radius:50%;animation:svspin .7s linear infinite;vertical-align:middle;margin-right:6px}
 </style>
 </head>
 <body>
@@ -241,13 +242,87 @@ const TABS=[
   {id:"utenti", label:"Utenti", render:renderUtenti, admin:true},
   {id:"ricircolo", label:"Ricircolo", render:renderRicircolo, admin:true},
   {id:"permessi", label:"Permessi", render:renderPermessi, admin:true},
-  {id:'sistema', label:'Sistema', render:renderSistema, admin:true}
+  {id:'sistema', label:'Sistema', render:function(h){renderSistema(h);svRenderAggiornamento(h);}, admin:true},
+  {id:'filiali', label:'Filiali', render:renderFiliali, admin:true}
   // future: {id:"marchi", label:"Marchi alias", render:...}, {id:"filiali",...}, {id:"sistema",...}
 ];
 let curTab=null;
 function renderTabbar(){
   $("#tabbar").innerHTML=TABS.filter(t=>!t.admin||isAdmin).map(t=>'<button data-id="'+t.id+'"'+(t.id===curTab?' class="on"':'')+'>'+esc(t.label)+'</button>').join("");
   $("#tabbar").querySelectorAll("button").forEach(b=>b.onclick=()=>selectTab(b.dataset.id));
+}
+function renderFiliali(host){
+  var CODES=['A','B','C','D','E','G','H','I','Z'];
+  host.innerHTML='<div class="toolbar"><div class="fcol"><span>Filiali</span></div></div><div style="padding:14px" id="filWrap"><div class="muted">Caricamento…</div></div>';
+  var wrap=host.querySelector('#filWrap');
+  sb.from('filiali').select('codice,nome,attiva,indirizzo,telefono,email_notifiche').in('codice',CODES).then(function(r){
+    var rows=(r&&r.data)||[]; var by={}; rows.forEach(function(x){by[x.codice]=x;});
+    var h='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="text-align:left;padding:6px">Nome</th><th style="padding:6px">Codice</th><th style="padding:6px">Attiva</th><th style="text-align:left;padding:6px">Indirizzo</th><th style="text-align:left;padding:6px">Telefono</th><th style="text-align:left;padding:6px">Email notifiche</th><th style="padding:6px"></th></tr></thead><tbody>';
+    CODES.forEach(function(c){
+      var f=by[c]||{nome:'',attiva:true,indirizzo:'',telefono:'',email_notifiche:''};
+      h+='<tr data-cod="'+c+'"><td style="padding:6px"><input class="fi-nome" value="'+esc(f.nome||'')+'" style="width:120px"></td><td style="padding:6px;text-align:center;font-weight:700">'+esc(c)+'</td><td style="padding:6px;text-align:center"><input type="checkbox" class="fi-attiva"'+(f.attiva?' checked':'')+'></td><td style="padding:6px"><input class="fi-ind" value="'+esc(f.indirizzo||'')+'" style="width:150px"></td><td style="padding:6px"><input class="fi-tel" value="'+esc(f.telefono||'')+'" style="width:110px"></td><td style="padding:6px"><input class="fi-email" value="'+esc(f.email_notifiche||'')+'" style="width:180px"></td><td style="padding:6px;white-space:nowrap"><button class="btn fi-save">💾</button> <span class="fi-msg" style="font-size:12px"></span></td></tr>';
+    });
+    h+='</tbody></table>';
+    wrap.innerHTML=h;
+    wrap.querySelectorAll('tr[data-cod]').forEach(function(tr){
+      var b=tr.querySelector('.fi-save'), msg=tr.querySelector('.fi-msg');
+      b.onclick=function(){
+        var cod=tr.getAttribute('data-cod');
+        var payload={nome:tr.querySelector('.fi-nome').value.trim(),attiva:tr.querySelector('.fi-attiva').checked,indirizzo:tr.querySelector('.fi-ind').value.trim()||null,telefono:tr.querySelector('.fi-tel').value.trim()||null,email_notifiche:tr.querySelector('.fi-email').value.trim()||null};
+        b.disabled=true; msg.style.color='var(--muted)'; msg.textContent='…';
+        sb.from('filiali').update(payload).eq('codice',cod).then(function(res){
+          b.disabled=false;
+          if(res&&res.error){msg.style.color='var(--bad)';msg.textContent='Errore';}
+          else{msg.style.color='var(--ok)';msg.textContent='Salvato ✓';setTimeout(function(){msg.textContent='';},2000);}
+        });
+      };
+    });
+  });
+}
+function svRenderAggiornamento(host){
+  host.insertAdjacentHTML('beforeend','<div style="padding:14px;max-width:560px;border-top:1px solid var(--line);margin-top:6px"><div style="font-size:14px;font-weight:700;margin-bottom:4px">Aggiornamento dati</div><p style="color:var(--muted);font-size:13px;margin:0 0 10px">Lancia manualmente il caricamento notturno (GitHub Actions). Richiede un token GitHub con permesso <b>actions:write</b> sul repo stockview.</p><div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input id="ghTok" type="password" placeholder="GitHub token" autocomplete="off" style="flex:1;min-width:200px"><button id="ghTokSave" class="btn">Salva token</button><span id="ghTokMsg" class="muted" style="font-size:12px"></span></div><div style="display:flex;gap:10px;align-items:center"><button id="ghRun" class="btn acc">🔄 Forza aggiornamento dati</button><span id="ghRunMsg" style="font-size:13px"></span></div></div>');
+  var tokEl=host.querySelector('#ghTok'),tokSave=host.querySelector('#ghTokSave'),tokMsg=host.querySelector('#ghTokMsg');
+  var runBtn=host.querySelector('#ghRun'),runMsg=host.querySelector('#ghRunMsg');
+  var REPO='andrea-angiolucci/stockview',WF='stockview_nightly.yml';
+  function ghHeaders(t){return {'Authorization':'Bearer '+t,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};}
+  sb.from('impostazioni_sistema').select('valore').eq('chiave','github_token').maybeSingle().then(function(r){ if(r&&r.data&&r.data.valore){tokEl.value=r.data.valore;} });
+  tokSave.onclick=function(){
+    tokSave.disabled=true; tokMsg.style.color='var(--muted)'; tokMsg.textContent='…';
+    sb.from('impostazioni_sistema').upsert({chiave:'github_token',valore:tokEl.value.trim()}).then(function(res){
+      tokSave.disabled=false;
+      if(res&&res.error){tokMsg.style.color='var(--bad)';tokMsg.textContent='Errore';}
+      else{tokMsg.style.color='var(--ok)';tokMsg.textContent='Salvato ✓';setTimeout(function(){tokMsg.textContent='';},2000);}
+    });
+  };
+  runBtn.onclick=function(){
+    var t=tokEl.value.trim();
+    if(!t){runMsg.style.color='var(--bad)';runMsg.textContent='❌ Inserisci prima il token';return;}
+    runBtn.disabled=true; runMsg.style.color='var(--muted)'; runMsg.innerHTML='<span class="svspin"></span> Aggiornamento in corso…';
+    var startTime=Date.now(),H=ghHeaders(t),runsURL='https://api.github.com/repos/'+REPO+'/actions/runs?per_page=1';
+    fetch(runsURL,{headers:H}).then(function(r){return r.json();}).then(function(j0){
+      var baseId=(j0&&j0.workflow_runs&&j0.workflow_runs[0])?j0.workflow_runs[0].id:0;
+      return fetch('https://api.github.com/repos/'+REPO+'/actions/workflows/'+WF+'/dispatches',{method:'POST',headers:H,body:JSON.stringify({ref:'main'})}).then(function(resp){
+        if(resp.status!==204){throw new Error('dispatch HTTP '+resp.status);}
+        var tries=0;
+        function poll(){
+          tries++;
+          fetch(runsURL,{headers:H}).then(function(r){return r.json();}).then(function(j){
+            var run=j&&j.workflow_runs&&j.workflow_runs[0];
+            if(run&&run.id!==baseId&&run.status==='completed'){
+              runBtn.disabled=false;
+              if(run.conclusion==='success'){runMsg.style.color='var(--ok)';runMsg.textContent='✅ Aggiornamento completato';}
+              else{runMsg.style.color='var(--bad)';runMsg.textContent='❌ Workflow: '+(run.conclusion||'errore');}
+              return;
+            }
+            if(tries>40){runBtn.disabled=false;runMsg.style.color='var(--bad)';runMsg.textContent='❌ Timeout attesa';return;}
+            runMsg.innerHTML='<span class="svspin"></span> In corso… ('+Math.round((Date.now()-startTime)/1000)+'s)';
+            setTimeout(poll,30000);
+          }).catch(function(){runBtn.disabled=false;runMsg.style.color='var(--bad)';runMsg.textContent='❌ Errore durante il polling';});
+        }
+        setTimeout(poll,30000);
+      });
+    }).catch(function(e){runBtn.disabled=false;runMsg.style.color='var(--bad)';runMsg.textContent='❌ Errore: '+((e&&e.message)||e);});
+  };
 }
 function renderSistema(host){
   host.innerHTML='<div class="toolbar"><div class="fcol"><span>Sistema</span></div></div><div style="padding:14px;max-width:560px"><label style="display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer"><input type="checkbox" id="svAllocAdmin"> <b>Permetti allocazione agli admin</b></label><p style="color:var(--muted);font-size:13px;margin:6px 0 0 26px">Se attivo, anche gli admin possono allocare la merce come i fornitori.</p><div id="svAllocMsg" style="font-size:12px;color:var(--muted);margin:8px 0 0 26px"></div></div>';
