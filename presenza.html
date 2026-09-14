@@ -64,7 +64,7 @@
   .ref b{color:var(--txt)} .ref small{display:block;color:var(--muted);font-size:11.5px}
   .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11.5px;font-weight:600}
   .pill.bad{background:rgba(255,107,107,.15);color:var(--bad)}
-  .filcol{text-align:center;border-left:1px solid var(--line);position:relative}
+  .filcol{position:relative;text-align:center;border-left:1px solid var(--line);position:relative}
   .depcol{text-align:center;border-left:1px solid var(--line);background:rgba(148,163,184,.06);position:relative}
   thead th.depcol-h{text-align:center;background:#2a3546;color:var(--muted);border-left:2px solid var(--line);font-weight:700}
   tfoot td.depcol{background:var(--panel2);font-weight:700}
@@ -1248,7 +1248,7 @@ boot();
 
 <style>
 .svbadge{display:inline-block;font-size:10px;line-height:1.25;padding:1px 5px;border-radius:3px;margin:0 0 1px 0;cursor:pointer;font-weight:700}
-.svbadge.alloc{background:transparent;color:#5b9bd5;font-weight:600;padding:0 2px;margin:0 0 0 4px;cursor:default}
+.svbadge.alloc{position:absolute;top:2px;right:2px;font-size:9px;color:#5b9bd5;pointer-events:none;background:transparent}
 .svbadge.arr{background:#127a2e;color:#fff}
 .svzero-btn{cursor:pointer;display:inline-block;min-width:14px;padding:0 5px;border-radius:4px;font-weight:700}
 .svzero-btn:hover{background:rgba(255,107,107,.28);outline:1px solid var(--bad)}
@@ -1354,7 +1354,7 @@ function decorate2(){
    td.classList.add('svzero');
    var _cg=td.querySelector('.cg');if(_cg&&!_cg.querySelector('.svzero-btn')){_cg.innerHTML='<span class="svzero-btn">'+(_cg.textContent||'0').trim()+'</span>';}
    var a=ALLOC[kk]||(window.ALLOC_ALL&&window.ALLOC_ALL[kk])||null;
-   if(a){var b=document.createElement('span');b.className='svbadge alloc';b.textContent='\uD83D\uDD12 '+ddmm(a.allocato_il);b.title='Allocato da '+(a.allocato_da||'\u2014')+' il '+ddmm(a.allocato_il)+(a.note?(' - '+a.note):'');(td.querySelector('.cg')||td).appendChild(b);}
+   if(a){var b=document.createElement('span');b.className='svbadge alloc';b.textContent='\uD83D\uDD12 '+ddmm(a.allocato_il);b.title='Allocato da '+(a.allocato_da||'\u2014')+' il '+ddmm(a.allocato_il)+(a.note?(' - '+a.note):'');td.appendChild(b);}
   });
  }catch(e){}
  finally{ if(OBS)try{OBS.observe(document.body,{childList:true,subtree:true});}catch(e){} }
