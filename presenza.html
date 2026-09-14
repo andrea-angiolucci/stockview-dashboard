@@ -233,7 +233,7 @@
         <div class="fcol"><span>Venduto 2025</span><div class="seg" id="segPrev"><button data-dp="off" class="on">Off</button><button data-dp="on">On</button></div></div>
         <div class="fcol"><span>Nascondi morti</span><div class="seg" id="segDead"><button data-dd="off" class="on">Off</button><button data-dd="on">On</button></div></div>
       </div></div>
-      <div class="tbgroup"><div class="tbglabel">Ordine</div><div class="tbrow">
+      <div class="tbgroup"><div class="tbglabel">Ordine</div><div class="tbrow"><div class="fcol"><button id="btnAllocList" type="button" style="font:inherit;font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--txt);cursor:pointer">📋 Allocazioni</button></div>
         <div class="fcol"><span>Ordine manuale</span><div class="seg" id="segOrd"><button data-o="off" class="on">Off</button><button data-o="on">On</button></div></div><div class="fcol"><span>&nbsp;</span><button class="ghost" id="clearOrd" style="padding:6px 10px;white-space:nowrap;border-color:var(--bad);color:var(--bad)">Cancella ordini</button></div>
         <div class="fcol"><span>Includi buchi</span><div class="seg" id="segIncl"><button data-i="si" class="on">Sì</button><button data-i="no">No</button></div></div>
         <div class="fcol"><span>Categorie da ordinare</span><div class="ms" id="msOrdCat"></div></div>
@@ -1248,7 +1248,7 @@ boot();
 
 <style>
 .svbadge{display:inline-block;font-size:10px;line-height:1.25;padding:1px 5px;border-radius:3px;margin:0 0 1px 0;cursor:pointer;font-weight:700}
-.svbadge.alloc{background:#2b7fd6;color:#fff}
+.svbadge.alloc{background:transparent;color:#5b9bd5;font-weight:600;padding:0 2px;margin:0 0 0 4px;cursor:default}
 .svbadge.arr{background:#127a2e;color:#fff}
 .svzero-btn{cursor:pointer;display:inline-block;min-width:14px;padding:0 5px;border-radius:4px;font-weight:700}
 .svzero-btn:hover{background:rgba(255,107,107,.28);outline:1px solid var(--bad)}
@@ -1301,10 +1301,51 @@ function bumpLegend(delta){try{var la=document.getElementById('legArr');if(la){v
 async function doAlloc(bc,fil){var f=curForn();if(!f||!EMAIL)return false;try{var r=await sb.from('allocazioni_fornitore').insert({barcode:bc,filiale:fil,fornitore:f,quantita:1,allocato_da:EMAIL,note:'',data_prevista:new Date().toISOString().split('T')[0]}).select().maybeSingle();if(r&&r.data){ALLOC[K(bc,fil)]=r.data;bumpLegend(1);return true;}}catch(e){}return false;}
 async function doUpd(id,q,n,d){try{await sb.from('allocazioni_fornitore').update({quantita:q,note:n,data_prevista:d||null}).eq('id',id);Object.keys(ALLOC).forEach(function(kk){if(ALLOC[kk].id===id){ALLOC[kk].quantita=q;ALLOC[kk].note=n;ALLOC[kk].data_prevista=d||null;}});return true;}catch(e){return false;}}
 async function doCancel(id){try{await sb.from('allocazioni_fornitore').update({stato:'annullato',annullato_il:new Date().toISOString()}).eq('id',id);Object.keys(ALLOC).forEach(function(kk){if(ALLOC[kk].id===id)delete ALLOC[kk];});bumpLegend(-1);return true;}catch(e){return false;}}
+async function svOpenAllocList(){
+  var host=document.getElementById('svAllocModal');
+  if(!host){host=document.createElement('div');host.id='svAllocModal';host.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto';host.addEventListener('click',function(e){if(e.target===host)host.style.display='none';});document.body.appendChild(host);}
+  host.style.display='flex';
+  host.innerHTML='<div style="background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:12px;max-width:1100px;width:100%;padding:16px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="font-size:16px;font-weight:800">📋 Allocazioni attive</div><div class="muted" id="svAlCount" style="font-size:12px"></div><div style="flex:1"></div><button id="svAlClose" style="font:inherit;padding:4px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--txt);cursor:pointer">Chiudi</button></div><div id="svAlFilters" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px"><button data-f="tutti" class="on" style="font:inherit;font-size:12px;padding:3px 10px;border:1px solid var(--line);border-radius:20px;background:var(--accent);color:#04121f;cursor:pointer">Tutti</button><button data-f="note" style="font:inherit;font-size:12px;padding:3px 10px;border:1px solid var(--line);border-radius:20px;background:var(--panel2);color:var(--txt);cursor:pointer">Solo con note</button></div><div id="svAlBody" class="muted" style="font-size:13px">Caricamento…</div></div>';
+  host.querySelector('#svAlClose').onclick=function(){host.style.display='none';};
+  var body=host.querySelector('#svAlBody');
+  try{
+    var q=sb.from('allocazioni_fornitore').select('barcode,filiale,fornitore,allocato_da,allocato_il,quantita,note').eq('stato','allocato');
+    if(isForn()){var f=curForn();if(f)q=q.eq('fornitore',f);}
+    var r=await q;var rows=(r&&r.data)||[];
+    var bcs=Array.from(new Set(rows.map(function(x){return x.barcode;}).filter(Boolean)));
+    var meta={};
+    if(bcs.length){var g=await sb.from('giacenze').select('barcode,marchio,modello,colore').in('barcode',bcs);(g.data||[]).forEach(function(x){if(!meta[x.barcode])meta[x.barcode]={marchio:x.marchio,modello:x.modello,colore:x.colore};});}
+    rows.forEach(function(x){var m=meta[x.barcode]||{};x._marchio=m.marchio||'';x._modello=m.modello||'';x._colore=m.colore||'';});
+    var sortKey='_marchio',sortDir=1,curF='tutti',curFornSel='';
+    function fmt(x){try{return x?(String(x).slice(8,10)+'/'+String(x).slice(5,7)):'';}catch(e){return '';}}
+    function render(){
+      var list=rows.slice();
+      if(curF==='note')list=list.filter(function(x){return x.note&&String(x.note).trim();});
+      if(curFornSel)list=list.filter(function(x){return x.fornitore===curFornSel;});
+      list.sort(function(a,b){var A,B;if(sortKey==='quantita'){A=a.quantita||0;B=b.quantita||0;}else if(sortKey==='allocato_il'){A=a.allocato_il||'';B=b.allocato_il||'';}else{A=(a[sortKey]||'').toString().toLowerCase();B=(b[sortKey]||'').toString().toLowerCase();}return A<B?-sortDir:A>B?sortDir:0;});
+      host.querySelector('#svAlCount').textContent=list.length+' righe';
+      var cols=[['_marchio','Marchio'],['_modello','Modello'],['_colore','Colore'],['barcode','Barcode'],['filiale','Filiale'],['allocato_il','Data'],['quantita','Qty'],['note','Note'],['fornitore','Fornitore']];
+      var h='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'+cols.map(function(c){return '<th data-k="'+c[0]+'" style="text-align:left;padding:6px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap">'+esc(c[1])+(sortKey===c[0]?(sortDir>0?' \u25B2':' \u25BC'):'')+'</th>';}).join('')+'</tr></thead><tbody>';
+      if(!list.length){h+='<tr><td colspan="9" style="padding:12px" class="muted">Nessuna allocazione</td></tr>';}
+      var lastM=null;
+      list.forEach(function(x){
+        if(x._marchio!==lastM){lastM=x._marchio;h+='<tr><td colspan="9" style="padding:8px 6px 2px;font-weight:800;color:var(--accent)">'+esc(x._marchio||'\u2014')+'</td></tr>';}
+        h+='<tr><td style="padding:5px 6px;border-bottom:1px solid var(--line)">'+esc(x._marchio||'')+'</td><td style="padding:5px 6px;border-bottom:1px solid var(--line)">'+esc(x._modello||'')+'</td><td style="padding:5px 6px;border-bottom:1px solid var(--line)">'+esc(x._colore||'')+'</td><td style="padding:5px 6px;border-bottom:1px solid var(--line)">'+esc(x.barcode||'')+'</td><td style="padding:5px 6px;border-bottom:1px solid var(--line);text-align:center">'+esc(x.filiale||'')+'</td><td style="padding:5px 6px;border-bottom:1px solid var(--line);white-space:nowrap">'+fmt(x.allocato_il)+'</td><td style="padding:5px 6px;border-bottom:1px solid var(--line);text-align:center">'+(x.quantita||0)+'</td><td style="padding:5px 6px;border-bottom:1px solid var(--line)">'+esc(x.note||'')+'</td><td style="padding:5px 6px;border-bottom:1px solid var(--line)">'+esc(x.fornitore||'')+'</td></tr>';
+      });
+      h+='</tbody></table>';body.innerHTML=h;body.className='';
+      body.querySelectorAll('th[data-k]').forEach(function(th){th.onclick=function(){var k=th.getAttribute('data-k');if(sortKey===k)sortDir=-sortDir;else{sortKey=k;sortDir=1;}render();};});
+    }
+    var fb=host.querySelector('#svAlFilters');
+    fb.querySelectorAll('button[data-f]').forEach(function(b){b.onclick=function(){curF=b.getAttribute('data-f');fb.querySelectorAll('button[data-f]').forEach(function(x){var on=(x===b);x.style.background=on?'var(--accent)':'var(--panel2)';x.style.color=on?'#04121f':'var(--txt)';x.className=on?'on':'';});render();};});
+    if(!isForn()){var forns=Array.from(new Set(rows.map(function(x){return x.fornitore;}).filter(Boolean))).sort();var sel=document.createElement('select');sel.style.cssText='font:inherit;font-size:12px;padding:3px 8px;border:1px solid var(--line);border-radius:20px;background:var(--panel2);color:var(--txt);cursor:pointer';sel.innerHTML='<option value="">Per fornitore: tutti</option>'+forns.map(function(f){return '<option>'+esc(f)+'</option>';}).join('');sel.onchange=function(){curFornSel=sel.value;render();};fb.appendChild(sel);}
+    render();
+  }catch(e){body.textContent='Errore: '+((e&&e.message)||e);}
+}
+document.addEventListener('click',function(e){if(e.target&&e.target.closest&&e.target.closest('#btnAllocList')){e.preventDefault();svOpenAllocList();}});
 function decorate2(){
  if(OBS)OBS.disconnect();
  try{
-  if(!allowed()){document.querySelectorAll('td.filcol .svbadge').forEach(function(b){b.remove();});document.querySelectorAll('td.filcol.svzero').forEach(function(t){t.classList.remove('svzero');});return;}
+  if(!(isForn()||rrole()==='admin')){document.querySelectorAll('td.filcol .svbadge').forEach(function(b){b.remove();});document.querySelectorAll('td.filcol.svzero').forEach(function(t){t.classList.remove('svzero');});return;}
   buildDisp();
   document.querySelectorAll('td.filcol[data-bc]').forEach(function(td){
    var bc=td.getAttribute('data-bc'),fil=td.getAttribute('data-fil');if(bc==null||fil==null)return;
@@ -1313,7 +1354,7 @@ function decorate2(){
    td.classList.add('svzero');
    var _cg=td.querySelector('.cg');if(_cg&&!_cg.querySelector('.svzero-btn')){_cg.innerHTML='<span class="svzero-btn">'+(_cg.textContent||'0').trim()+'</span>';}
    var a=ALLOC[kk]||(window.ALLOC_ALL&&window.ALLOC_ALL[kk])||null;
-   if(a){var b=document.createElement('div');b.className='svbadge alloc';b.textContent='\uD83D\uDD12 '+ddmm(a.allocato_il);b.title='Allocato da '+(a.allocato_da||'\u2014')+' il '+ddmm(a.allocato_il)+(a.note?(' - '+a.note):'');td.insertBefore(b,td.firstChild);}
+   if(a){var b=document.createElement('span');b.className='svbadge alloc';b.textContent='\uD83D\uDD12 '+ddmm(a.allocato_il);b.title='Allocato da '+(a.allocato_da||'\u2014')+' il '+ddmm(a.allocato_il)+(a.note?(' - '+a.note):'');(td.querySelector('.cg')||td).appendChild(b);}
   });
  }catch(e){}
  finally{ if(OBS)try{OBS.observe(document.body,{childList:true,subtree:true});}catch(e){} }
