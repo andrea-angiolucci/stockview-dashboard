@@ -373,34 +373,34 @@ boot();
 
 <!-- sv-performance-injected -->
 <style>
-#perfPanel{display:none;padding:4px 0 24px}
+#perfPanel{--panel:#16212e;--panel2:#1c2a3a;--line:#26384c;--txt:#e8eef5;--ink:#e8eef5;--muted:#8aa0b6;--accent:#3da9fc;--ok:#36c98d;--bad:#ff6b6b;--chip:#1c2a3a;--shadow:0 10px 30px rgba(0,0,0,.35);display:none;background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:12px;padding:14px 18px 24px;margin-top:8px}
 body.perf-mode .legend,body.perf-mode .tablewrap,body.perf-mode #miss,body.perf-mode #deltaBtn,body.perf-mode #subToggles,body.perf-mode #addBtn,body.perf-mode #saveBtn{display:none!important}
 body.perf-mode #perfPanel{display:block}
-.perf-bar{display:flex;align-items:center;gap:10px;margin:6px 0 14px;flex-wrap:wrap}
-.perf-bar label{font-weight:600;color:var(--muted)}
-#perfForn{min-width:240px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font-size:14px}
-.perf-h{font-size:15px;margin:18px 0 8px;color:var(--ink)}
+#seg #perfBtn{margin-left:16px}
+.perf-selforn{font-weight:700;font-size:15px;margin:2px 0 14px;color:var(--txt)}
+.perf-selforn span{color:var(--muted);font-weight:400}
+.perf-h{font-size:15px;margin:18px 0 8px;color:var(--txt)}
 .perf-sub{font-weight:400;color:var(--muted);font-size:13px}
 .perf-cards{display:flex;gap:14px;align-items:stretch;flex-wrap:wrap}
-.perf-card{flex:1 1 220px;min-width:200px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px}
+.perf-card{flex:1 1 220px;min-width:200px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .perf-ct{font-weight:700;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px}
 .perf-row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--line)}
 .perf-row:last-child{border-bottom:0}
 .perf-row span{color:var(--muted)}
-.perf-row b{font-size:16px;font-variant-numeric:tabular-nums}
+.perf-row b{font-size:16px;font-variant-numeric:tabular-nums;color:var(--txt)}
 .perf-mid{flex:0 0 130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
 .perf-big{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
 .perf-md{font-size:12px;color:var(--muted)}
 .perf-p{color:var(--ok)}.perf-n{color:var(--bad)}.perf-z{color:var(--muted)}
-.perf-tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin-top:6px;background:var(--panel)}
+.perf-tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin-top:6px;background:var(--panel2)}
 #perfTbl{width:100%;border-collapse:collapse;font-size:13px}
 #perfTbl thead th{position:sticky;top:0;background:var(--chip);color:var(--muted);text-align:right;padding:9px 12px;cursor:pointer;white-space:nowrap;border-bottom:1px solid var(--line);user-select:none}
 #perfTbl thead th:first-child{text-align:left}
-#perfTbl thead th:hover{color:var(--ink)}
-#perfTbl tbody td{padding:7px 12px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;white-space:nowrap}
+#perfTbl thead th:hover{color:var(--txt)}
+#perfTbl tbody td{padding:7px 12px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--txt)}
 #perfTbl tbody td:first-child{text-align:left;font-weight:600}
-#perfTbl tbody tr:hover{background:var(--chip)}
-#perfTbl tr.perf-tot td{padding:9px 12px;text-align:right;font-weight:800;border-top:2px solid var(--accent);background:var(--chip)}
+#perfTbl tbody tr:hover{background:rgba(255,255,255,.03)}
+#perfTbl tr.perf-tot td{padding:9px 12px;text-align:right;font-weight:800;border-top:2px solid var(--accent);background:var(--chip);color:var(--txt)}
 #perfTbl tr.perf-tot td:first-child{text-align:left}
 .perf-spin{display:flex;align-items:center;justify-content:center;padding:40px}
 .perf-sp{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:perfspin .8s linear infinite}
@@ -412,36 +412,36 @@ body.perf-mode #perfPanel{display:block}
 (function(){
   var VISTA="Montature vista", SOLE="Occhiali sole";
   var YCUR=new Date().getFullYear(), YPREV=YCUR-1;
-  var curData=null, sortKey="marchio", sortDir=1, busy=false;
+  var curData=null, sortKey="marchio", sortDir=1, busy=false, seq=0;
   function iso(d){var m=("0"+(d.getMonth()+1)).slice(-2),g=("0"+d.getDate()).slice(-2);return d.getFullYear()+"-"+m+"-"+g;}
   function ddmm(d){return ("0"+d.getDate()).slice(-2)+"/"+("0"+(d.getMonth()+1)).slice(-2);}
   function pct(cur,prev){if(prev===0){return cur===0?{t:"0%",c:"z"}:{t:"n/d",c:"z"};}var d=(cur-prev)/prev*100;var t=(d>0?"+":"")+d.toFixed(1)+"%";return {t:t,c:d>0?"p":(d<0?"n":"z")};}
   function pctSpan(cur,prev){var p=pct(cur,prev);return "<span class=\"perf-"+p.c+"\">"+p.t+"</span>";}
   function esc(v){return String(v==null?"":v).replace(/[&<>\"]/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m];});}
   function el(id){return document.getElementById(id);}
+  function showEmpty(txt){if(el("perfSpin"))el("perfSpin").style.display="none";if(el("perfBody"))el("perfBody").style.display="none";var e=el("perfEmpty");if(e){e.style.display="block";if(txt)e.textContent=txt;}}
   function cardRows(o){return "<div class=\"perf-row\"><span>Totale pezzi venduti</span><b>"+o.tot+"</b></div><div class=\"perf-row\"><span>Totale Vista</span><b>"+o.v+"</b></div><div class=\"perf-row\"><span>Totale Sole</span><b>"+o.s+"</b></div>";}
   function fillCards(cont,cur,prev){var d=pct(cur.tot,prev.tot);cont.innerHTML="<div class=\"perf-card\"><div class=\"perf-ct\">Anno corrente ("+YCUR+")</div>"+cardRows(cur)+"</div>"+"<div class=\"perf-mid\"><div class=\"perf-big perf-"+d.c+"\">"+d.t+"</div><div class=\"perf-md\">Vista "+pctSpan(cur.v,prev.v)+"</div><div class=\"perf-md\">Sole "+pctSpan(cur.s,prev.s)+"</div></div>"+"<div class=\"perf-card\"><div class=\"perf-ct\">Anno precedente ("+YPREV+")</div>"+cardRows(prev)+"</div>";}
-  var COLS=[{k:"marchio",t:"Marchio",s:0},{k:"v26",t:"Vista "+ (new Date().getFullYear())},{k:"v25",t:"Vista "+((new Date().getFullYear())-1)},{k:"dv",t:"\u0394% Vista",d:1},{k:"s26",t:"Sole "+(new Date().getFullYear())},{k:"s25",t:"Sole "+((new Date().getFullYear())-1)},{k:"ds",t:"\u0394% Sole",d:1},{k:"t26",t:"Tot "+(new Date().getFullYear())},{k:"t25",t:"Tot "+((new Date().getFullYear())-1)},{k:"dt",t:"\u0394% Tot",d:1}];
+  var Y=new Date().getFullYear();var COLS=[{k:"marchio",t:"Marchio"},{k:"v26",t:"Vista "+Y},{k:"v25",t:"Vista "+(Y-1)},{k:"dv",t:"\u0394% Vista"},{k:"s26",t:"Sole "+Y},{k:"s25",t:"Sole "+(Y-1)},{k:"ds",t:"\u0394% Sole"},{k:"t26",t:"Tot "+Y},{k:"t25",t:"Tot "+(Y-1)},{k:"dt",t:"\u0394% Tot"}];
   function renderTable(){if(!curData)return;var rows=curData.rows.slice();rows.sort(function(a,b){var x=a[sortKey],y=b[sortKey];if(typeof x==="number"&&typeof y==="number")return (x-y)*sortDir;return String(x).localeCompare(String(y),"it",{numeric:true})*sortDir;});
    var h="<tr>";COLS.forEach(function(c){var ar=c.k===sortKey?(sortDir>0?"&#9650;":"&#9660;"):"";h+="<th data-k=\""+c.k+"\">"+c.t+"<span class=\"perf-arrow\">"+ar+"</span></th>";});h+="</tr>";el("perfHead").innerHTML=h;
    var b="";rows.forEach(function(r){b+="<tr><td>"+esc(r.marchio)+"</td><td>"+r.v26+"</td><td>"+r.v25+"</td><td>"+pctSpan(r.v26,r.v25)+"</td><td>"+r.s26+"</td><td>"+r.s25+"</td><td>"+pctSpan(r.s26,r.s25)+"</td><td>"+r.t26+"</td><td>"+r.t25+"</td><td>"+pctSpan(r.t26,r.t25)+"</td></tr>";});
    var g=curData.tot;b+="<tr class=\"perf-tot\"><td>Totale</td><td>"+g.v26+"</td><td>"+g.v25+"</td><td>"+pctSpan(g.v26,g.v25)+"</td><td>"+g.s26+"</td><td>"+g.s25+"</td><td>"+pctSpan(g.s26,g.s25)+"</td><td>"+g.t26+"</td><td>"+g.t25+"</td><td>"+pctSpan(g.t26,g.t25)+"</td></tr>";
    el("perfTbody").innerHTML=b;}
-  el; 
-  async function load(forn){if(busy)return;busy=true;el("perfSpin").style.display="flex";el("perfBody").style.display="none";el("perfEmpty").style.display="none";
+  async function load(forn){var mine=++seq;busy=true;el("perfSelForn").innerHTML="Performance: <span>"+esc(forn)+"</span>";el("perfSpin").style.display="flex";el("perfBody").style.display="none";el("perfEmpty").style.display="none";
    try{
     var mr=await sb.from("marchi_fornitori_attivi").select("marchio").eq("fornitore_attivo",forn);
     var marchi=(mr.data||[]).map(function(x){return x.marchio;});
-    if(!marchi.length){curData=null;el("perfSpin").style.display="none";el("perfEmpty").style.display="block";busy=false;return;}
+    if(mine!==seq)return;
+    if(!marchi.length){curData=null;showEmpty("Nessun dato per il fornitore selezionato.");busy=false;return;}
     var rows=[],from=0;
-    while(true){var q=await sb.from("vendite").select("marchio,tipo_prodotto,quantita,data").in("marchio",marchi).in("tipo_prodotto",[VISTA,SOLE]).gte("data",YPREV+"-01-01").lte("data",YCUR+"-12-31").range(from,from+999);var d=q.data||[];rows=rows.concat(d);if(d.length<1000)break;from+=1000;if(from>60000)break;}
+    while(true){var q=await sb.from("vendite").select("marchio,tipo_prodotto,quantita,data").in("marchio",marchi).in("tipo_prodotto",[VISTA,SOLE]).gte("data",YPREV+"-01-01").lte("data",YCUR+"-12-31").range(from,from+999);if(mine!==seq)return;var d=q.data||[];rows=rows.concat(d);if(d.length<1000)break;from+=1000;if(from>60000)break;}
     var today=new Date();var cutCur=iso(today);var tp=new Date(today.getTime());tp.setFullYear(YPREV);var cutPrev=iso(tp);
     var bm={},g={v26:0,v25:0,s26:0,s25:0},gy={v26:0,v25:0,s26:0,s25:0};
     rows.forEach(function(x){var y=(x.data||"").slice(0,4);var qn=+x.quantita||0;var m=x.marchio||"\u2014";var isV=x.tipo_prodotto===VISTA,isS=x.tipo_prodotto===SOLE;if(!bm[m])bm[m]={v26:0,v25:0,s26:0,s25:0};
      if(y==YCUR){if(isV){bm[m].v26+=qn;g.v26+=qn;if(x.data<=cutCur)gy.v26+=qn;}else if(isS){bm[m].s26+=qn;g.s26+=qn;if(x.data<=cutCur)gy.s26+=qn;}}
      else if(y==YPREV){if(isV){bm[m].v25+=qn;g.v25+=qn;if(x.data<=cutPrev)gy.v25+=qn;}else if(isS){bm[m].s25+=qn;g.s25+=qn;if(x.data<=cutPrev)gy.s25+=qn;}}});
-    var trows=Object.keys(bm).map(function(m){var o=bm[m];return {marchio:m,v26:o.v26,v25:o.v25,s26:o.s26,s25:o.s25,t26:o.v26+o.s26,t25:o.v25+o.s25,dv:pct(o.v26,o.v25),ds:pct(o.s26,o.s25),dt:0};});
-    trows.forEach(function(r){r.dv=(r.v25===0?(r.v26>0?1e9:0):(r.v26-r.v25)/r.v25);r.ds=(r.s25===0?(r.s26>0?1e9:0):(r.s26-r.s25)/r.s25);r.dt=(r.t25===0?(r.t26>0?1e9:0):(r.t26-r.t25)/r.t25);});
+    var trows=Object.keys(bm).map(function(m){var o=bm[m];var r={marchio:m,v26:o.v26,v25:o.v25,s26:o.s26,s25:o.s25,t26:o.v26+o.s26,t25:o.v25+o.s25};r.dv=(r.v25===0?(r.v26>0?1e9:0):(r.v26-r.v25)/r.v25);r.ds=(r.s25===0?(r.s26>0?1e9:0):(r.s26-r.s25)/r.s25);r.dt=(r.t25===0?(r.t26>0?1e9:0):(r.t26-r.t25)/r.t25);return r;});
     var tot={v26:g.v26,v25:g.v25,s26:g.s26,s25:g.s25,t26:g.v26+g.s26,t25:g.v25+g.s25};
     curData={rows:trows,tot:tot};
     fillCards(el("perfB1"),{v:g.v26,s:g.s26,tot:g.v26+g.s26},{v:g.v25,s:g.s25,tot:g.v25+g.s25});
@@ -449,25 +449,22 @@ body.perf-mode #perfPanel{display:block}
     el("perfYtdLbl").textContent="(al "+ddmm(today)+" \u2014 vs "+ddmm(tp)+"/"+YPREV+")";
     renderTable();
     el("perfSpin").style.display="none";el("perfBody").style.display="block";
-   }catch(e){el("perfSpin").style.display="none";el("perfEmpty").style.display="block";el("perfEmpty").textContent="Errore nel caricamento dati.";}
+   }catch(e){if(mine===seq)showEmpty("Errore nel caricamento dati.");}
    busy=false;
   }
-  function panelHTML(){return '<div id="perfPanel"><div class="perf-bar"><label>Fornitore</label><select id="perfForn" class="forn"><option value="">Seleziona fornitore\u2026</option></select></div><div id="perfSpin" class="perf-spin" style="display:none"><div class="perf-sp"></div></div><div id="perfBody" style="display:none"><h3 class="perf-h">Riepilogo anno intero</h3><div class="perf-cards" id="perfB1"></div><h3 class="perf-h">Da inizio anno ad oggi <span id="perfYtdLbl" class="perf-sub"></span></h3><div class="perf-cards" id="perfB2"></div><h3 class="perf-h">Dettaglio per marchio</h3><div class="perf-tablewrap"><table id="perfTbl"><thead id="perfHead"></thead><tbody id="perfTbody"></tbody></table></div></div><div id="perfEmpty" class="perf-empty" style="display:none">Nessun dato per il fornitore selezionato.</div></div>';}
+  function panelHTML(){return '<div id="perfPanel"><div class="perf-selforn" id="perfSelForn"></div><div id="perfSpin" class="perf-spin" style="display:none"><div class="perf-sp"></div></div><div id="perfBody" style="display:none"><h3 class="perf-h">Riepilogo anno intero</h3><div class="perf-cards" id="perfB1"></div><h3 class="perf-h">Da inizio anno ad oggi <span id="perfYtdLbl" class="perf-sub"></span></h3><div class="perf-cards" id="perfB2"></div><h3 class="perf-h">Dettaglio per marchio</h3><div class="perf-tablewrap"><table id="perfTbl"><thead id="perfHead"></thead><tbody id="perfTbody"></tbody></table></div></div><div id="perfEmpty" class="perf-empty" style="display:none">Seleziona un fornitore dal menu in alto.</div></div>';}
   async function init(){
    var seg=document.getElementById("seg");if(!seg||document.getElementById("perfBtn"))return;
    var pb=document.createElement("button");pb.id="perfBtn";pb.textContent="Performance";seg.appendChild(pb);
    var wrap=document.querySelector(".wrap")||document.getElementById("app")||document.body;var hold=document.createElement("div");hold.innerHTML=panelHTML();var panel=hold.firstChild;wrap.appendChild(panel);
-   var forn=document.getElementById("forn"),pf=document.getElementById("perfForn");
-   function syncForn(){var have={};Array.prototype.slice.call(pf.options).forEach(function(o){have[o.value]=1;});Array.prototype.forEach.call(forn.options,function(o){if(o.value&&!have[o.value]){var op=document.createElement("option");op.value=o.value;op.textContent=o.textContent;pf.appendChild(op);}});}
-   syncForn();setTimeout(syncForn,1500);setTimeout(syncForn,3500);
+   var forn=document.getElementById("forn");
    var eff="";try{var ss=await sb.auth.getSession();var u=ss.data.session&&ss.data.session.user;eff=(u&&u.user_metadata&&u.user_metadata.role)||"";}catch(e){}
    var setting="false";try{var st=await sb.from("impostazioni_sistema").select("valore").eq("chiave","performance_fornitore").maybeSingle();setting=(st.data&&st.data.valore)||"false";}catch(e){}
-   var isAdmin=(eff==="admin");
-   if(!(isAdmin||setting==="true"))pb.style.display="none";
-   if(!isAdmin){try{var uu=await sb.auth.getUser();var uid=uu.data.user.id;var ufr=await sb.from("user_fornitori").select("fornitore").eq("user_id",uid);var myf=(ufr.data||[]).map(function(r){return r.fornitore;});if(myf.length){Array.prototype.slice.call(pf.options).forEach(function(o){if(o.value&&myf.indexOf(o.value)<0)o.remove();});if(myf.length===1){pf.value=myf[0];}}}catch(e){}}
-   pb.addEventListener("click",function(e){e.stopImmediatePropagation();e.preventDefault();document.body.classList.add("perf-mode");Array.prototype.forEach.call(seg.querySelectorAll("button"),function(b){b.classList.remove("on");});pb.classList.add("on");syncForn();if(pf.value)load(pf.value);});
+   if(!(eff==="admin"||setting==="true"))pb.style.display="none";
+   function openPerf(){var v=forn?forn.value:"";if(v)load(v);else{seq++;curData=null;showEmpty("Seleziona un fornitore dal menu in alto per vedere le performance.");}}
+   pb.addEventListener("click",function(e){e.stopImmediatePropagation();e.preventDefault();document.body.classList.add("perf-mode");Array.prototype.forEach.call(seg.querySelectorAll("button"),function(b){b.classList.remove("on");});pb.classList.add("on");openPerf();});
    seg.addEventListener("click",function(e){var b=e.target.closest("button");if(b&&b!==pb){document.body.classList.remove("perf-mode");pb.classList.remove("on");}});
-   pf.addEventListener("change",function(){if(pf.value)load(pf.value);else{el("perfBody").style.display="none";el("perfEmpty").style.display="none";}});
+   if(forn)forn.addEventListener("change",function(){if(document.body.classList.contains("perf-mode"))openPerf();});
    document.getElementById("perfHead").addEventListener("click",function(e){var th=e.target.closest("th");if(!th)return;var k=th.getAttribute("data-k");if(!k)return;if(k===sortKey){sortDir=-sortDir;}else{sortKey=k;sortDir=(k==="marchio")?1:-1;}renderTable();});
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
