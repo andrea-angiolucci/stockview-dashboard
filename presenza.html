@@ -1784,5 +1784,34 @@ function _svPaintDepoCov(){
  var obs=new MutationObserver(function(){upd();});obs.observe(document.documentElement,{childList:true,subtree:true});upd();
 })();
 </script>
+<!-- sv-coltotals-injected -->
+<script>
+(function(){
+  function num(td){var cg=td.querySelector&&td.querySelector(".cg");var s=(cg?cg.textContent:td.textContent)||"";var v=parseInt(s.replace(/[^0-9-]/g,""),10);return isNaN(v)?0:v;}
+  function enhance(totRow){
+    var table=totRow.closest("table"); if(!table)return;
+    var body=table.querySelectorAll("tbody tr"); if(!body.length)return;
+    var sample=null,i;
+    for(i=0;i<body.length;i++){var tr=body[i];if(!tr.classList.contains("svtotrow")&&!tr.querySelector("td[colspan]")){sample=tr;break;}}
+    if(!sample)return;
+    var cells=sample.children, firstFil=-1;
+    for(i=0;i<cells.length;i++){if(cells[i].classList&&cells[i].classList.contains("filcol")){firstFil=i;break;}}
+    if(firstFil<1)return;
+    var ncol=cells.length, sums=[], nRef=0, c, r;
+    for(c=firstFil;c<ncol;c++){var s=0;for(r=0;r<body.length;r++){var tr=body[r];if(tr.classList.contains("svtotrow")||tr.querySelector("td[colspan]"))continue;var td=tr.children[c];if(td)s+=num(td);}sums.push(s);}
+    for(r=0;r<body.length;r++){var tr=body[r];if(!tr.classList.contains("svtotrow")&&!tr.querySelector("td[colspan]"))nRef++;}
+    var sig=firstFil+"|"+ncol+"|"+nRef+"|"+sums.join(",");
+    if(totRow.getAttribute("data-svsig")===sig)return;
+    var html='<td colspan="'+firstFil+'" style="text-align:left;font-weight:600">Totale: '+nRef+' referenze</td>';
+    for(var k=0;k<sums.length;k++){html+='<td style="text-align:center;font-weight:600;border-left:1px solid var(--line)">'+sums[k]+'</td>';}
+    totRow.innerHTML=html; totRow.setAttribute("data-svsig",sig);
+  }
+  var pend=false;
+  function scan(){pend=false;document.querySelectorAll("tr.svtotrow").forEach(function(tr){try{enhance(tr);}catch(e){}});}
+  function sched(){if(pend)return;pend=true;(window.requestAnimationFrame||function(f){setTimeout(f,50);})(scan);}
+  function init(){scan();if(window.MutationObserver){new MutationObserver(function(muts){var rel=false;for(var i=0;i<muts.length;i++){var t=muts[i].target;if(!(t&&t.closest&&t.closest("tr.svtotrow"))){rel=true;break;}}if(rel)sched();}).observe(document.body||document.documentElement,{childList:true,subtree:true});}}
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+})();
+</script>
 </body>
 </html>
