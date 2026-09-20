@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>StockView — Assortimento ideale</title>
 <style>
-  :root{--bg:#f4f6f9;--panel:#fff;--ink:#1f2a37;--muted:#6b7785;--line:#e3e8ef;--accent:#2b7fd6;--accent2:#1f6ac0;--ok:#1aa974;--bad:#e5484d;--chip:#eef3f9;--shadow:0 6px 22px rgba(20,40,70,.08)}
+  :root{--bg:#0f1720;--panel:#16212e;--panel2:#1c2a3a;--ink:#e8eef5;--txt:#e8eef5;--muted:#8aa0b6;--line:#26384c;--accent:#3da9fc;--accent2:#2b7fd6;--ok:#36c98d;--bad:#ff6b6b;--chip:#1c2a3a;--shadow:0 10px 30px rgba(0,0,0,.35)}
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
   #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -111,6 +111,17 @@
   td.tot .dl-diff.dpos{color:var(--ok)}
   td.tot .dl-diff.dneg{color:var(--bad)}
   td.tot .dl-diff.dzero{color:var(--muted)}
+
+/* sv-dark-a1 */
+thead th{background:#1c2a3a!important;color:#8aa0b6!important}
+thead th.mar{background:#1c2a3a!important}
+tbody tr:hover td{background:rgba(255,255,255,.05)}
+tbody tr:hover td.mar{background:rgba(255,255,255,.07)}
+#tbl,.tablewrap{background:#16212e}
+tbody tr{background:#16212e}
+tbody td{background:#16212e}
+.mar,td.mar{background:#16212e}
+input,select,textarea{background:#16212e;color:#e8eef5;border-color:#26384c}
 </style>
 </head>
 <body>
@@ -191,10 +202,10 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
     var logout=document.getElementById('logout');
     var wrap=document.createElement('span'); wrap.style.cssText='position:relative;display:inline-block';
     var btn=document.createElement('button'); btn.type='button'; btn.textContent='👁 Visualizza come…'; btn.style.cssText='cursor:pointer;font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid rgba(128,128,128,.4);background:transparent;color:inherit;font-weight:600;margin-right:8px';
-    var menu=document.createElement('div'); menu.style.cssText='position:absolute;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid #ccc;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:210px;z-index:99999;display:none;overflow:hidden';
+    var menu=document.createElement('div'); menu.style.cssText='position:absolute;right:0;top:100%;margin-top:4px;background:#16212e;border:1px solid #26384c;color:#e8eef5;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:210px;z-index:99999;display:none;overflow:hidden';
     var items=[['👤 Admin (attuale)','admin',null],['👤 Gestore','gestore',null]];
     ORDER.forEach(function(c){ items.push(['👤 Vendita → '+FIL[c],'vendita',c]); });
-    items.forEach(function(it){ var a=document.createElement('div'); a.textContent=it[0]; var active=((it[1]==='admin'&&!simRole)||(it[1]===simRole&&(it[1]!=='vendita'||it[2]===simFil))); a.style.cssText='padding:8px 12px;cursor:pointer;font-size:13px;white-space:nowrap;color:#1f2a37;'+(active?'font-weight:700;background:#eef3f9':''); a.onmouseover=function(){a.style.background='#dce7f3';}; a.onmouseout=function(){a.style.background=active?'#eef3f9':'';}; a.onclick=function(ev){ ev.stopPropagation(); setSim(it[1],it[2]); }; menu.appendChild(a); });
+    items.forEach(function(it){ var a=document.createElement('div'); a.textContent=it[0]; var active=((it[1]==='admin'&&!simRole)||(it[1]===simRole&&(it[1]!=='vendita'||it[2]===simFil))); a.style.cssText='padding:8px 12px;cursor:pointer;font-size:13px;white-space:nowrap;color:#1f2a37;'+(active?'font-weight:700;background:#22303f':''); a.onmouseover=function(){a.style.background='#2c3f54';}; a.onmouseout=function(){a.style.background=active?'#22303f':'';}; a.onclick=function(ev){ ev.stopPropagation(); setSim(it[1],it[2]); }; menu.appendChild(a); });
     btn.onclick=function(e){ e.stopPropagation(); menu.style.display=(menu.style.display==='none'?'block':'none'); };
     document.addEventListener('click',function(){ menu.style.display='none'; });
     wrap.appendChild(btn); wrap.appendChild(menu);
@@ -373,14 +384,18 @@ boot();
 
 <!-- sv-performance-injected -->
 <style>
-#perfPanel{--panel:#16212e;--panel2:#1c2a3a;--line:#26384c;--txt:#e8eef5;--ink:#e8eef5;--muted:#8aa0b6;--accent:#3da9fc;--ok:#36c98d;--bad:#ff6b6b;--chip:#1c2a3a;--shadow:0 10px 30px rgba(0,0,0,.35);display:none;background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:12px;padding:14px 18px 24px;margin-top:8px}
+#perfPanel{--panel:#16212e;--panel2:#1c2a3a;--line:#26384c;--txt:#e8eef5;--ink:#e8eef5;--muted:#8aa0b6;--accent:#3da9fc;--ok:#36c98d;--bad:#ff6b6b;--chip:#1c2a3a;display:none;background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:12px;padding:14px 18px 24px;margin-top:8px}
 body.perf-mode .legend,body.perf-mode .tablewrap,body.perf-mode #miss,body.perf-mode #deltaBtn,body.perf-mode #subToggles,body.perf-mode #addBtn,body.perf-mode #saveBtn{display:none!important}
 body.perf-mode #perfPanel{display:block}
 #seg #perfBtn{margin-left:16px}
-.perf-selforn{font-weight:700;font-size:15px;margin:2px 0 14px;color:var(--txt)}
+.perf-top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:2px 0 14px}
+.perf-selforn{font-weight:700;font-size:15px;color:var(--txt)}
 .perf-selforn span{color:var(--muted);font-weight:400}
-.perf-h{font-size:15px;margin:18px 0 8px;color:var(--txt)}
-.perf-sub{font-weight:400;color:var(--muted);font-size:13px}
+.perf-seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.perf-seg button{background:#1c2a3a;color:var(--muted);border:0;padding:6px 12px;cursor:pointer;font-size:13px;font-weight:600}
+.perf-seg button.on{background:#3da9fc;color:#04121f}
+.perf-per{color:var(--muted);font-size:13px}
+.perf-h{font-size:15px;margin:16px 0 8px;color:var(--txt)}
 .perf-cards{display:flex;gap:14px;align-items:stretch;flex-wrap:wrap}
 .perf-card{flex:1 1 220px;min-width:200px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .perf-ct{font-weight:700;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px}
@@ -412,7 +427,8 @@ body.perf-mode #perfPanel{display:block}
 (function(){
   var VISTA="Montature vista", SOLE="Occhiali sole";
   var YCUR=new Date().getFullYear(), YPREV=YCUR-1;
-  var curData=null, sortKey="marchio", sortDir=1, busy=false, seq=0;
+  var curData=null, sortKey="marchio", sortDir=1, seq=0, MODE="ytd", MAXD=null;
+  try{var sm=sessionStorage.getItem("sv_perf_mode");if(sm==="full"||sm==="ytd")MODE=sm;}catch(e){}
   function iso(d){var m=("0"+(d.getMonth()+1)).slice(-2),g=("0"+d.getDate()).slice(-2);return d.getFullYear()+"-"+m+"-"+g;}
   function ddmm(d){return ("0"+d.getDate()).slice(-2)+"/"+("0"+(d.getMonth()+1)).slice(-2);}
   function pct(cur,prev){if(prev===0){return cur===0?{t:"0%",c:"z"}:{t:"n/d",c:"z"};}var d=(cur-prev)/prev*100;var t=(d>0?"+":"")+d.toFixed(1)+"%";return {t:t,c:d>0?"p":(d<0?"n":"z")};}
@@ -423,36 +439,36 @@ body.perf-mode #perfPanel{display:block}
   function cardRows(o){return "<div class=\"perf-row\"><span>Totale pezzi venduti</span><b>"+o.tot+"</b></div><div class=\"perf-row\"><span>Totale Vista</span><b>"+o.v+"</b></div><div class=\"perf-row\"><span>Totale Sole</span><b>"+o.s+"</b></div>";}
   function fillCards(cont,cur,prev){var d=pct(cur.tot,prev.tot);cont.innerHTML="<div class=\"perf-card\"><div class=\"perf-ct\">Anno corrente ("+YCUR+")</div>"+cardRows(cur)+"</div>"+"<div class=\"perf-mid\"><div class=\"perf-big perf-"+d.c+"\">"+d.t+"</div><div class=\"perf-md\">Vista "+pctSpan(cur.v,prev.v)+"</div><div class=\"perf-md\">Sole "+pctSpan(cur.s,prev.s)+"</div></div>"+"<div class=\"perf-card\"><div class=\"perf-ct\">Anno precedente ("+YPREV+")</div>"+cardRows(prev)+"</div>";}
   var Y=new Date().getFullYear();var COLS=[{k:"marchio",t:"Marchio"},{k:"v26",t:"Vista "+Y},{k:"v25",t:"Vista "+(Y-1)},{k:"dv",t:"\u0394% Vista"},{k:"s26",t:"Sole "+Y},{k:"s25",t:"Sole "+(Y-1)},{k:"ds",t:"\u0394% Sole"},{k:"t26",t:"Tot "+Y},{k:"t25",t:"Tot "+(Y-1)},{k:"dt",t:"\u0394% Tot"}];
-  function renderTable(){if(!curData)return;var rows=curData.rows.slice();rows.sort(function(a,b){var x=a[sortKey],y=b[sortKey];if(typeof x==="number"&&typeof y==="number")return (x-y)*sortDir;return String(x).localeCompare(String(y),"it",{numeric:true})*sortDir;});
+  function rowsFor(mode){if(!curData)return[];return curData.bm.map(function(o){var v26=mode==="ytd"?o.yv26:o.v26,v25=mode==="ytd"?o.yv25:o.v25,s26=mode==="ytd"?o.ys26:o.s26,s25=mode==="ytd"?o.ys25:o.s25;var r={marchio:o.m,v26:v26,v25:v25,s26:s26,s25:s25,t26:v26+s26,t25:v25+s25};r.dv=(r.v25===0?(r.v26>0?1e9:0):(r.v26-r.v25)/r.v25);r.ds=(r.s25===0?(r.s26>0?1e9:0):(r.s26-r.s25)/r.s25);r.dt=(r.t25===0?(r.t26>0?1e9:0):(r.t26-r.t25)/r.t25);return r;});}
+  function grandFor(mode){var g=(mode==="ytd")?curData.gy:curData.g;return {v26:g.v26,v25:g.v25,s26:g.s26,s25:g.s25,t26:g.v26+g.s26,t25:g.v25+g.s25};}
+  function renderTable(){var rows=rowsFor(MODE);rows.sort(function(a,b){var x=a[sortKey],y=b[sortKey];if(typeof x==="number"&&typeof y==="number")return (x-y)*sortDir;return String(x).localeCompare(String(y),"it",{numeric:true})*sortDir;});
    var h="<tr>";COLS.forEach(function(c){var ar=c.k===sortKey?(sortDir>0?"&#9650;":"&#9660;"):"";h+="<th data-k=\""+c.k+"\">"+c.t+"<span class=\"perf-arrow\">"+ar+"</span></th>";});h+="</tr>";el("perfHead").innerHTML=h;
    var b="";rows.forEach(function(r){b+="<tr><td>"+esc(r.marchio)+"</td><td>"+r.v26+"</td><td>"+r.v25+"</td><td>"+pctSpan(r.v26,r.v25)+"</td><td>"+r.s26+"</td><td>"+r.s25+"</td><td>"+pctSpan(r.s26,r.s25)+"</td><td>"+r.t26+"</td><td>"+r.t25+"</td><td>"+pctSpan(r.t26,r.t25)+"</td></tr>";});
-   var g=curData.tot;b+="<tr class=\"perf-tot\"><td>Totale</td><td>"+g.v26+"</td><td>"+g.v25+"</td><td>"+pctSpan(g.v26,g.v25)+"</td><td>"+g.s26+"</td><td>"+g.s25+"</td><td>"+pctSpan(g.s26,g.s25)+"</td><td>"+g.t26+"</td><td>"+g.t25+"</td><td>"+pctSpan(g.t26,g.t25)+"</td></tr>";
+   var g=grandFor(MODE);b+="<tr class=\"perf-tot\"><td>Totale</td><td>"+g.v26+"</td><td>"+g.v25+"</td><td>"+pctSpan(g.v26,g.v25)+"</td><td>"+g.s26+"</td><td>"+g.s25+"</td><td>"+pctSpan(g.s26,g.s25)+"</td><td>"+g.t26+"</td><td>"+g.t25+"</td><td>"+pctSpan(g.t26,g.t25)+"</td></tr>";
    el("perfTbody").innerHTML=b;}
-  async function load(forn){var mine=++seq;busy=true;el("perfSelForn").innerHTML="Performance: <span>"+esc(forn)+"</span>";el("perfSpin").style.display="flex";el("perfBody").style.display="none";el("perfEmpty").style.display="none";
+  function renderAll(){if(!curData)return;var g=grandFor(MODE);fillCards(el("perfCards"),{v:g.v26,s:g.s26,tot:g.v26+g.s26},{v:g.v25,s:g.s25,tot:g.v25+g.s25});renderTable();
+   var lbl;if(MODE==="ytd"){var mx=curData.maxd,tp=new Date(mx.getTime());tp.setFullYear(YPREV);lbl="Dal 01/01 al "+ddmm(mx)+" (vs 01/01\u2192"+ddmm(tp)+"/"+YPREV+")";}else{lbl="Anno "+YCUR+" vs "+YPREV;}el("perfPer").textContent=lbl;
+   var yb=el("perfMYtd"),fb=el("perfMFull");if(yb&&fb){yb.className=MODE==="ytd"?"on":"";fb.className=MODE==="full"?"on":"";}}
+  async function getMax(){if(MAXD)return MAXD;try{var r=await sb.from("vendite").select("data").order("data",{ascending:false}).limit(1);if(r.data&&r.data[0]&&r.data[0].data)MAXD=new Date(r.data[0].data+"T00:00:00");}catch(e){}if(!MAXD)MAXD=new Date();return MAXD;}
+  async function load(forn){var mine=++seq;el("perfSelForn").innerHTML="Performance: <span>"+esc(forn)+"</span>";el("perfSpin").style.display="flex";el("perfBody").style.display="none";el("perfEmpty").style.display="none";
    try{
-    var mr=await sb.from("marchi_fornitori_attivi").select("marchio").eq("fornitore_attivo",forn);
+    var maxd=await getMax();if(mine!==seq)return;
+    var mr=await sb.from("marchi_fornitori_attivi").select("marchio").eq("fornitore_attivo",forn);if(mine!==seq)return;
     var marchi=(mr.data||[]).map(function(x){return x.marchio;});
-    if(mine!==seq)return;
-    if(!marchi.length){curData=null;showEmpty("Nessun dato per il fornitore selezionato.");busy=false;return;}
+    if(!marchi.length){curData=null;showEmpty("Nessun dato per il fornitore selezionato.");return;}
     var rows=[],from=0;
     while(true){var q=await sb.from("vendite").select("marchio,tipo_prodotto,quantita,data").in("marchio",marchi).in("tipo_prodotto",[VISTA,SOLE]).gte("data",YPREV+"-01-01").lte("data",YCUR+"-12-31").range(from,from+999);if(mine!==seq)return;var d=q.data||[];rows=rows.concat(d);if(d.length<1000)break;from+=1000;if(from>60000)break;}
-    var today=new Date();var cutCur=iso(today);var tp=new Date(today.getTime());tp.setFullYear(YPREV);var cutPrev=iso(tp);
-    var bm={},g={v26:0,v25:0,s26:0,s25:0},gy={v26:0,v25:0,s26:0,s25:0};
-    rows.forEach(function(x){var y=(x.data||"").slice(0,4);var qn=+x.quantita||0;var m=x.marchio||"\u2014";var isV=x.tipo_prodotto===VISTA,isS=x.tipo_prodotto===SOLE;if(!bm[m])bm[m]={v26:0,v25:0,s26:0,s25:0};
-     if(y==YCUR){if(isV){bm[m].v26+=qn;g.v26+=qn;if(x.data<=cutCur)gy.v26+=qn;}else if(isS){bm[m].s26+=qn;g.s26+=qn;if(x.data<=cutCur)gy.s26+=qn;}}
-     else if(y==YPREV){if(isV){bm[m].v25+=qn;g.v25+=qn;if(x.data<=cutPrev)gy.v25+=qn;}else if(isS){bm[m].s25+=qn;g.s25+=qn;if(x.data<=cutPrev)gy.s25+=qn;}}});
-    var trows=Object.keys(bm).map(function(m){var o=bm[m];var r={marchio:m,v26:o.v26,v25:o.v25,s26:o.s26,s25:o.s25,t26:o.v26+o.s26,t25:o.v25+o.s25};r.dv=(r.v25===0?(r.v26>0?1e9:0):(r.v26-r.v25)/r.v25);r.ds=(r.s25===0?(r.s26>0?1e9:0):(r.s26-r.s25)/r.s25);r.dt=(r.t25===0?(r.t26>0?1e9:0):(r.t26-r.t25)/r.t25);return r;});
-    var tot={v26:g.v26,v25:g.v25,s26:g.s26,s25:g.s25,t26:g.v26+g.s26,t25:g.v25+g.s25};
-    curData={rows:trows,tot:tot};
-    fillCards(el("perfB1"),{v:g.v26,s:g.s26,tot:g.v26+g.s26},{v:g.v25,s:g.s25,tot:g.v25+g.s25});
-    fillCards(el("perfB2"),{v:gy.v26,s:gy.s26,tot:gy.v26+gy.s26},{v:gy.v25,s:gy.s25,tot:gy.v25+gy.s25});
-    el("perfYtdLbl").textContent="(al "+ddmm(today)+" \u2014 vs "+ddmm(tp)+"/"+YPREV+")";
-    renderTable();
+    var cutCur=iso(maxd);var tp=new Date(maxd.getTime());tp.setFullYear(YPREV);var cutPrev=iso(tp);
+    var bmm={},g={v26:0,v25:0,s26:0,s25:0},gy={v26:0,v25:0,s26:0,s25:0};
+    rows.forEach(function(x){var y=(x.data||"").slice(0,4);var qn=+x.quantita||0;var m=x.marchio||"\u2014";var isV=x.tipo_prodotto===VISTA,isS=x.tipo_prodotto===SOLE;if(!bmm[m])bmm[m]={m:m,v26:0,v25:0,s26:0,s25:0,yv26:0,yv25:0,ys26:0,ys25:0};var o=bmm[m];
+     if(y==YCUR){if(isV){o.v26+=qn;g.v26+=qn;if(x.data<=cutCur){o.yv26+=qn;gy.v26+=qn;}}else if(isS){o.s26+=qn;g.s26+=qn;if(x.data<=cutCur){o.ys26+=qn;gy.s26+=qn;}}}
+     else if(y==YPREV){if(isV){o.v25+=qn;g.v25+=qn;if(x.data<=cutPrev){o.yv25+=qn;gy.v25+=qn;}}else if(isS){o.s25+=qn;g.s25+=qn;if(x.data<=cutPrev){o.ys25+=qn;gy.s25+=qn;}}}});
+    curData={bm:Object.keys(bmm).map(function(k){return bmm[k];}),g:g,gy:gy,maxd:maxd};
+    renderAll();
     el("perfSpin").style.display="none";el("perfBody").style.display="block";
    }catch(e){if(mine===seq)showEmpty("Errore nel caricamento dati.");}
-   busy=false;
   }
-  function panelHTML(){return '<div id="perfPanel"><div class="perf-selforn" id="perfSelForn"></div><div id="perfSpin" class="perf-spin" style="display:none"><div class="perf-sp"></div></div><div id="perfBody" style="display:none"><h3 class="perf-h">Riepilogo anno intero</h3><div class="perf-cards" id="perfB1"></div><h3 class="perf-h">Da inizio anno ad oggi <span id="perfYtdLbl" class="perf-sub"></span></h3><div class="perf-cards" id="perfB2"></div><h3 class="perf-h">Dettaglio per marchio</h3><div class="perf-tablewrap"><table id="perfTbl"><thead id="perfHead"></thead><tbody id="perfTbody"></tbody></table></div></div><div id="perfEmpty" class="perf-empty" style="display:none">Seleziona un fornitore dal menu in alto.</div></div>';}
+  function panelHTML(){return '<div id="perfPanel"><div class="perf-top"><div class="perf-selforn" id="perfSelForn"></div><div class="perf-seg"><button id="perfMYtd">YTD</button><button id="perfMFull">Anno intero</button></div><div class="perf-per" id="perfPer"></div></div><div id="perfSpin" class="perf-spin" style="display:none"><div class="perf-sp"></div></div><div id="perfBody" style="display:none"><div class="perf-cards" id="perfCards"></div><h3 class="perf-h">Dettaglio per marchio</h3><div class="perf-tablewrap"><table id="perfTbl"><thead id="perfHead"></thead><tbody id="perfTbody"></tbody></table></div></div><div id="perfEmpty" class="perf-empty" style="display:none">Seleziona un fornitore dal menu in alto.</div></div>';}
   async function init(){
    var seg=document.getElementById("seg");if(!seg||document.getElementById("perfBtn"))return;
    var pb=document.createElement("button");pb.id="perfBtn";pb.textContent="Performance";seg.appendChild(pb);
@@ -465,6 +481,8 @@ body.perf-mode #perfPanel{display:block}
    pb.addEventListener("click",function(e){e.stopImmediatePropagation();e.preventDefault();document.body.classList.add("perf-mode");Array.prototype.forEach.call(seg.querySelectorAll("button"),function(b){b.classList.remove("on");});pb.classList.add("on");openPerf();});
    seg.addEventListener("click",function(e){var b=e.target.closest("button");if(b&&b!==pb){document.body.classList.remove("perf-mode");pb.classList.remove("on");}});
    if(forn)forn.addEventListener("change",function(){if(document.body.classList.contains("perf-mode"))openPerf();});
+   el("perfMYtd").addEventListener("click",function(){MODE="ytd";try{sessionStorage.setItem("sv_perf_mode","ytd");}catch(e){}renderAll();});
+   el("perfMFull").addEventListener("click",function(){MODE="full";try{sessionStorage.setItem("sv_perf_mode","full");}catch(e){}renderAll();});
    document.getElementById("perfHead").addEventListener("click",function(e){var th=e.target.closest("th");if(!th)return;var k=th.getAttribute("data-k");if(!k)return;if(k===sortKey){sortDir=-sortDir;}else{sortKey=k;sortDir=(k==="marchio")?1:-1;}renderTable();});
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
