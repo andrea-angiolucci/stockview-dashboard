@@ -994,11 +994,11 @@ function draw(){
   nomeSales={};
   cells.forEach(c=>{ nomeSales[c.negozio]=(nomeSales[c.negozio]||0)+(c.venduto||0); });
   const buchi=cells.filter(c=>window.SV_BUCO(c));
-  const arrivi=cells.filter(c=>c.in_arrivo>0); let arriviN=arrivi.length; try{ if(typeof extraStock!=='undefined'&&extraStock){ for(var _bc in extraStock){ var _fm=extraStock[_bc]; for(var _f in _fm){ if(_fm[_f]&&_fm[_f].a>0)arriviN++; } } } }catch(_e){}
+  const arrivi=cells.filter(c=>c.in_arrivo>0); let arriviN=arrivi.length; window.__ARRIVI=arrivi; try{ if(typeof extraStock!=='undefined'&&extraStock){ for(var _bc in extraStock){ var _fm=extraStock[_bc]; for(var _f in _fm){ if(_fm[_f]&&_fm[_f].a>0)arriviN++; } } } }catch(_e){}
   try{var _bIn=buchi.filter(function(c){return c.in_arrivo>0;}).length;var _bNo=buchi.length-_bIn;var _lb=document.getElementById('legBuco');if(_lb)_lb.innerHTML='<span class="pill bad">'+_bNo+'</span> '+_bNo+' da riordinare (buco)';var _la=document.getElementById('legArr');if(_la)_la.innerHTML='<span class="cellordered" style="padding:1px 7px;border-radius:5px">'+_bIn+'</span> '+_bIn+' ma già ordinato (in arrivo)';}catch(_e){}
   const negozi=negList(cells);
   const nRef=new Set(cells.map(c=>c.barcode)).size;
-  $("#status").innerHTML=`<b>${nRef}</b> referenze · <b>${negozi.length}</b> negozi · <b style="color:var(--bad)">${buchi.length}</b> buchi · <b style="color:var(--truck)">${arriviN}</b> celle con arrivi`;
+  $("#status").innerHTML=`<b>${nRef}</b> referenze · <b>${negozi.length}</b> negozi · <b style="color:var(--bad)">${buchi.length}</b> buchi · <b id="svArriviLink" style="color:var(--truck);cursor:pointer;text-decoration:underline dotted" title="Clicca per l'elenco referenze in arrivo">${arriviN}</b> celle con arrivi`;
   if(window.__rpcN>=50000)$("#status").innerHTML+=' · <b style="color:var(--truck)">⚠ risultati troncati a 50.000 righe: restringi i filtri per una lista completa</b>';
   view==="lista"?drawList(cells):drawMatrix(cells,negozi); decorate();
   $("#tablewrap").style.display="block";
@@ -1811,6 +1811,46 @@ function _svPaintDepoCov(){
   function sched(){if(pend)return;pend=true;(window.requestAnimationFrame||function(f){setTimeout(f,50);})(scan);}
   function init(){scan();if(window.MutationObserver){new MutationObserver(function(muts){var rel=false;for(var i=0;i<muts.length;i++){var t=muts[i].target;if(!(t&&t.closest&&t.closest("tr.svtotrow"))){rel=true;break;}}if(rel)sched();}).observe(document.body||document.documentElement,{childList:true,subtree:true});}}
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+})();
+</script>
+<!-- sv-arrivi-injected -->
+<style>
+td.filcol .bdgs{top:auto!important;bottom:1px!important;right:auto!important;left:2px!important;align-items:flex-start!important;}
+#svArrOv{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+#svArrOv.on{display:flex}
+#svArrOv .svArrBox{background:var(--panel,#141b2b);border:1px solid var(--line,#2a3550);border-radius:10px;max-width:1000px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.5);color:var(--text,#e6ebf5)}
+#svArrOv .svArrHd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line,#2a3550)}
+#svArrOv .svArrHd h3{margin:0;font-size:15px;font-weight:700}
+#svArrOv .svArrN{color:var(--truck,#f59e0b);font-weight:700}
+#svArrOv .svArrX{cursor:pointer;font-size:18px;color:var(--muted,#94a3b8);background:none;border:none;line-height:1}
+#svArrOv .svArrWrap{max-height:70vh;overflow:auto;padding:0 4px 8px}
+#svArrOv table{width:100%;border-collapse:collapse;font-size:12.5px}
+#svArrOv thead th{position:sticky;top:0;background:var(--panel,#141b2b);color:var(--muted,#94a3b8);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line,#2a3550);cursor:pointer;white-space:nowrap;user-select:none}
+#svArrOv thead th:hover{color:var(--text,#e6ebf5)}
+#svArrOv thead th .svArrSort{opacity:.6;font-size:10px;margin-left:3px}
+#svArrOv tbody td{padding:6px 10px;border-bottom:1px solid rgba(148,163,184,.10);white-space:nowrap}
+#svArrOv tbody tr:hover{background:rgba(148,163,184,.06)}
+#svArrOv .svArrNum{text-align:right;font-variant-numeric:tabular-nums}
+#svArrOv .svArrEmpty{padding:24px;text-align:center;color:var(--muted,#94a3b8)}
+</style>
+<div id="svArrOv"><div class="svArrBox">
+ <div class="svArrHd"><h3>Referenze in arrivo <span class="svArrN" id="svArrCnt"></span></h3><button class="svArrX" id="svArrX">&#10005;</button></div>
+ <div class="svArrWrap"><table><thead id="svArrHead"></thead><tbody id="svArrBody"></tbody></table></div>
+</div></div>
+<script>
+(function(){
+ var COLS=[{k:"marchio",t:"Marchio"},{k:"modello",t:"Modello"},{k:"colore",t:"Colore"},{k:"barcode",t:"Barcode"},{k:"negozio",t:"Filiale"},{k:"in_arrivo",t:"In arrivo",num:true},{k:"disponibile",t:"Disponibile",num:true},{k:"categoria",t:"Categoria"}];
+ var sortK="in_arrivo",sortDir=-1;
+ function ov(){return document.getElementById("svArrOv");}
+ function rows(){var a=window.__ARRIVI||[];return a.map(function(c){return {marchio:c.marchio||"",modello:c.modello||"",colore:c.colore||"",barcode:c.barcode||"",negozio:c.negozio||"",in_arrivo:+c.in_arrivo||0,disponibile:+c.disponibile||0,categoria:c.categoria||""};});}
+ function esc(v){return String(v).replace(/[&<>\"]/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m];});}
+ function head(){var h="<tr>";COLS.forEach(function(col){var arrow=col.k===sortK?(sortDir>0?"&#9650;":"&#9660;"):"";h+="<th data-k=\""+col.k+"\""+(col.num?" class=\"svArrNum\"":"")+">"+col.t+"<span class=\"svArrSort\">"+arrow+"</span></th>";});h+="</tr>";document.getElementById("svArrHead").innerHTML=h;}
+ function body(){var r=rows();r.sort(function(a,b){var x=a[sortK],y=b[sortK];if(typeof x==="number"&&typeof y==="number")return (x-y)*sortDir;return String(x).localeCompare(String(y),"it",{numeric:true})*sortDir;});var tb=document.getElementById("svArrBody");if(!r.length){tb.innerHTML="<tr><td colspan=\""+COLS.length+"\" class=\"svArrEmpty\">Nessuna referenza in arrivo</td></tr>";document.getElementById("svArrCnt").textContent="";return;}var h="";r.forEach(function(row){h+="<tr>";COLS.forEach(function(col){h+="<td"+(col.num?" class=\"svArrNum\"":"")+">"+esc(row[col.k])+"</td>";});h+="</tr>";});tb.innerHTML=h;document.getElementById("svArrCnt").textContent="("+r.length+")";}
+ function render(){head();body();}
+ function open(){render();ov().classList.add("on");}
+ function close(){ov().classList.remove("on");}
+ document.addEventListener("click",function(e){var lnk=e.target.closest&&e.target.closest("#svArriviLink");if(lnk){e.preventDefault();e.stopPropagation();open();return;}if(e.target.id==="svArrX"){close();return;}if(e.target.id==="svArrOv"){close();return;}var th=e.target.closest&&e.target.closest("#svArrHead th");if(th){var k=th.getAttribute("data-k");if(k===sortK){sortDir=-sortDir;}else{sortK=k;sortDir=(k==="in_arrivo"||k==="disponibile")?-1:1;}render();return;}});
+ document.addEventListener("keydown",function(e){if(e.key==="Escape")close();});
 })();
 </script>
 </body>
