@@ -930,9 +930,8 @@ boot();
     sb.from("impostazioni_sistema").select("valore").eq("chiave","performance_fornitore").maybeSingle().then(function(r){cb.checked=(r.data&&r.data.valore==="true");cb.disabled=false;msg.textContent="";});
     cb.addEventListener("change",function(){var val=cb.checked?"true":"false";cb.disabled=true;msg.textContent=" Salvataggio\u2026";sb.from("impostazioni_sistema").upsert({chiave:"performance_fornitore",valore:val},{onConflict:"chiave"}).then(function(r){cb.disabled=false;msg.textContent=r.error?(" Errore"):(" Salvato \u2713");setTimeout(function(){msg.textContent="";},1500);});});
   }
-  try{var obs=new MutationObserver(function(){build();});obs.observe(document.body,{childList:true,subtree:true});}catch(e){}
-  if(document.readyState!=="loading")build();else document.addEventListener("DOMContentLoaded",build);
+  setInterval(function(){try{build();}catch(e){}},600);
 })();
-<\/script>
+</script>
 </body>
 </html>
