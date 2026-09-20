@@ -915,5 +915,24 @@ boot();
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
 })();
 </script>
+<!-- sv-perffornsetting-injected -->
+<script>
+(function(){
+  function build(){
+    var anchor=document.getElementById("svAllocAdmin");
+    if(!anchor||document.getElementById("svPerfFornSetting"))return;
+    var box=anchor.closest("div");if(!box)return;
+    var wrap=document.createElement("div");wrap.id="svPerfFornWrap";wrap.style.marginTop="4px";
+    wrap.innerHTML='<label style="display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer"><input type="checkbox" id="svPerfFornSetting"> <b>Mostra Performance al fornitore</b></label><p style="color:var(--muted);font-size:13px;margin:6px 0 0 26px">Se attivo, gli utenti fornitore vedono la tab Performance in Assortimento ideale (solo i propri dati).<span id="svPerfFornMsg"></span></p>';
+    box.appendChild(wrap);
+    var cb=document.getElementById("svPerfFornSetting"),msg=document.getElementById("svPerfFornMsg");
+    cb.disabled=true;msg.textContent=" Caricamento\u2026";
+    sb.from("impostazioni_sistema").select("valore").eq("chiave","performance_fornitore").maybeSingle().then(function(r){cb.checked=(r.data&&r.data.valore==="true");cb.disabled=false;msg.textContent="";});
+    cb.addEventListener("change",function(){var val=cb.checked?"true":"false";cb.disabled=true;msg.textContent=" Salvataggio\u2026";sb.from("impostazioni_sistema").upsert({chiave:"performance_fornitore",valore:val},{onConflict:"chiave"}).then(function(r){cb.disabled=false;msg.textContent=r.error?(" Errore"):(" Salvato \u2713");setTimeout(function(){msg.textContent="";},1500);});});
+  }
+  try{var obs=new MutationObserver(function(){build();});obs.observe(document.body,{childList:true,subtree:true});}catch(e){}
+  if(document.readyState!=="loading")build();else document.addEventListener("DOMContentLoaded",build);
+})();
+<\/script>
 </body>
 </html>
