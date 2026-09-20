@@ -56,7 +56,7 @@
   .status{color:var(--muted);font-size:13px;margin:14px 2px 10px}
   .status b{color:var(--txt)}
   .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:9px}
-  .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel);max-height:74vh}
+  .tablewrap{overflow:visible;border:1px solid var(--line);border-radius:12px;background:var(--panel);max-height:none}
   table{border-collapse:collapse;width:100%;font-size:13px}
   th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
   thead th{position:sticky;top:0;background:var(--panel2);color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;z-index:5}
@@ -178,6 +178,10 @@
 .svdr-tbl th.sorted::after{content:" \25B4";font-size:9px}
 .svdr-tbl th.sorted.desc::after{content:" \25BE"}
 .svdr-empty{color:var(--muted);font-size:12.5px;padding:22px 4px}
+
+  /* sv-groupB-injected */
+  .toolbar .tbgroup.open .tbrow,.toolbar .tbgroup:hover .tbrow{max-width:min(920px,calc(100vw - 32px));flex-wrap:wrap;row-gap:8px}
+  td.filcol.svzero:has(.svbadge.alloc){background:#7a3a00!important;color:#fff!important}
 </style>
 <style>.ms-btn.svfpending{opacity:.55}.ms-btn.svfpending::after{content:"";display:inline-block;width:8px;height:8px;margin-left:5px;border:2px solid #888;border-top-color:transparent;border-radius:50%;animation:svfspin .6s linear infinite;vertical-align:middle}@keyframes svfspin{to{transform:rotate(360deg)}}</style></head>
 <body>
@@ -993,12 +997,12 @@ function draw(){
   if(!cells.length){$("#tablewrap").style.display="none";$("#status").innerHTML="Nessuna referenza prevista per la selezione.";return;}
   nomeSales={};
   cells.forEach(c=>{ nomeSales[c.negozio]=(nomeSales[c.negozio]||0)+(c.venduto||0); });
-  const buchi=cells.filter(c=>window.SV_BUCO(c));
+  const buchi=cells.filter(c=>window.SV_BUCO(c));try{buchi.forEach(function(_b){try{_b.__ideale=effTargetActive(_b);}catch(e){}});}catch(e){}window.__BUCHI=buchi;
   const arrivi=cells.filter(c=>c.in_arrivo>0); let arriviN=arrivi.length; window.__ARRIVI=arrivi; try{ if(typeof extraStock!=='undefined'&&extraStock){ for(var _bc in extraStock){ var _fm=extraStock[_bc]; for(var _f in _fm){ if(_fm[_f]&&_fm[_f].a>0)arriviN++; } } } }catch(_e){}
   try{var _bIn=buchi.filter(function(c){return c.in_arrivo>0;}).length;var _bNo=buchi.length-_bIn;var _lb=document.getElementById('legBuco');if(_lb)_lb.innerHTML='<span class="pill bad">'+_bNo+'</span> '+_bNo+' da riordinare (buco)';var _la=document.getElementById('legArr');if(_la)_la.innerHTML='<span class="cellordered" style="padding:1px 7px;border-radius:5px">'+_bIn+'</span> '+_bIn+' ma già ordinato (in arrivo)';}catch(_e){}
   const negozi=negList(cells);
   const nRef=new Set(cells.map(c=>c.barcode)).size;
-  $("#status").innerHTML=`<b>${nRef}</b> referenze · <b>${negozi.length}</b> negozi · <b style="color:var(--bad)">${buchi.length}</b> buchi · <b id="svArriviLink" style="color:var(--truck);cursor:pointer;text-decoration:underline dotted" title="Clicca per l'elenco referenze in arrivo">${arriviN}</b> celle con arrivi`;
+  $("#status").innerHTML=`<b>${nRef}</b> referenze · <b>${negozi.length}</b> negozi · <b id="svBuchiLink" style="color:var(--bad);cursor:pointer;text-decoration:underline" title="Vedi lista buchi">${buchi.length}</b> buchi · <b id="svArriviLink" style="color:var(--truck);cursor:pointer;text-decoration:underline dotted" title="Clicca per l'elenco referenze in arrivo">${arriviN}</b> celle con arrivi`;
   if(window.__rpcN>=50000)$("#status").innerHTML+=' · <b style="color:var(--truck)">⚠ risultati troncati a 50.000 righe: restringi i filtri per una lista completa</b>';
   view==="lista"?drawList(cells):drawMatrix(cells,negozi); decorate();
   $("#tablewrap").style.display="block";
@@ -1860,5 +1864,39 @@ td.filcol .bdgs{top:auto!important;bottom:1px!important;right:auto!important;lef
  document.addEventListener("keydown",function(e){if(e.key==="Escape")close();});
 })();
 </script>
+<!-- sv-buchi-modal-injected -->
+<div id="svBuchiModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6)">
+ <div style="position:absolute;top:5vh;left:50%;transform:translateX(-50%);width:min(1100px,94vw);max-height:88vh;overflow:auto;background:#16212e;border:1px solid #26384c;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.5)">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #26384c;position:sticky;top:0;background:#16212e">
+   <div style="font-weight:700;color:#e8eef5">Buchi da riordinare <span id="svBuchiCount" style="color:#8aa0b6;font-weight:400"></span></div>
+   <button id="svBuchiClose" style="background:#1c2a3a;border:1px solid #26384c;color:#e8eef5;border-radius:8px;padding:6px 12px;cursor:pointer">Chiudi</button>
+  </div>
+  <div style="padding:8px 12px 16px"><table id="svBuchiTbl" style="width:100%;border-collapse:collapse;font-size:12px;color:#e8eef5"></table></div>
+ </div>
+</div>
+<script>
+(function(){
+ var COLS=[["marchio","Marchio"],["modello","Modello"],["colore","Colore"],["barcode","Barcode"],["filiale","Filiale"],["categoria","Categoria"],["disponibile","Disp."],["__ideale","Ideale"]];
+ var sortKey="marchio",sortDir=1;
+ function val(b,k){ if(k==="filiale") return b.filiale||b.negozio||""; if(k==="__ideale"){var v=b.__ideale; return (v==null||v==="")?"":v;} return b[k]==null?"":b[k]; }
+ function esc(x){return String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+ function render(){
+  var data=(window.__BUCHI||[]).slice();
+  data.sort(function(a,b){var x=val(a,sortKey),y=val(b,sortKey); if(sortKey==="disponibile"||sortKey==="__ideale"){x=+x||0;y=+y||0;} else {x=(""+x).toLowerCase();y=(""+y).toLowerCase();} return x<y?-1*sortDir:x>y?1*sortDir:0;});
+  var h="<thead><tr>"+COLS.map(function(c){var ar=sortKey===c[0]?(sortDir>0?" \u25B2":" \u25BC"):""; return "<th data-k=\""+c[0]+"\" style=\"text-align:left;padding:6px 8px;border-bottom:1px solid #26384c;color:#8aa0b6;cursor:pointer;position:sticky;top:0;background:#16212e\">"+c[1]+ar+"</th>";}).join("")+"</tr></thead>";
+  h+="<tbody>"+data.map(function(b){return "<tr>"+COLS.map(function(c){return "<td style=\"padding:6px 8px;border-bottom:1px solid #1c2a3a\">"+esc(val(b,c[0]))+"</td>";}).join("")+"</tr>";}).join("")+"</tbody>";
+  var t=document.getElementById("svBuchiTbl"); if(t) t.innerHTML=h;
+  var cnt=document.getElementById("svBuchiCount"); if(cnt) cnt.textContent="("+data.length+")";
+  Array.prototype.forEach.call(document.querySelectorAll("#svBuchiTbl th"),function(th){th.onclick=function(){var k=th.getAttribute("data-k"); if(sortKey===k) sortDir=-sortDir; else {sortKey=k;sortDir=1;} render();};});
+ }
+ window.__openBuchiModal=function(){var m=document.getElementById("svBuchiModal"); if(!m)return; m.style.display="block"; render();};
+ document.addEventListener("click",function(e){var t=e.target;
+   if(t&&t.id==="svBuchiLink"){ e.preventDefault(); e.stopPropagation(); window.__openBuchiModal(); return; }
+   if(t&&t.id==="svBuchiClose"){ var m=document.getElementById("svBuchiModal"); if(m)m.style.display="none"; return; }
+   if(t&&t.id==="svBuchiModal"){ t.style.display="none"; return; }
+ },true);
+})();
+</script>
+
 </body>
 </html>
