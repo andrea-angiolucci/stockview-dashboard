@@ -503,12 +503,13 @@ select.forn,#forn{background:var(--panel2)!important;color:var(--txt)!important;
 })();
 </script>
 
+
 <!-- sv-viewcache-injected -->
 <script>
 window.__SVCACHE_CFG={key:'sv_cache_assortimento',container:'.tablewrap',statusSel:null,sig:'#tbl tbody tr',fsig:function(){try{var p=[];var f=document.getElementById('forn');p.push(f?f.value:'');for(var i=0;i<sessionStorage.length;i++){var k=sessionStorage.key(i);if(k&&k.indexOf('sv_')===0&&k.indexOf('sv_cache')!==0)p.push(k+'='+sessionStorage.getItem(k));}return p.join('|');}catch(e){return '';}}};
 (function(){
  var CFG=window.__SVCACHE_CFG; if(!CFG) return;
- var KEY=CFG.key, badge=null, restored=false;
+ var KEY=CFG.key, badge=null, restored=false, defend=false;
  function q(s){return document.querySelector(s);}
  function cont(){return q(CFG.container);}
  function isReal(c){try{return !!c && c.querySelectorAll(CFG.sig).length>0;}catch(e){return false;}}
@@ -517,13 +518,19 @@ window.__SVCACHE_CFG={key:'sv_cache_assortimento',container:'.tablewrap',statusS
  function mkBadge(){ if(badge)return; badge=document.createElement('div'); badge.id='svCacheBadge'; badge.textContent='\u26A1 Vista dalla cache \u2014 aggiornamento\u2026'; badge.style.cssText='position:fixed;right:14px;bottom:14px;z-index:99998;background:#1c2a3a;border:1px solid #26384c;color:#8aa0b6;font:12px/1.2 system-ui,sans-serif;padding:7px 13px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.4);opacity:.96;pointer-events:none'; (document.body||document.documentElement).appendChild(badge); }
  function rmBadge(){ if(!badge)return; var b=badge; badge=null; b.style.transition='opacity .4s'; b.style.opacity='0'; setTimeout(function(){ if(b.parentNode)b.parentNode.removeChild(b); },450); }
  function save(){ try{ var c=cont(); if(!isReal(c))return; var st=CFG.statusSel?q(CFG.statusSel):null; var html=c.innerHTML; if(html.length>3000000)return; var d={html:html,status:st?st.innerHTML:null,fsig:fsig(),ts:Date.now(),date:today()}; sessionStorage.setItem(KEY,JSON.stringify(d)); }catch(e){} }
- function restore(){ try{ var raw=sessionStorage.getItem(KEY); if(!raw)return false; var d=JSON.parse(raw); if(!d||!d.html)return false; if(d.date!==today())return false; if(Date.now()-d.ts>3600000)return false; if(d.fsig!==fsig())return false; var c=cont(); if(!c||isReal(c))return false; c.innerHTML=d.html; if(CFG.statusSel&&d.status!=null){var st=q(CFG.statusSel); if(st)st.innerHTML=d.status;} restored=true; mkBadge(); return true; }catch(e){return false;} }
+ function restore(){ try{ var raw=sessionStorage.getItem(KEY); if(!raw)return false; var d=JSON.parse(raw); if(!d||!d.html)return false; if(d.date!==today())return false; if(Date.now()-d.ts>3600000)return false; if(d.fsig!==fsig())return false; var c=cont(); if(!c||isReal(c))return false; c.innerHTML=d.html; try{c.style.display='block';}catch(e){} if(CFG.statusSel&&d.status!=null){var st=q(CFG.statusSel); if(st)st.innerHTML=d.status;} restored=true; defend=true; mkBadge(); return true; }catch(e){return false;} }
  var tries=0;
  var iv=setInterval(function(){ tries++; var c=cont(); if(c){ clearInterval(iv); if(!isReal(c)) restore(); start(c); } else if(tries>300){ clearInterval(iv);} },20);
  function start(c){
    var t=null;
-   var obs=new MutationObserver(function(){ clearTimeout(t); t=setTimeout(function(){ if(isReal(cont())){ rmBadge(); save(); } },150); });
+   var obs=new MutationObserver(function(muts){
+     var childChange=false; for(var i=0;i<muts.length;i++){ if(muts[i].type==='childList'){ childChange=true; break; } }
+     if(childChange && isReal(cont())){ defend=false; }
+     clearTimeout(t); t=setTimeout(function(){ if(isReal(cont())){ if(!defend){ rmBadge(); } save(); } },150);
+   });
    try{ obs.observe(c,{childList:true,subtree:true}); }catch(e){}
+   var di=setInterval(function(){ if(!defend){ clearInterval(di); return; } var cc=cont(); if(cc && cc.style.display==='none'){ try{cc.style.display='block';}catch(e){} } },50);
+   setTimeout(function(){ defend=false; clearInterval(di); },30000);
    if(!restored){ var chk=setInterval(function(){ if(isReal(cont())){ clearInterval(chk); save(); } },250); setTimeout(function(){ clearInterval(chk); },25000); }
    setTimeout(rmBadge,60000);
    window.addEventListener('beforeunload',function(){ try{ if(isReal(cont())) save(); }catch(e){} });
