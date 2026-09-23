@@ -505,6 +505,7 @@ select.forn,#forn{background:var(--panel2)!important;color:var(--txt)!important;
 
 
 
+
 <!-- sv-viewcache-injected -->
 <script>
 window.__SVCACHE_CFG={key:'sv_cache_assortimento',container:'.tablewrap',statusSel:null,sig:'#tbl tbody tr',fsig:function(){try{var p=[];var f=document.getElementById('forn');p.push(f?f.value:'');for(var i=0;i<sessionStorage.length;i++){var k=sessionStorage.key(i);if(k&&k.indexOf('sv_')===0&&k.indexOf('sv_cache')!==0)p.push(k+'='+sessionStorage.getItem(k));}return p.join('|');}catch(e){return '';}}};
@@ -523,14 +524,14 @@ window.__SVCACHE_CFG={key:'sv_cache_assortimento',container:'.tablewrap',statusS
  var tries=0;
  var iv=setInterval(function(){ tries++; var c=cont(); if(c){ clearInterval(iv); if(!isReal(c)) restore(); start(c); } else if(tries>300){ clearInterval(iv);} },20);
  function start(c){
-   var t=null;
+   var t=null, sawChild=false, removeScheduled=false;
    var obs=new MutationObserver(function(muts){
-     var childChange=false; for(var i=0;i<muts.length;i++){ if(muts[i].type==='childList'){ childChange=true; break; } }
-     clearTimeout(t); t=setTimeout(function(){ if(!isReal(cont())) return; if(!restored){ save(); return; } if(childChange && Date.now()-rTs>600){ defend=false; rmBadge(); save(); } },150);
+     for(var i=0;i<muts.length;i++){ if(muts[i].type==='childList'){ sawChild=true; break; } }
+     clearTimeout(t); t=setTimeout(function(){ if(!isReal(cont())) return; save(); if(restored && sawChild && !removeScheduled){ removeScheduled=true; defend=false; setTimeout(rmBadge, Math.max(0,800-(Date.now()-rTs))); } },150);
    });
    try{ obs.observe(c,{childList:true,subtree:true}); }catch(e){}
    var di=setInterval(function(){ if(!defend){ clearInterval(di); return; } var cc=cont(); if(cc && cc.style.display==='none'){ try{cc.style.display='block';}catch(e){} } },50);
-   setTimeout(function(){ defend=false; clearInterval(di); rmBadge(); },30000);
+   setTimeout(function(){ defend=false; clearInterval(di); rmBadge(); },6000);
    if(!restored){ var chk=setInterval(function(){ if(isReal(cont())){ clearInterval(chk); save(); } },250); setTimeout(function(){ clearInterval(chk); },25000); }
    window.addEventListener('beforeunload',function(){ try{ if(isReal(cont())) save(); }catch(e){} });
  }
