@@ -112,11 +112,13 @@
   </header>
 
   <div class="wrap">
-    <h2 class="pagetitle">Revisioni cambio categoria</h2>
-    <div id="content"></div>
-    <h2 class="pagetitle" style="margin-top:28px">Correzioni magazzino richieste</h2>
+    <div id="revTop"></div>
+    <h2 class="pagetitle" id="hPend">Revisioni cambio categoria</h2>
+    <div id="secPend"></div>
+    <h2 class="pagetitle" id="hMag" style="margin-top:28px">Correzioni magazzino richieste</h2>
     <p style="color:var(--muted);margin:-6px 0 12px;font-size:13px">Articoli non trovati durante il ricircolo — da correggere nel gestionale</p>
     <div id="nonTrovati"></div>
+    <div id="secComp"></div>
   </div>
 </div>
 
@@ -195,7 +197,7 @@ async function ntUndo(bt){ if(bt.disabled)return; bt.disabled=true; var id=bt.da
   try{ var r=await sb.from("ricircoli").update({note:null}).eq("id",id); if(r.error)throw r.error; for(var i=0;i<NT_ROWS.length;i++){ if(String(NT_ROWS[i].id)===String(id)){ NT_ROWS[i].note=null; break; } } renderNT(); toast("Annullato"); }catch(e){ bt.disabled=false; toast("Errore: "+String((e&&e.message)||e),true); } }
 
 function renderCC(){
-  var host=$("#content"); if(!host)return;
+  var host=$("#secPend"); if(!host)return;
   var canEseg=(ROLE==="admin"||ROLE==="gestore");
   var P=CC_PEND.slice(); sApply(P,CC_SORT,ccVal);
   var C=CC_COMP.slice(); sApply(C,CO_SORT,coVal);
@@ -222,6 +224,7 @@ function renderCC(){
         '<td style="white-space:nowrap">'+act+'</td></tr>';
     }).join("")+'</tbody></table></div>';
   }
+  var hPend=h; h='';
   h+='<div class="section-h">Richieste completate <span class="cnt">'+C.length+(CC_COMP.length>=50?"+":"")+'</span></div>';
   if(!C.length){ h+='<div class="notice">Nessuna richiesta completata.</div>'; }
   else{
@@ -239,12 +242,12 @@ function renderCC(){
         '<td class="muted">'+esc(r.richiesta_da||"—")+'</td></tr>';
     }).join("")+'</tbody></table></div>';
   }
-  host.innerHTML=h;
+  host.innerHTML=hPend; var _ce=document.getElementById("secComp"); if(_ce)_ce.innerHTML=h;
   sWire(document.getElementById("ccPendWrap"),CC_SORT,renderCC);
   sWire(document.getElementById("ccCompWrap"),CO_SORT,renderCC);
-  host.querySelectorAll(".ccEseg").forEach(function(b){ b.onclick=function(){ ccEseguito(b); }; });
-  host.querySelectorAll(".ccUndo").forEach(function(b){ b.onclick=function(){ ccUndo(b); }; });
-  host.querySelectorAll(".ccDel").forEach(function(b){ b.onclick=function(){ confirmDelete(b.dataset.del,b); }; });
+  document.querySelectorAll(".ccEseg").forEach(function(b){ b.onclick=function(){ ccEseguito(b); }; });
+  document.querySelectorAll(".ccUndo").forEach(function(b){ b.onclick=function(){ ccUndo(b); }; });
+  document.querySelectorAll(".ccDel").forEach(function(b){ b.onclick=function(){ confirmDelete(b.dataset.del,b); }; });
 }
 
 function renderNT(){
@@ -320,10 +323,10 @@ $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault(); const b
 $("#logout").addEventListener("click",async()=>{ await sb.auth.signOut(); location.reload(); });
 
 async function loadAll(){
-  $("#content").innerHTML='<div class="status">Carico…</div>';
+  $("#secPend").innerHTML='<div class="status">Carico…</div>';
   const pend=await sb.from("richieste_cambio_categoria").select("*").eq("stato","pendente").order("richiesta_il",{ascending:false});
   const comp=await sb.from("richieste_cambio_categoria").select("*").eq("stato","completata").order("completata_il",{ascending:false}).limit(50);
-  if(pend.error){ $("#content").innerHTML='<div class="notice" style="color:var(--bad)">Errore: '+esc(pend.error.message)+'</div>'; return; }
+  if(pend.error){ $("#secPend").innerHTML='<div class="notice" style="color:var(--bad)">Errore: '+esc(pend.error.message)+'</div>'; return; }
   CC_PEND=pend.data||[]; CC_COMP=comp.data||[];
   renderCC();
 }
@@ -355,6 +358,53 @@ boot();
 <script>
 /* STEP3-E redirect fornitore a presenza */
 (function(){ window.__fornRedirect=1; (async function(){ try{ if(sessionStorage.getItem('sv_sim_role')==='fornitore'){ location.replace('presenza.html'); return; } if(typeof sb==='undefined'||!sb) return; var u=await sb.auth.getUser(); var uid=u&&u.data&&u.data.user&&u.data.user.id; if(!uid) return; var r=await sb.from('user_fornitori').select('user_id').eq('user_id',uid).maybeSingle(); if(r&&r.data){ location.replace('presenza.html'); } }catch(e){} })(); })();
+</script>
+
+<!-- sv-revenh-injected -->
+<script>
+(function(){
+ var GROUP=false, FILTER='all';
+ function el(id){return document.getElementById(id);}
+ function counts(){return {p:(window.CC_PEND||[]).length,m:(window.NT_ROWS||[]).length,c:(window.CC_COMP||[]).length};}
+ function btn(id,label){return '<button id="'+id+'" type="button" style="font:inherit;font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--txt);cursor:pointer">'+label+'</button>';}
+ function applyFilter(){
+   var pend=[el('hPend'),el('secPend')];
+   var hMag=el('hMag'); var mag=[hMag, hMag?hMag.nextElementSibling:null, el('nonTrovati')];
+   var comp=[el('secComp')];
+   function show(a,on){a.forEach(function(x){if(x)x.style.display=on?'':'none';});}
+   show(pend, FILTER==='all'||FILTER==='pend'); show(mag, FILTER==='all'||FILTER==='mag'); show(comp, FILTER==='all'||FILTER==='comp');
+   var map={all:'fAll',pend:'fPend',comp:'fComp',mag:'fMag'};
+   ['fAll','fPend','fComp','fMag'].forEach(function(id){var x=el(id); if(x){x.style.background='var(--panel2)';x.style.color='var(--txt)';}});
+   var a=el(map[FILTER]); if(a){a.style.background='var(--accent)';a.style.color='#0b0f14';}
+ }
+ function applyGroup(){
+   var wrap=el('secPend'); if(!wrap) return; var pw=el('ccPendWrap')||wrap.querySelector('.tablewrap'); if(!pw)return;
+   var tbl=pw.querySelector('table'); if(!tbl||!tbl.tBodies[0]) return; var tb=tbl.tBodies[0];
+   if(!GROUP){ if(tbl.__flat!=null){ tb.innerHTML=tbl.__flat; tbl.__flat=null; } return; }
+   var ths=tbl.tHead?[].slice.call(tbl.tHead.rows[0].cells):[]; var mi=-1; ths.forEach(function(th,i){ if(/marchio/i.test(th.textContent)) mi=i; }); if(mi<0) return;
+   var rows=[].slice.call(tb.rows).filter(function(r){return !r.classList.contains('grphdr');}); if(!rows.length) return;
+   if(tbl.__flat==null) tbl.__flat=tb.innerHTML;
+   var groups={},order=[]; rows.forEach(function(r){ var m=(r.cells[mi]?r.cells[mi].textContent.trim():'')||'\u2014'; if(!groups[m]){groups[m]=[];order.push(m);} groups[m].push(r); });
+   order.sort(); var ncol=ths.length||1; tb.innerHTML='';
+   order.forEach(function(m){ var hdr=document.createElement('tr'); hdr.className='grphdr'; var td=document.createElement('td'); td.setAttribute('colspan',ncol); td.style.cssText='background:var(--panel2);font-weight:700;cursor:pointer;padding:6px 8px'; td.textContent='\u25be '+m+' \u2014 '+groups[m].length+' richieste'; hdr.appendChild(td); tb.appendChild(hdr); groups[m].forEach(function(r){ tb.appendChild(r); }); hdr.onclick=function(){ var open=hdr.getAttribute('data-open')!=='0'; hdr.setAttribute('data-open',open?'0':'1'); td.textContent=(open?'\u25b8':'\u25be')+' '+m+' \u2014 '+groups[m].length+' richieste'; groups[m].forEach(function(r){ r.style.display=open?'none':''; }); }; });
+ }
+ function buildTop(){
+   var top=el('revTop'); if(!top) return; var c=counts();
+   top.innerHTML='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 6px;font-size:14px">'+
+     '<a data-go="secPend" style="color:var(--accent);text-decoration:none;cursor:pointer"><b>'+c.p+'</b> pendenti</a><span style="color:var(--muted)">\u00b7</span>'+
+     '<a data-go="hMag" style="color:var(--accent);text-decoration:none;cursor:pointer"><b>'+c.m+'</b> correzioni magazzino</a><span style="color:var(--muted)">\u00b7</span>'+
+     '<a data-go="secComp" style="color:var(--accent);text-decoration:none;cursor:pointer"><b>'+c.c+'</b> completate</a></div>'+
+     '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:2px 0 10px">'+btn('fAll','Tutte')+btn('fPend','Solo pendenti')+btn('fComp','Solo completate')+btn('fMag','Solo correzioni magazzino')+
+     '<label style="margin-left:12px;font-size:13px;color:var(--txt);cursor:pointer;user-select:none"><input type="checkbox" id="grpMar" '+(GROUP?'checked':'')+'> Raggruppa per marchio</label></div>';
+   top.querySelectorAll('[data-go]').forEach(function(a){ a.onclick=function(e){ e.preventDefault(); var t=el(a.getAttribute('data-go')); if(t)t.scrollIntoView({behavior:'smooth',block:'start'}); }; });
+   el('fAll').onclick=function(){FILTER='all';applyFilter();}; el('fPend').onclick=function(){FILTER='pend';applyFilter();}; el('fComp').onclick=function(){FILTER='comp';applyFilter();}; el('fMag').onclick=function(){FILTER='mag';applyFilter();};
+   el('grpMar').onchange=function(){GROUP=this.checked; applyGroup();};
+ }
+ function enhance(){ try{ buildTop(); applyFilter(); applyGroup(); }catch(e){} }
+ function wrapFn(name){ var o=window[name]; if(typeof o==='function' && !o.__w){ var w=function(){ var r=o.apply(this,arguments); enhance(); return r; }; w.__w=true; window[name]=w; } }
+ function init(){ wrapFn('renderCC'); wrapFn('renderNT'); enhance(); }
+ if(document.readyState==='loading'){ window.addEventListener('DOMContentLoaded',function(){ setTimeout(init,400); }); } else { setTimeout(init,400); }
+})();
 </script>
 </body>
 </html>
