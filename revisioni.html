@@ -113,11 +113,12 @@
 
   <div class="wrap">
     <div id="revTop"></div>
-    <h2 class="pagetitle" id="hPend">Revisioni cambio categoria</h2>
+    <h2 class="pagetitle" id="hDaFare">Da fare <span class="cnt" id="cntDaFare"></span></h2>
     <div id="secPend"></div>
-    <h2 class="pagetitle" id="hMag" style="margin-top:28px">Correzioni magazzino richieste</h2>
+    <div class="section-h" id="lblMag" style="margin-top:16px">Correzioni magazzino</div>
     <p style="color:var(--muted);margin:-6px 0 12px;font-size:13px">Articoli non trovati durante il ricircolo — da correggere nel gestionale</p>
     <div id="nonTrovati"></div>
+    <h2 class="pagetitle" id="hCompletati" style="margin-top:28px">Completati <span class="cnt" id="cntCompletati"></span></h2>
     <div id="secComp"></div>
   </div>
 </div>
@@ -360,48 +361,36 @@ boot();
 (function(){ window.__fornRedirect=1; (async function(){ try{ if(sessionStorage.getItem('sv_sim_role')==='fornitore'){ location.replace('presenza.html'); return; } if(typeof sb==='undefined'||!sb) return; var u=await sb.auth.getUser(); var uid=u&&u.data&&u.data.user&&u.data.user.id; if(!uid) return; var r=await sb.from('user_fornitori').select('user_id').eq('user_id',uid).maybeSingle(); if(r&&r.data){ location.replace('presenza.html'); } }catch(e){} })(); })();
 </script>
 
+
 <!-- sv-revenh-injected -->
 <script>
 (function(){
- var GROUP=false, FILTER='all';
+ var FILTER='all';
  function el(id){return document.getElementById(id);}
- function counts(){return {p:(window.CC_PEND||[]).length,m:(window.NT_ROWS||[]).length,c:(window.CC_COMP||[]).length};}
+ function daFareBlock(){ var l=el('lblMag'); var p=l?l.nextElementSibling:null; var arr=[el('hDaFare'),el('secPend'),l,el('nonTrovati')]; if(p&&p.tagName==='P')arr.push(p); return arr; }
+ function compBlock(){ return [el('hCompletati'),el('secComp')]; }
+ function counts(){ return {d:(window.CC_PEND||[]).length+(window.NT_ROWS||[]).length, c:(window.CC_COMP||[]).length}; }
+ function hideSub(){ [].forEach.call(document.querySelectorAll('#secPend>.section-h,#secComp>.section-h'),function(x){x.style.display='none';}); }
  function btn(id,label){return '<button id="'+id+'" type="button" style="font:inherit;font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--txt);cursor:pointer">'+label+'</button>';}
  function applyFilter(){
-   var pend=[el('hPend'),el('secPend')];
-   var hMag=el('hMag'); var mag=[hMag, hMag?hMag.nextElementSibling:null, el('nonTrovati')];
-   var comp=[el('secComp')];
    function show(a,on){a.forEach(function(x){if(x)x.style.display=on?'':'none';});}
-   show(pend, FILTER==='all'||FILTER==='pend'); show(mag, FILTER==='all'||FILTER==='mag'); show(comp, FILTER==='all'||FILTER==='comp');
-   var map={all:'fAll',pend:'fPend',comp:'fComp',mag:'fMag'};
-   ['fAll','fPend','fComp','fMag'].forEach(function(id){var x=el(id); if(x){x.style.background='var(--panel2)';x.style.color='var(--txt)';}});
-   var a=el(map[FILTER]); if(a){a.style.background='var(--accent)';a.style.color='#0b0f14';}
- }
- function applyGroup(){
-   var wrap=el('secPend'); if(!wrap) return; var pw=el('ccPendWrap')||wrap.querySelector('.tablewrap'); if(!pw)return;
-   var tbl=pw.querySelector('table'); if(!tbl||!tbl.tBodies[0]) return; var tb=tbl.tBodies[0];
-   if(!GROUP){ if(tbl.__flat!=null){ tb.innerHTML=tbl.__flat; tbl.__flat=null; } return; }
-   var ths=tbl.tHead?[].slice.call(tbl.tHead.rows[0].cells):[]; var mi=-1; ths.forEach(function(th,i){ if(/marchio/i.test(th.textContent)) mi=i; }); if(mi<0) return;
-   var rows=[].slice.call(tb.rows).filter(function(r){return !r.classList.contains('grphdr');}); if(!rows.length) return;
-   if(tbl.__flat==null) tbl.__flat=tb.innerHTML;
-   var groups={},order=[]; rows.forEach(function(r){ var m=(r.cells[mi]?r.cells[mi].textContent.trim():'')||'\u2014'; if(!groups[m]){groups[m]=[];order.push(m);} groups[m].push(r); });
-   order.sort(); var ncol=ths.length||1; tb.innerHTML='';
-   order.forEach(function(m){ var hdr=document.createElement('tr'); hdr.className='grphdr'; var td=document.createElement('td'); td.setAttribute('colspan',ncol); td.style.cssText='background:var(--panel2);font-weight:700;cursor:pointer;padding:6px 8px'; td.textContent='\u25be '+m+' \u2014 '+groups[m].length+' richieste'; hdr.appendChild(td); tb.appendChild(hdr); groups[m].forEach(function(r){ tb.appendChild(r); }); hdr.onclick=function(){ var open=hdr.getAttribute('data-open')!=='0'; hdr.setAttribute('data-open',open?'0':'1'); td.textContent=(open?'\u25b8':'\u25be')+' '+m+' \u2014 '+groups[m].length+' richieste'; groups[m].forEach(function(r){ r.style.display=open?'none':''; }); }; });
+   show(daFareBlock(), FILTER==='all'||FILTER==='dafare'); show(compBlock(), FILTER==='all'||FILTER==='comp');
+   var l=el('lblMag'); if(l){ var noNT=!((window.NT_ROWS||[]).length); if(noNT||FILTER==='comp') l.style.display='none'; }
+   ['fAll','fDa','fComp'].forEach(function(id){var x=el(id);if(x){x.style.background='var(--panel2)';x.style.color='var(--txt)';}});
+   var m={all:'fAll',dafare:'fDa',comp:'fComp'}; var a=el(m[FILTER]); if(a){a.style.background='var(--accent)';a.style.color='#0b0f14';}
  }
  function buildTop(){
-   var top=el('revTop'); if(!top) return; var c=counts();
+   var top=el('revTop'); if(!top)return; var c=counts();
    top.innerHTML='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 6px;font-size:14px">'+
-     '<a data-go="secPend" style="color:var(--accent);text-decoration:none;cursor:pointer"><b>'+c.p+'</b> pendenti</a><span style="color:var(--muted)">\u00b7</span>'+
-     '<a data-go="hMag" style="color:var(--accent);text-decoration:none;cursor:pointer"><b>'+c.m+'</b> correzioni magazzino</a><span style="color:var(--muted)">\u00b7</span>'+
-     '<a data-go="secComp" style="color:var(--accent);text-decoration:none;cursor:pointer"><b>'+c.c+'</b> completate</a></div>'+
-     '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:2px 0 10px">'+btn('fAll','Tutte')+btn('fPend','Solo pendenti')+btn('fComp','Solo completate')+btn('fMag','Solo correzioni magazzino')+
-     '<label style="margin-left:12px;font-size:13px;color:var(--txt);cursor:pointer;user-select:none"><input type="checkbox" id="grpMar" '+(GROUP?'checked':'')+'> Raggruppa per marchio</label></div>';
+     '<a data-go="hDaFare" style="color:var(--accent);text-decoration:none;cursor:pointer"><b>'+c.d+'</b> da fare</a><span style="color:var(--muted)">\u00b7</span>'+
+     '<a data-go="hCompletati" style="color:var(--accent);text-decoration:none;cursor:pointer"><b>'+c.c+'</b> completati</a></div>'+
+     '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:2px 0 10px">'+btn('fAll','Tutto')+btn('fDa','Da fare')+btn('fComp','Completati')+'</div>';
    top.querySelectorAll('[data-go]').forEach(function(a){ a.onclick=function(e){ e.preventDefault(); var t=el(a.getAttribute('data-go')); if(t)t.scrollIntoView({behavior:'smooth',block:'start'}); }; });
-   el('fAll').onclick=function(){FILTER='all';applyFilter();}; el('fPend').onclick=function(){FILTER='pend';applyFilter();}; el('fComp').onclick=function(){FILTER='comp';applyFilter();}; el('fMag').onclick=function(){FILTER='mag';applyFilter();};
-   el('grpMar').onchange=function(){GROUP=this.checked; applyGroup();};
+   el('fAll').onclick=function(){FILTER='all';applyFilter();}; el('fDa').onclick=function(){FILTER='dafare';applyFilter();}; el('fComp').onclick=function(){FILTER='comp';applyFilter();};
+   var cd=el('cntDaFare'); if(cd)cd.textContent=c.d; var cc=el('cntCompletati'); if(cc)cc.textContent=c.c;
  }
- function enhance(){ try{ buildTop(); applyFilter(); applyGroup(); }catch(e){} }
- function wrapFn(name){ var o=window[name]; if(typeof o==='function' && !o.__w){ var w=function(){ var r=o.apply(this,arguments); enhance(); return r; }; w.__w=true; window[name]=w; } }
+ function enhance(){ try{ hideSub(); buildTop(); applyFilter(); }catch(e){} }
+ function wrapFn(name){ var o=window[name]; if(typeof o==='function'&&!o.__w){ var w=function(){ var r=o.apply(this,arguments); enhance(); return r; }; w.__w=true; window[name]=w; } }
  function init(){ wrapFn('renderCC'); wrapFn('renderNT'); enhance(); }
  if(document.readyState==='loading'){ window.addEventListener('DOMContentLoaded',function(){ setTimeout(init,400); }); } else { setTimeout(init,400); }
 })();
