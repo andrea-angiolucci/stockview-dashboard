@@ -880,7 +880,7 @@ function decorate(){
     [].slice.call(td.querySelectorAll(".cellage,.cv2")).forEach(function(x){x.remove();});
     if(!ageOn&&!prevOn) return;
     var k=td.getAttribute("data-bc")+"|"+td.getAttribute("data-fil");
-    if(ageOn&&AGE[k]!==undefined){ var s=document.createElement("span"); s.className="cellage"; s.textContent=AGE[k]+"g"; td.appendChild(s); }
+    if(ageOn&&AGE[k]!==undefined&&(function(){var _g=td.querySelector(".cg"),_v=td.querySelector(".cv");var _gg=_g?(parseInt(_g.textContent)||0):0,_vv=_v?(parseInt(_v.textContent)||0):0;return _gg>0||_vv>0;})()){ var s=document.createElement("span"); s.className="cellage"; s.textContent=AGE[k]+"g"; td.appendChild(s); }
     if(prevOn){ var d=document.createElement("div"); d.className="cv2"; d.title="venduto 2025"; d.textContent=(PREV[k]!==undefined?PREV[k]:0); td.appendChild(d); }
   });
   var rows=[].slice.call(tbl.querySelectorAll("tbody tr"));
@@ -889,7 +889,7 @@ function decorate(){
   rows.forEach(function(tr){
     var tot=tr.querySelector("td.tot"); if(!tot)return;
     var old=tot.querySelector(".ageavg"); if(old)old.remove();
-    if(ageOn){ var tds=[].slice.call(tr.querySelectorAll("td.filcol[data-bc]")); var sum=0,cnt=0; tds.forEach(function(td){var k=td.getAttribute("data-bc")+"|"+td.getAttribute("data-fil"); if(AGE[k]!==undefined){sum+=AGE[k];cnt++;}}); if(cnt){ var d=document.createElement("div"); d.className="ageavg"; d.textContent="⌀"+Math.round(sum/cnt)+"g"; tot.appendChild(d);} }
+    if(ageOn){ var tds=[].slice.call(tr.querySelectorAll("td.filcol[data-bc]")); var sum=0,cnt=0; tds.forEach(function(td){var k=td.getAttribute("data-bc")+"|"+td.getAttribute("data-fil"); if(AGE[k]!==undefined){var _g=td.querySelector(".cg"),_v=td.querySelector(".cv");var _gg=_g?(parseInt(_g.textContent)||0):0,_vv=_v?(parseInt(_v.textContent)||0):0;if(_gg>0||_vv>0){sum+=AGE[k];cnt++;}}}); if(cnt){ var d=document.createElement("div"); d.className="ageavg"; d.textContent="⌀"+Math.round(sum/cnt)+"g"; tot.appendChild(d);} }
   });
   rows.forEach(function(tr){
     var tot=tr.querySelector("td.tot"); if(!tot)return;
