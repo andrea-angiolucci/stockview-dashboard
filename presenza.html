@@ -1934,5 +1934,6 @@ window.__SVCACHE_CFG={key:'sv_cache_presenza',container:'#tablewrap',statusSel:'
  }
 })();
 </script>
+<script>/*sv-sticky2*/(function(){function fit(){try{var w=document.getElementById('tablewrap')||document.querySelector('.tablewrap');if(!w)return;var vh=window.innerHeight||document.documentElement.clientHeight;if(!vh)return;var top=w.getBoundingClientRect().top;var mh=vh-top-12;if(mh<260)mh=260;w.style.overflow='auto';w.style.webkitOverflowScrolling='touch';w.style.maxHeight=mh+'px';}catch(e){}}function boot(){fit();try{window.addEventListener('resize',fit);}catch(e){}try{var tb=document.querySelector('#tbl tbody');if(tb){var mo=new MutationObserver(function(){fit();});mo.observe(tb,{childList:true});}}catch(e){}setTimeout(fit,600);setTimeout(fit,1800);setTimeout(fit,4000);}if(document.readyState!=='loading')boot();else document.addEventListener('DOMContentLoaded',boot);})();</script>
 </body>
 </html>
