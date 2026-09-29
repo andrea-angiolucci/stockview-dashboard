@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>StockView â Impostazioni</title>
+<title>StockView — Impostazioni</title>
 <style>
   :root{--bg:#0f1720;--panel:#16212e;--panel2:#1c2a3a;--line:#26384c;--txt:#e8eef5;--muted:#8aa0b6;--accent:#3da9fc;--accent2:#2b7fd6;--ok:#36c98d;--bad:#ff6b6b;--warn:#f5a524;--yellow:#e8c848;--chip:#1c2a3a;--shadow:0 10px 30px rgba(0,0,0,.35)}
   *{box-sizing:border-box}
@@ -132,7 +132,7 @@
 <div id="login">
   <div class="card">
     <div class="brand"><div class="dot">S</div><h1>StockView</h1></div>
-    <div class="sub">Impostazioni Â· accesso riservato</div>
+    <div class="sub">Impostazioni · accesso riservato</div>
     <div class="sub" style="margin-top:8px" id="loginRedirect">Reindirizzamento al login\u2026</div>
   </div>
 </div>
@@ -171,7 +171,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 /* === Visualizza come... (simulazione ruolo admin) === */
 (function(){
   if(window.__svSimInstalled) return; window.__svSimInstalled=true;
-  var FIL={D:'Catania',I:'Portali',G:'Giarre',Z:'Viale Africa',C:'Acireale',E:'Augusta',H:'Lentini',B:'PaternÃ²'};
+  var FIL={D:'Catania',I:'Portali',G:'Giarre',Z:'Viale Africa',C:'Acireale',E:'Augusta',H:'Lentini',B:'Paternò'};
   var ORDER=['D','I','G','Z','C','E','H','B'];
   function sg(k){try{return sessionStorage.getItem(k);}catch(e){return null;}}
   function ssv(k,v){try{sessionStorage.setItem(k,v);}catch(e){}}
@@ -183,16 +183,16 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
   if(_orig){ sb.auth.getSession=async function(){ var r=await _orig(); try{ var s=r&&r.data&&r.data.session; if(s){ var rr=s.user&&s.user.user_metadata&&s.user.user_metadata.role; window.__SV_REAL_ROLE=rr; if(rr==='admin'&&simRole&&simRole!=='admin'){ var nu=Object.assign({},s.user,{user_metadata:ovMeta(s.user.user_metadata)}); return {data:{session:Object.assign({},s,{user:nu})},error:r.error}; } } }catch(e){} return r; }; }
   if(_origU){ sb.auth.getUser=async function(){ var r=await _origU(); try{ var u=r&&r.data&&r.data.user; if(u){ var rr=u.user_metadata&&u.user_metadata.role; if(rr==='admin'&&simRole&&simRole!=='admin'){ return {data:{user:Object.assign({},u,{user_metadata:ovMeta(u.user_metadata)})},error:r.error}; } } }catch(e){} return r; }; }
   if(typeof sb!=='undefined'&&sb.auth&&sb.auth.signOut){ var _so=sb.auth.signOut.bind(sb.auth); sb.auth.signOut=function(){ sd('sv_sim_role'); sd('sv_sim_filiale'); return _so.apply(null,arguments); }; }
-  function lbl(role,fil){ if(role==='admin')return 'Admin'; if(role==='gestore')return 'Gestore'; if(role==='vendita')return 'Vendita â '+(FIL[fil]||fil||'?'); return role; }
+  function lbl(role,fil){ if(role==='admin')return 'Admin'; if(role==='gestore')return 'Gestore'; if(role==='vendita')return 'Vendita → '+(FIL[fil]||fil||'?'); return role; }
   function setSim(role,fil){ if(role==='admin'){ sd('sv_sim_role'); sd('sv_sim_filiale'); } else { ssv('sv_sim_role',role); if(role==='vendita'&&fil) ssv('sv_sim_filiale',fil); else sd('sv_sim_filiale'); } location.reload(); }
   function buildUI(){
-    if(simRole){ var bn=document.createElement('div'); bn.id='svSimBanner'; bn.style.cssText='background:#f5a524;color:#3a2a00;font-weight:700;font-size:13px;text-align:center;padding:8px 12px;cursor:pointer'; bn.textContent='â  Vista simulata: '+lbl(simRole,simFil)+' â Clicca per tornare ad Admin'; bn.onclick=function(){ setSim('admin'); }; var nv=document.querySelector('nav'); var hdr=nv?(nv.closest('header')||nv.parentElement):null; if(hdr&&hdr.parentNode){ hdr.parentNode.insertBefore(bn,hdr.nextSibling); } else if(document.body.firstChild){ document.body.insertBefore(bn,document.body.firstChild); } else { document.body.appendChild(bn); } }
+    if(simRole){ var bn=document.createElement('div'); bn.id='svSimBanner'; bn.style.cssText='background:#f5a524;color:#3a2a00;font-weight:700;font-size:13px;text-align:center;padding:8px 12px;cursor:pointer'; bn.textContent='⚠ Vista simulata: '+lbl(simRole,simFil)+' — Clicca per tornare ad Admin'; bn.onclick=function(){ setSim('admin'); }; var nv=document.querySelector('nav'); var hdr=nv?(nv.closest('header')||nv.parentElement):null; if(hdr&&hdr.parentNode){ hdr.parentNode.insertBefore(bn,hdr.nextSibling); } else if(document.body.firstChild){ document.body.insertBefore(bn,document.body.firstChild); } else { document.body.appendChild(bn); } }
     var logout=document.getElementById('logout');
     var wrap=document.createElement('span'); wrap.style.cssText='position:relative;display:inline-block';
-    var btn=document.createElement('button'); btn.type='button'; btn.textContent='ð Visualizza comeâ¦'; btn.style.cssText='cursor:pointer;font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid rgba(128,128,128,.4);background:transparent;color:inherit;font-weight:600;margin-right:8px';
+    var btn=document.createElement('button'); btn.type='button'; btn.textContent='👁 Visualizza come…'; btn.style.cssText='cursor:pointer;font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid rgba(128,128,128,.4);background:transparent;color:inherit;font-weight:600;margin-right:8px';
     var menu=document.createElement('div'); menu.style.cssText='position:absolute;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid #ccc;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:210px;z-index:99999;display:none;overflow:hidden';
-    var items=[['ð¤ Admin (attuale)','admin',null],['ð¤ Gestore','gestore',null]];
-    ORDER.forEach(function(c){ items.push(['ð¤ Vendita â '+FIL[c],'vendita',c]); });
+    var items=[['👤 Admin (attuale)','admin',null],['👤 Gestore','gestore',null]];
+    ORDER.forEach(function(c){ items.push(['👤 Vendita → '+FIL[c],'vendita',c]); });
     items.forEach(function(it){ var a=document.createElement('div'); a.textContent=it[0]; var active=((it[1]==='admin'&&!simRole)||(it[1]===simRole&&(it[1]!=='vendita'||it[2]===simFil))); a.style.cssText='padding:8px 12px;cursor:pointer;font-size:13px;white-space:nowrap;color:#1f2a37;'+(active?'font-weight:700;background:#eef3f9':''); a.onmouseover=function(){a.style.background='#dce7f3';}; a.onmouseout=function(){a.style.background=active?'#eef3f9':'';}; a.onclick=function(ev){ ev.stopPropagation(); setSim(it[1],it[2]); }; menu.appendChild(a); });
     btn.onclick=function(e){ e.stopPropagation(); menu.style.display=(menu.style.display==='none'?'block':'none'); };
     document.addEventListener('click',function(){ menu.style.display='none'; });
@@ -206,10 +206,10 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 
 // --- Filiali (attive, no deposito) ordinate per performance ---
-const FIL_NAME={B:"PaternÃ²",C:"Acireale",D:"Catania",E:"Augusta",G:"Giarre",H:"Lentini",I:"Portali",Z:"Viale Africa"};
-const FIL_ORDER=["D","I","G","Z","C","E","H","B"]; // Catania, Portali, Giarre, Viale Africa, Acireale, Augusta, Lentini, PaternÃ²
+const FIL_NAME={B:"Paternò",C:"Acireale",D:"Catania",E:"Augusta",G:"Giarre",H:"Lentini",I:"Portali",Z:"Viale Africa"};
+const FIL_ORDER=["D","I","G","Z","C","E","H","B"]; // Catania, Portali, Giarre, Viale Africa, Acireale, Augusta, Lentini, Paternò
 
-// --- ProfonditÃ : qty_ideale (multipli di 7) <-> gradino cumulativo ---
+// --- Profondità: qty_ideale (multipli di 7) <-> gradino cumulativo ---
 const LADDER=["ST","P1","P2","P3","P4"];
 const STEP=7;
 function qtyToN(q){ q=Number(q)||0; return q>0?Math.min(Math.round(q/STEP),5):0; }
@@ -254,14 +254,14 @@ function renderTabbar(){
 }
 function renderFiliali(host){
   var CODES=['A','B','C','D','E','G','H','I','Z'];
-  host.innerHTML='<div class="toolbar"><div class="fcol"><span>Filiali</span></div></div><div style="padding:14px" id="filWrap"><div class="muted">Caricamentoâ¦</div></div>';
+  host.innerHTML='<div class="toolbar"><div class="fcol"><span>Filiali</span></div></div><div style="padding:14px" id="filWrap"><div class="muted">Caricamento…</div></div>';
   var wrap=host.querySelector('#filWrap');
   sb.from('filiali').select('codice,nome,attiva,indirizzo,telefono,email_notifiche').in('codice',CODES).then(function(r){
     var rows=(r&&r.data)||[]; var by={}; rows.forEach(function(x){by[x.codice]=x;});
     var h='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="text-align:left;padding:6px">Nome</th><th style="padding:6px">Codice</th><th style="padding:6px">Attiva</th><th style="text-align:left;padding:6px">Indirizzo</th><th style="text-align:left;padding:6px">Telefono</th><th style="text-align:left;padding:6px">Email notifiche</th><th style="padding:6px"></th></tr></thead><tbody>';
     CODES.forEach(function(c){
       var f=by[c]||{nome:'',attiva:true,indirizzo:'',telefono:'',email_notifiche:''};
-      h+='<tr data-cod="'+c+'"><td style="padding:6px"><input class="fi-nome" value="'+esc(f.nome||'')+'" style="width:120px"></td><td style="padding:6px;text-align:center;font-weight:700">'+esc(c)+'</td><td style="padding:6px;text-align:center"><input type="checkbox" class="fi-attiva"'+(f.attiva?' checked':'')+'></td><td style="padding:6px"><input class="fi-ind" value="'+esc(f.indirizzo||'')+'" style="width:150px"></td><td style="padding:6px"><input class="fi-tel" value="'+esc(f.telefono||'')+'" style="width:110px"></td><td style="padding:6px"><input class="fi-email" value="'+esc(f.email_notifiche||'')+'" style="width:180px"></td><td style="padding:6px;white-space:nowrap"><button class="btn fi-save">ð¾</button> <span class="fi-msg" style="font-size:12px"></span></td></tr>';
+      h+='<tr data-cod="'+c+'"><td style="padding:6px"><input class="fi-nome" value="'+esc(f.nome||'')+'" style="width:120px"></td><td style="padding:6px;text-align:center;font-weight:700">'+esc(c)+'</td><td style="padding:6px;text-align:center"><input type="checkbox" class="fi-attiva"'+(f.attiva?' checked':'')+'></td><td style="padding:6px"><input class="fi-ind" value="'+esc(f.indirizzo||'')+'" style="width:150px"></td><td style="padding:6px"><input class="fi-tel" value="'+esc(f.telefono||'')+'" style="width:110px"></td><td style="padding:6px"><input class="fi-email" value="'+esc(f.email_notifiche||'')+'" style="width:180px"></td><td style="padding:6px;white-space:nowrap"><button class="btn fi-save">💾</button> <span class="fi-msg" style="font-size:12px"></span></td></tr>';
     });
     h+='</tbody></table>';
     wrap.innerHTML=h;
@@ -270,35 +270,35 @@ function renderFiliali(host){
       b.onclick=function(){
         var cod=tr.getAttribute('data-cod');
         var payload={nome:tr.querySelector('.fi-nome').value.trim(),attiva:tr.querySelector('.fi-attiva').checked,indirizzo:tr.querySelector('.fi-ind').value.trim()||null,telefono:tr.querySelector('.fi-tel').value.trim()||null,email_notifiche:tr.querySelector('.fi-email').value.trim()||null};
-        b.disabled=true; msg.style.color='var(--muted)'; msg.textContent='â¦';
+        b.disabled=true; msg.style.color='var(--muted)'; msg.textContent='…';
         sb.from('filiali').update(payload).eq('codice',cod).then(function(res){
           b.disabled=false;
           if(res&&res.error){msg.style.color='var(--bad)';msg.textContent='Errore';}
-          else{msg.style.color='var(--ok)';msg.textContent='Salvato â';setTimeout(function(){msg.textContent='';},2000);}
+          else{msg.style.color='var(--ok)';msg.textContent='Salvato ✓';setTimeout(function(){msg.textContent='';},2000);}
         });
       };
     });
   });
 }
 function svRenderAggiornamento(host){
-  host.insertAdjacentHTML('beforeend','<div style="padding:14px;max-width:560px;border-top:1px solid var(--line);margin-top:6px"><div style="font-size:14px;font-weight:700;margin-bottom:4px">Aggiornamento dati</div><p style="color:var(--muted);font-size:13px;margin:0 0 10px">Lancia manualmente il caricamento notturno (GitHub Actions). Richiede un token GitHub con permesso <b>actions:write</b> sul repo stockview.</p><div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input id="ghTok" type="password" placeholder="GitHub token" autocomplete="off" style="flex:1;min-width:200px"><button id="ghTokSave" class="btn">Salva token</button><span id="ghTokMsg" class="muted" style="font-size:12px"></span></div><div style="display:flex;gap:10px;align-items:center"><button id="ghRun" class="btn acc">ð Forza aggiornamento dati</button><span id="ghRunMsg" style="font-size:13px"></span></div></div>');
+  host.insertAdjacentHTML('beforeend','<div style="padding:14px;max-width:560px;border-top:1px solid var(--line);margin-top:6px"><div style="font-size:14px;font-weight:700;margin-bottom:4px">Aggiornamento dati</div><p style="color:var(--muted);font-size:13px;margin:0 0 10px">Lancia manualmente il caricamento notturno (GitHub Actions). Richiede un token GitHub con permesso <b>actions:write</b> sul repo stockview.</p><div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input id="ghTok" type="password" placeholder="GitHub token" autocomplete="off" style="flex:1;min-width:200px"><button id="ghTokSave" class="btn">Salva token</button><span id="ghTokMsg" class="muted" style="font-size:12px"></span></div><div style="display:flex;gap:10px;align-items:center"><button id="ghRun" class="btn acc">🔄 Forza aggiornamento dati</button><span id="ghRunMsg" style="font-size:13px"></span></div></div>');
   var tokEl=host.querySelector('#ghTok'),tokSave=host.querySelector('#ghTokSave'),tokMsg=host.querySelector('#ghTokMsg');
   var runBtn=host.querySelector('#ghRun'),runMsg=host.querySelector('#ghRunMsg');
   var REPO='andrea-angiolucci/stockview',WF='stockview_nightly.yml';
   function ghHeaders(t){return {'Authorization':'Bearer '+t,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};}
   sb.from('impostazioni_sistema').select('valore').eq('chiave','github_token').maybeSingle().then(function(r){ if(r&&r.data&&r.data.valore){tokEl.value=r.data.valore;} });
   tokSave.onclick=function(){
-    tokSave.disabled=true; tokMsg.style.color='var(--muted)'; tokMsg.textContent='â¦';
+    tokSave.disabled=true; tokMsg.style.color='var(--muted)'; tokMsg.textContent='…';
     sb.from('impostazioni_sistema').upsert({chiave:'github_token',valore:tokEl.value.trim()}).then(function(res){
       tokSave.disabled=false;
       if(res&&res.error){tokMsg.style.color='var(--bad)';tokMsg.textContent='Errore';}
-      else{tokMsg.style.color='var(--ok)';tokMsg.textContent='Salvato â';setTimeout(function(){tokMsg.textContent='';},2000);}
+      else{tokMsg.style.color='var(--ok)';tokMsg.textContent='Salvato ✓';setTimeout(function(){tokMsg.textContent='';},2000);}
     });
   };
   runBtn.onclick=function(){
     var t=tokEl.value.trim();
-    if(!t){runMsg.style.color='var(--bad)';runMsg.textContent='â Inserisci prima il token';return;}
-    runBtn.disabled=true; runMsg.style.color='var(--muted)'; runMsg.innerHTML='<span class="svspin"></span> Aggiornamento in corsoâ¦';
+    if(!t){runMsg.style.color='var(--bad)';runMsg.textContent='❌ Inserisci prima il token';return;}
+    runBtn.disabled=true; runMsg.style.color='var(--muted)'; runMsg.innerHTML='<span class="svspin"></span> Aggiornamento in corso…';
     var startTime=Date.now(),H=ghHeaders(t),runsURL='https://api.github.com/repos/'+REPO+'/actions/runs?per_page=1';
     fetch(runsURL,{headers:H}).then(function(r){return r.json();}).then(function(j0){
       var baseId=(j0&&j0.workflow_runs&&j0.workflow_runs[0])?j0.workflow_runs[0].id:0;
@@ -311,18 +311,18 @@ function svRenderAggiornamento(host){
             var run=j&&j.workflow_runs&&j.workflow_runs[0];
             if(run&&run.id!==baseId&&run.status==='completed'){
               runBtn.disabled=false;
-              if(run.conclusion==='success'){runMsg.style.color='var(--ok)';runMsg.textContent='â Aggiornamento completato';}
-              else{runMsg.style.color='var(--bad)';runMsg.textContent='â Workflow: '+(run.conclusion||'errore');}
+              if(run.conclusion==='success'){runMsg.style.color='var(--ok)';runMsg.textContent='✅ Aggiornamento completato';}
+              else{runMsg.style.color='var(--bad)';runMsg.textContent='❌ Workflow: '+(run.conclusion||'errore');}
               return;
             }
-            if(tries>40){runBtn.disabled=false;runMsg.style.color='var(--bad)';runMsg.textContent='â Timeout attesa';return;}
-            runMsg.innerHTML='<span class="svspin"></span> In corsoâ¦ ('+Math.round((Date.now()-startTime)/1000)+'s)';
+            if(tries>40){runBtn.disabled=false;runMsg.style.color='var(--bad)';runMsg.textContent='❌ Timeout attesa';return;}
+            runMsg.innerHTML='<span class="svspin"></span> In corso… ('+Math.round((Date.now()-startTime)/1000)+'s)';
             setTimeout(poll,30000);
-          }).catch(function(){runBtn.disabled=false;runMsg.style.color='var(--bad)';runMsg.textContent='â Errore durante il polling';});
+          }).catch(function(){runBtn.disabled=false;runMsg.style.color='var(--bad)';runMsg.textContent='❌ Errore durante il polling';});
         }
         setTimeout(poll,30000);
       });
-    }).catch(function(e){runBtn.disabled=false;runMsg.style.color='var(--bad)';runMsg.textContent='â Errore: '+((e&&e.message)||e);});
+    }).catch(function(e){runBtn.disabled=false;runMsg.style.color='var(--bad)';runMsg.textContent='❌ Errore: '+((e&&e.message)||e);});
   };
 }
 function renderSistema(host){
@@ -375,7 +375,7 @@ function drawUtenti(){
     const filInfo=(u.role==="vendita")?(u.filiale?('<div class="ufil">\ud83c\udfec Filiale: <b>'+esc(FIL_NAME[u.filiale]||u.filiale)+'</b></div>'):('<div class="ufilmiss"><span class="ubadge miss">\u26a0 Filiale mancante</span><button class="ghost usm ufilbtn" data-act="setfil" data-id="'+esc(u.id)+'">Imposta filiale</button></div>')):"";
     const toggleBtn='<button class="ghost usm" data-act="status" data-id="'+esc(u.id)+'" data-dis="'+(dis?"0":"1")+'">'+(dis?"Riattiva":"Disattiva")+'</button>';
     const delBtn=self?'':'<button class="ghost usm udel" data-act="del" data-id="'+esc(u.id)+'" data-email="'+esc(u.email||"")+'">Elimina</button>';
-    const resetBtn=(!pending && !dis)?'<button class="ghost usm" data-act="reset" data-email="'+esc(u.email||"")+'">ð Reset password</button>':'';
+    const resetBtn=(!pending && !dis)?'<button class="ghost usm" data-act="reset" data-email="'+esc(u.email||"")+'">🔑 Reset password</button>':'';
     return '<tr'+(dis?' class="disrow"':'')+'><td>'+esc(u.email||"\u2014")+(self?' <span class="umuted">(tu)</span>':'')+'</td><td>'+roleSel+filInfo+'</td><td>'+stato+'</td><td>'+uFmt(u.created_at)+'</td><td>'+uFmt(u.last_sign_in_at)+'</td><td class="uacts">'+(pending?'<button class="ghost usm" data-act="reinvite" data-id="'+esc(u.id)+'" data-email="'+esc(u.email||"")+'">Re-invia invito</button>':'')+resetBtn+toggleBtn+delBtn+'</td></tr>';
   }).join("");
   $("#uwrap").innerHTML='<div class="utblwrap"><table class="utbl"><thead><tr><th>Email</th><th>Ruolo</th><th>Stato</th><th>Creazione</th><th>Ultimo accesso</th><th>Azioni</th></tr></thead><tbody>'+rows+'</tbody></table></div><div class="umuted" style="margin-top:8px">'+U_LIST.length+' utenti registrati</div>';
@@ -413,7 +413,7 @@ async function delUser(id, email){
   catch(e){ toast(String((e&&e.message)||e), true); }
 }
 function openInvite(){
-  openModal('<h3 style="margin:0 0 12px">Invita nuovo utente</h3><label>Email</label><input type="email" id="invEmail" placeholder="nome@dominio.it" style="width:100%"><label style="margin-top:10px;display:block">Ruolo</label><select id="invRole" class="urole" style="width:100%"><option value="gestore" selected>gestore</option><option value="vendita">vendita</option><option value="admin">admin</option></select><div id="invFilRow" style="display:none;margin-top:10px"><label>Filiale</label><select id="invFiliale" class="urole" style="width:100%"><option value="">â seleziona â</option>'+RC_FILIALI.map(function(f){return '<option value="'+f[0]+'">'+esc(f[1])+'</option>';}).join("")+'</select></div><div class="err" id="invErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button class="ghost" id="invCancel">Annulla</button><button class="ubtn" id="invSend">Invia invito</button></div>');
+  openModal('<h3 style="margin:0 0 12px">Invita nuovo utente</h3><label>Email</label><input type="email" id="invEmail" placeholder="nome@dominio.it" style="width:100%"><label style="margin-top:10px;display:block">Ruolo</label><select id="invRole" class="urole" style="width:100%"><option value="gestore" selected>gestore</option><option value="vendita">vendita</option><option value="admin">admin</option></select><div id="invFilRow" style="display:none;margin-top:10px"><label>Filiale</label><select id="invFiliale" class="urole" style="width:100%"><option value="">— seleziona —</option>'+RC_FILIALI.map(function(f){return '<option value="'+f[0]+'">'+esc(f[1])+'</option>';}).join("")+'</select></div><div class="err" id="invErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button class="ghost" id="invCancel">Annulla</button><button class="ubtn" id="invSend">Invia invito</button></div>');
   $("#invCancel").onclick=closeModal; if($("#invRole"))$("#invRole").onchange=function(){ var fr=$("#invFilRow"); if(fr)fr.style.display=($("#invRole").value==="vendita")?"block":"none"; };
   $("#invSend").onclick=async function(){
     const email=($("#invEmail").value||"").trim(); const role=$("#invRole").value; const err=$("#invErr");
@@ -430,19 +430,19 @@ async function renderAssortimento(host){
     '<div class="toolbar">'+
       '<div class="fcol"><span>Tipo lenti</span><div class="seg" id="segTipo"><button data-t="Vista" class="on">Vista</button><button data-t="Sole">Sole</button></div></div>'+
       '<div class="fcol"><span>Fornitore</span><select class="sort" id="fForn"><option value="">Tutti</option></select></div>'+
-      '<div class="fcol"><span>Marchio</span><input class="txt" id="fMar" placeholder="Cerca marchioâ¦" /></div>'+
+      '<div class="fcol"><span>Marchio</span><input class="txt" id="fMar" placeholder="Cerca marchio…" /></div>'+
       (isAdmin?'<button class="addbtn" id="addMar">+ Aggiungi marchio</button>':'')+
     '</div>'+
     (isAdmin?'':'<div class="ro-note">Sola lettura (ruolo gestore). Per modificare serve il ruolo admin.</div>')+
     '<div class="legend">'+
-      '<span><span class="dp dpEmpty">Â·</span> Non previsto</span>'+
-      '<span><span class="dp dpST">ST</span> profonditÃ  base</span>'+
+      '<span><span class="dp dpEmpty">·</span> Non previsto</span>'+
+      '<span><span class="dp dpST">ST</span> profondità base</span>'+
       '<span><span class="dp dpP1">P1</span></span>'+
       '<span><span class="dp dpP2">P2</span></span>'+
       '<span><span class="dp dpP3">P3+</span></span>'+
-      '<span>Ogni gradino â '+STEP+' pezzi (cumulativo).</span>'+
+      '<span>Ogni gradino ≈ '+STEP+' pezzi (cumulativo).</span>'+
     '</div>'+
-    '<div class="status" id="asStatus"><span>Caricoâ¦</span></div>'+
+    '<div class="status" id="asStatus"><span>Carico…</span></div>'+
     '<div class="tablewrap" id="asWrap" style="display:none"><table id="asTbl"><thead></thead><tbody></tbody></table></div>';
   $("#segTipo").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; [...$("#segTipo").children].forEach(x=>x.classList.remove("on")); b.classList.add("on"); curTipo=b.dataset.t; drawTable(); };
   $("#fForn").onchange=drawTable;
@@ -486,7 +486,7 @@ function currentMarchi(){
 function cellHtml(marchio,fil){
   const e=MAP[curTipo][marchio]?MAP[curTipo][marchio][fil]:null;
   const n=qtyToN(e?e.qty:0);
-  const code=nToCode(n)||"Â·";
+  const code=nToCode(n)||"·";
   return '<span class="dp '+dpClass(n)+'" title="'+(e&&e.qty?e.qty+" pezzi":"non previsto")+'">'+code+'</span>';
 }
 
@@ -496,7 +496,7 @@ function drawTable(){
   const head='<tr><th class="mar">Marchio</th>'+FIL_ORDER.map(f=>'<th>'+esc(FIL_NAME[f])+'</th>').join("")+(isAdmin?'<th></th>':'')+'</tr>';
   $("#asTbl").tHead.innerHTML=head;
   if(!ms.length){
-    $("#asTbl").tBodies[0].innerHTML='<tr><td class="mar" colspan="'+(FIL_ORDER.length+1+(isAdmin?1:0))+'" style="text-align:center;color:var(--muted);padding:24px">Nessun marchio '+(curTipo==="Sole"?"Sole":"Vista")+'. '+(isAdmin?"Aggiungine uno con Â«+ Aggiungi marchioÂ».":"")+'</td></tr>';
+    $("#asTbl").tBodies[0].innerHTML='<tr><td class="mar" colspan="'+(FIL_ORDER.length+1+(isAdmin?1:0))+'" style="text-align:center;color:var(--muted);padding:24px">Nessun marchio '+(curTipo==="Sole"?"Sole":"Vista")+'. '+(isAdmin?"Aggiungine uno con «+ Aggiungi marchio».":"")+'</td></tr>';
     $("#asWrap").style.display="block"; $("#asStatus").innerHTML='<b>0</b> marchi';
     return;
   }
@@ -505,11 +505,11 @@ function drawTable(){
     FIL_ORDER.forEach(f=>{
       tr+='<td class="cell'+(isAdmin?' cellEdit':'')+'" data-m="'+esc(m)+'" data-f="'+f+'">'+cellHtml(m,f)+'</td>';
     });
-    if(isAdmin) tr+='<td><button class="trash" title="Elimina marchio ('+esc(curTipo)+')" data-del="'+esc(m)+'">ð</button></td>';
+    if(isAdmin) tr+='<td><button class="trash" title="Elimina marchio ('+esc(curTipo)+')" data-del="'+esc(m)+'">🗑</button></td>';
     return tr+'</tr>';
   }).join("");
   $("#asTbl").tBodies[0].innerHTML=body;
-  $("#asStatus").innerHTML='<b>'+ms.length+'</b> marchi Â· '+FIL_ORDER.length+' filiali Â· '+esc(curTipo);
+  $("#asStatus").innerHTML='<b>'+ms.length+'</b> marchi · '+FIL_ORDER.length+' filiali · '+esc(curTipo);
   $("#asWrap").style.display="block";
   if(isAdmin){
     $("#asTbl").querySelectorAll("td.cellEdit").forEach(td=>td.ondblclick=()=>openCellEditor(td));
@@ -546,7 +546,7 @@ async function saveDepth(m,f,n,td){
   if(!MAP[curTipo][m]) MAP[curTipo][m]={};
   MAP[curTipo][m][f]={id:row?row.id:(e?e.id:null),qty:qty};
   td.innerHTML=cellHtml(m,f); td.classList.remove("flash"); void td.offsetWidth; td.classList.add("flash");
-  toast("Salvato: "+m+" Â· "+FIL_NAME[f]+" â "+(nToCode(n)||"Non previsto"));
+  toast("Salvato: "+m+" · "+FIL_NAME[f]+" → "+(nToCode(n)||"Non previsto"));
 }
 
 // ---------- Aggiungi marchio ----------
@@ -554,9 +554,9 @@ function openAddMarchio(){
   const grid=FIL_ORDER.map(f=>'<div class="fcol"><span>'+esc(FIL_NAME[f])+'</span><select class="sort addfil" data-f="'+f+'">'+depthOptions(0).map(o=>'<option value="'+o.n+'">'+o.label+'</option>').join("")+'</select></div>').join("");
   openModal(
     '<h3>Aggiungi marchio ('+esc(curTipo)+')</h3>'+
-    '<div class="sub" style="color:var(--muted);font-size:12px;margin:2px 0 14px">Le profonditÃ  impostano l\'assortimento ideale per il tipo lenti selezionato ('+esc(curTipo)+').</div>'+
+    '<div class="sub" style="color:var(--muted);font-size:12px;margin:2px 0 14px">Le profondità impostano l\'assortimento ideale per il tipo lenti selezionato ('+esc(curTipo)+').</div>'+
     '<div class="mrow">'+
-      '<div class="fcol" style="flex:1"><span>Fornitore</span><select class="sort" id="amForn" style="width:100%"><option value="">Seleziona fornitoreâ¦</option></select></div>'+
+      '<div class="fcol" style="flex:1"><span>Fornitore</span><select class="sort" id="amForn" style="width:100%"><option value="">Seleziona fornitore…</option></select></div>'+
       '<div class="fcol" style="flex:1"><span>Marchio</span><input class="txt" id="amMarSearch" placeholder="Seleziona prima il fornitore" disabled style="width:100%" /><select class="sort" id="amMar" size="6" disabled style="width:100%;margin-top:6px"></select></div>'+
     '</div>'+
     '<div class="grid-fil">'+grid+'</div>'+
@@ -567,17 +567,17 @@ function openAddMarchio(){
   (async function(){ try{ var fr=await sb.rpc("sv_g_fornitori"); var fsel=document.getElementById("amForn"); if(fsel){ (fr.data||[]).forEach(function(x){ if(x.fornitore){ var o=document.createElement("option"); o.value=x.fornitore; o.textContent=x.fornitore; fsel.appendChild(o); } }); } }catch(e){} })();
   var AMMAR=[];
   function amRenderMarchi(filter){ var sel=document.getElementById("amMar"); if(!sel)return; filter=(filter||"").toLowerCase(); var list=filter?AMMAR.filter(function(m){return m.toLowerCase().indexOf(filter)>=0;}):AMMAR; sel.innerHTML=list.map(function(m){return '<option value="'+esc(m)+'">'+esc(m)+'</option>';}).join(""); }
-  document.getElementById("amForn").onchange=async function(){ var f=this.value; var ms=document.getElementById("amMarSearch"), sel=document.getElementById("amMar"); AMMAR=[]; sel.innerHTML=""; if(!f){ ms.disabled=true; ms.value=""; ms.placeholder="Seleziona prima il fornitore"; sel.disabled=true; return; } ms.disabled=false; ms.value=""; ms.placeholder="Cerca marchioâ¦"; sel.disabled=false; sel.innerHTML='<option value="">Caricoâ¦</option>'; try{ var r=await sb.rpc("sv_g_marchi",{p_fornitore:f}); AMMAR=(r.data||[]).map(function(x){return x.marchio;}).filter(Boolean); }catch(e){ AMMAR=[]; } amRenderMarchi(""); };
+  document.getElementById("amForn").onchange=async function(){ var f=this.value; var ms=document.getElementById("amMarSearch"), sel=document.getElementById("amMar"); AMMAR=[]; sel.innerHTML=""; if(!f){ ms.disabled=true; ms.value=""; ms.placeholder="Seleziona prima il fornitore"; sel.disabled=true; return; } ms.disabled=false; ms.value=""; ms.placeholder="Cerca marchio…"; sel.disabled=false; sel.innerHTML='<option value="">Carico…</option>'; try{ var r=await sb.rpc("sv_g_marchi",{p_fornitore:f}); AMMAR=(r.data||[]).map(function(x){return x.marchio;}).filter(Boolean); }catch(e){ AMMAR=[]; } amRenderMarchi(""); };
   document.getElementById("amMarSearch").oninput=function(){ amRenderMarchi(this.value); };
   $("#amOk").onclick=async()=>{
     const marchio=($("#amMar").value||"").trim();
     const forn=($("#amForn").value||"").trim();
     if(!forn){ $("#amErr").textContent="Seleziona il fornitore."; return; }
     if(!marchio){ $("#amErr").textContent="Seleziona il marchio."; return; }
-    if(MAP[curTipo][marchio]){ $("#amErr").textContent="Questo marchio esiste giÃ  in "+curTipo+"."; return; }
+    if(MAP[curTipo][marchio]){ $("#amErr").textContent="Questo marchio esiste già in "+curTipo+"."; return; }
     const rows=[];
     document.querySelectorAll(".addfil").forEach(s=>{ const n=parseInt(s.value,10); if(n>0) rows.push({marchio:marchio,tipo_lenti:curTipo,filiale:s.dataset.f,qty_ideale:nToQty(n),fornitore:forn||null,autorizzato:true,modificata_il:new Date().toISOString()}); });
-    if(!rows.length){ $("#amErr").textContent="Imposta almeno una profonditÃ  (o annulla)."; return; }
+    if(!rows.length){ $("#amErr").textContent="Imposta almeno una profondità (o annulla)."; return; }
     $("#amOk").disabled=true;
     const res=await sb.from("assortimento_marchio").insert(rows).select();
     $("#amOk").disabled=false;
@@ -590,7 +590,7 @@ function openAddMarchio(){
 function confirmDelete(m){
   openModal(
     '<h3>Elimina marchio</h3>'+
-    '<div style="color:var(--muted);font-size:13px;margin:8px 0 4px">Rimuovere <b style="color:var(--txt)">'+esc(m)+'</b> dall\'assortimento <b>'+esc(curTipo)+'</b>? Verranno eliminate tutte le righe di questo marchio per il tipo '+esc(curTipo)+' (tutte le filiali). L\'operazione non Ã¨ reversibile.</div>'+
+    '<div style="color:var(--muted);font-size:13px;margin:8px 0 4px">Rimuovere <b style="color:var(--txt)">'+esc(m)+'</b> dall\'assortimento <b>'+esc(curTipo)+'</b>? Verranno eliminate tutte le righe di questo marchio per il tipo '+esc(curTipo)+' (tutte le filiali). L\'operazione non è reversibile.</div>'+
     '<div class="err" id="delErr"></div>'+
     '<div class="acts"><button class="cancel" id="delCancel">Annulla</button><button class="danger" id="delOk">Elimina</button></div>'
   );
@@ -610,31 +610,31 @@ function fmVal(x){ return typeof x==="string"?x:(x.fornitore||x.marchio||x.label
 function fmCmp(a,b){ return String(a||"").localeCompare(String(b||"")); }
 let FM_EXCL={fornitore:new Set(),marchio:new Set()};
 async function fmLoadExcl(){ FM_EXCL={fornitore:new Set(),marchio:new Set()}; try{ var r=await sb.from("esclusioni_master").select("tipo,valore,escluso").eq("escluso",true); (r.data||[]).forEach(function(x){ if(FM_EXCL[x.tipo])FM_EXCL[x.tipo].add(x.valore); }); }catch(e){} }
-function fmSection(tipo,label,items){ var exc=FM_EXCL[tipo].size; return '<div class="fmsec"><div class="fmhead"><b>'+label+'</b> <span class="umuted">'+items.length+' totali</span> <span class="fmbadge" id="fmbadge_'+tipo+'">'+exc+' esclusi</span><input class="fmsearch" id="fmsearch_'+tipo+'" placeholder="cercaâ¦"></div><div class="fmlist" id="fmlist_'+tipo+'"></div></div>'; }
+function fmSection(tipo,label,items){ var exc=FM_EXCL[tipo].size; return '<div class="fmsec"><div class="fmhead"><b>'+label+'</b> <span class="umuted">'+items.length+' totali</span> <span class="fmbadge" id="fmbadge_'+tipo+'">'+exc+' esclusi</span><input class="fmsearch" id="fmsearch_'+tipo+'" placeholder="cerca…"></div><div class="fmlist" id="fmlist_'+tipo+'"></div></div>'; }
 function fmWire(tipo,items){ function draw(q){ q=String(q||"").toLowerCase(); var list=items.filter(function(v){return !q||String(v).toLowerCase().indexOf(q)>=0;}); $("#fmlist_"+tipo).innerHTML=list.map(function(v){ var ex=FM_EXCL[tipo].has(v); return '<label class="fmitem'+(ex?" off":"")+'"><input type="checkbox" data-v="'+esc(v)+'"'+(ex?"":" checked")+'><span>'+esc(v)+'</span></label>'; }).join(""); $("#fmlist_"+tipo).querySelectorAll("input[type=checkbox]").forEach(function(cb){ cb.onchange=function(){ fmToggle(tipo,cb.dataset.v,!cb.checked); }; }); } draw(""); $("#fmsearch_"+tipo).addEventListener("input",function(){ draw($("#fmsearch_"+tipo).value); }); }
 async function fmToggle(tipo,valore,escluso){ try{ await sb.from("esclusioni_master").upsert({tipo:tipo,valore:valore,escluso:escluso,modificato_il:new Date().toISOString()},{onConflict:"tipo,valore"}); if(escluso)FM_EXCL[tipo].add(valore); else FM_EXCL[tipo].delete(valore); var b=$("#fmbadge_"+tipo); if(b)b.textContent=FM_EXCL[tipo].size+" esclusi"; toast(escluso?("Escluso: "+valore):("Ripristinato: "+valore)); }catch(e){ toast(String((e&&e.message)||e),true); } }
-async function renderFiltroMaster(host){ if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; } host.innerHTML='<div class="umuted">Caricamentoâ¦</div>'; await fmLoadExcl(); var rf=await sb.rpc("sv_g_fornitori"); var forn=(rf.data||[]).map(fmVal).sort(fmCmp); var rm=await sb.rpc("sv_marchi"); var mar=(rm.data||[]).map(fmVal).sort(fmCmp); host.innerHTML='<p class="umuted" style="margin:0 0 12px">Deseleziona un fornitore o marchio per nasconderlo ovunque in StockView. Riselezionandolo torna visibile.</p><div class="fmwrap">'+fmSection("fornitore","Fornitori",forn)+fmSection("marchio","Marchi",mar)+'</div>'; fmWire("fornitore",forn); fmWire("marchio",mar); }
+async function renderFiltroMaster(host){ if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; } host.innerHTML='<div class="umuted">Caricamento…</div>'; await fmLoadExcl(); var rf=await sb.rpc("sv_g_fornitori"); var forn=(rf.data||[]).map(fmVal).sort(fmCmp); var rm=await sb.rpc("sv_marchi"); var mar=(rm.data||[]).map(fmVal).sort(fmCmp); host.innerHTML='<p class="umuted" style="margin:0 0 12px">Deseleziona un fornitore o marchio per nasconderlo ovunque in StockView. Riselezionandolo torna visibile.</p><div class="fmwrap">'+fmSection("fornitore","Fornitori",forn)+fmSection("marchio","Marchi",mar)+'</div>'; fmWire("fornitore",forn); fmWire("marchio",mar); }
 
 // ---------- Tab: Marchi attivi (solo admin) ----------
 let MA_ROWS=[], MA_FORN=[];
-function maFornOptions(sel){ return '<option value="">â</option>'+MA_FORN.map(function(f){return '<option value="'+esc(f)+'"'+(f===sel?" selected":"")+'>'+esc(f)+'</option>';}).join(""); }
-function maDraw(){ var host=$("#tabcontent"); host.innerHTML=(window.__maSeededN?'<div style="background:rgba(58,201,141,.12);border:1px solid #36c98d;border-radius:8px;padding:8px 10px;margin:0 0 10px;font-size:13px">Precaricati '+window.__maSeededN+' marchi dallâassortimento ideale. Verifica e completa le combinazioni mancanti.</div>':'')+'<p class="umuted" style="margin:0 0 12px">Per ogni marchio, il fornitore attivo oggi. Usato per delta ideale, buchi/ordini e assortimento (le giacenze di altri fornitori dello stesso marchio vengono ignorate).</p><div class="utools"><button class="ubtn" id="maAdd">+ Aggiungi marchio</button><span class="umuted">'+MA_ROWS.length+' marchi mappati</span></div><div class="utblwrap"><table class="utbl"><thead><tr><th>Marchio</th><th>Fornitore attivo</th><th>Note</th><th>Azioni</th></tr></thead><tbody id="maBody"></tbody></table></div>'; $("#maBody").innerHTML=MA_ROWS.map(function(r){ return '<tr><td>'+esc(r.marchio)+'</td><td><select class="urole maforn" data-m="'+esc(r.marchio)+'"><option value="'+esc(r.fornitore_attivo||"")+'" selected>'+esc(r.fornitore_attivo||"â")+'</option></select></td><td><input class="urole manote" data-m="'+esc(r.marchio)+'" value="'+esc(r.note||"")+'" style="width:100%"></td><td><button class="ghost usm udel madel" data-m="'+esc(r.marchio)+'">Elimina</button></td></tr>'; }).join(""); $("#maBody").querySelectorAll("select.maforn").forEach(function(s){ s.onchange=function(){ maSave(s.dataset.m,s.value,null); }; s.addEventListener("focus",async function(){ if(s.dataset.loaded)return; s.dataset.loaded="1"; var mk=s.dataset.m; var cur=s.value; try{ var rf=await sb.rpc("sv_g_fornitori_per_marchio",{p_marchio:mk}); var fs=(rf.data||[]).map(function(x){return typeof x==="string"?x:(x.fornitore||x.label||Object.values(x)[0]);}); if(cur&&fs.indexOf(cur)<0)fs.unshift(cur); s.innerHTML='<option value="">â</option>'+fs.map(function(f){return '<option value="'+esc(f)+'"'+(f===cur?" selected":"")+'>'+esc(f)+'</option>';}).join(""); }catch(e){ s.innerHTML=maFornOptions(cur); } }); }); $("#maBody").querySelectorAll("input.manote").forEach(function(i){ i.onchange=function(){ maSave(i.dataset.m,null,i.value); }; }); $("#maBody").querySelectorAll("button.madel").forEach(function(b){ b.onclick=function(){ maDelete(b.dataset.m); }; }); $("#maAdd").onclick=maOpenAdd; }
-async function renderMarchiAttivi(host){ if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; } host.innerHTML='<div class="umuted">Caricamentoâ¦</div>'; try{ var rf=await sb.rpc("sv_g_fornitori"); MA_FORN=(rf.data||[]).map(fmVal).sort(fmCmp); var r=await sb.from("marchi_fornitori_attivi").select("marchio,fornitore_attivo,note").order("marchio"); MA_ROWS=r.data||[]; if(!MA_ROWS.length){ try{ var _as=await sb.from("assortimento_marchio").select("marchio,fornitore").not("fornitore","is",null).not("marchio","is",null); var _seen={},_rows=[]; (_as.data||[]).forEach(function(x){ if(x.marchio&&x.fornitore&&!_seen[x.marchio]){ _seen[x.marchio]=1; _rows.push({marchio:x.marchio,fornitore_attivo:x.fornitore,aggiornato_il:new Date().toISOString()}); } }); if(_rows.length){ await sb.from("marchi_fornitori_attivi").upsert(_rows,{onConflict:"marchio",ignoreDuplicates:true}); var _r2=await sb.from("marchi_fornitori_attivi").select("marchio,fornitore_attivo,note").order("marchio"); MA_ROWS=_r2.data||[]; window.__maSeededN=_rows.length; } }catch(e){} } maDraw(); }catch(e){ host.innerHTML='<div class="err">Errore: '+esc(String((e&&e.message)||e))+'</div>'; } }
+function maFornOptions(sel){ return '<option value="">—</option>'+MA_FORN.map(function(f){return '<option value="'+esc(f)+'"'+(f===sel?" selected":"")+'>'+esc(f)+'</option>';}).join(""); }
+function maDraw(){ var host=$("#tabcontent"); host.innerHTML=(window.__maSeededN?'<div style="background:rgba(58,201,141,.12);border:1px solid #36c98d;border-radius:8px;padding:8px 10px;margin:0 0 10px;font-size:13px">Precaricati '+window.__maSeededN+' marchi dall’assortimento ideale. Verifica e completa le combinazioni mancanti.</div>':'')+'<p class="umuted" style="margin:0 0 12px">Per ogni marchio, il fornitore attivo oggi. Usato per delta ideale, buchi/ordini e assortimento (le giacenze di altri fornitori dello stesso marchio vengono ignorate).</p><div class="utools"><button class="ubtn" id="maAdd">+ Aggiungi marchio</button><span class="umuted">'+MA_ROWS.length+' marchi mappati</span></div><div class="utblwrap"><table class="utbl"><thead><tr><th>Marchio</th><th>Fornitore attivo</th><th>Note</th><th>Azioni</th></tr></thead><tbody id="maBody"></tbody></table></div>'; $("#maBody").innerHTML=MA_ROWS.map(function(r){ return '<tr><td>'+esc(r.marchio)+'</td><td><select class="urole maforn" data-m="'+esc(r.marchio)+'"><option value="'+esc(r.fornitore_attivo||"")+'" selected>'+esc(r.fornitore_attivo||"—")+'</option></select></td><td><input class="urole manote" data-m="'+esc(r.marchio)+'" value="'+esc(r.note||"")+'" style="width:100%"></td><td><button class="ghost usm udel madel" data-m="'+esc(r.marchio)+'">Elimina</button></td></tr>'; }).join(""); $("#maBody").querySelectorAll("select.maforn").forEach(function(s){ s.onchange=function(){ maSave(s.dataset.m,s.value,null); }; s.addEventListener("focus",async function(){ if(s.dataset.loaded)return; s.dataset.loaded="1"; var mk=s.dataset.m; var cur=s.value; try{ var rf=await sb.rpc("sv_g_fornitori_per_marchio",{p_marchio:mk}); var fs=(rf.data||[]).map(function(x){return typeof x==="string"?x:(x.fornitore||x.label||Object.values(x)[0]);}); if(cur&&fs.indexOf(cur)<0)fs.unshift(cur); s.innerHTML='<option value="">—</option>'+fs.map(function(f){return '<option value="'+esc(f)+'"'+(f===cur?" selected":"")+'>'+esc(f)+'</option>';}).join(""); }catch(e){ s.innerHTML=maFornOptions(cur); } }); }); $("#maBody").querySelectorAll("input.manote").forEach(function(i){ i.onchange=function(){ maSave(i.dataset.m,null,i.value); }; }); $("#maBody").querySelectorAll("button.madel").forEach(function(b){ b.onclick=function(){ maDelete(b.dataset.m); }; }); $("#maAdd").onclick=maOpenAdd; }
+async function renderMarchiAttivi(host){ if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; } host.innerHTML='<div class="umuted">Caricamento…</div>'; try{ var rf=await sb.rpc("sv_g_fornitori"); MA_FORN=(rf.data||[]).map(fmVal).sort(fmCmp); var r=await sb.from("marchi_fornitori_attivi").select("marchio,fornitore_attivo,note").order("marchio"); MA_ROWS=r.data||[]; if(!MA_ROWS.length){ try{ var _as=await sb.from("assortimento_marchio").select("marchio,fornitore").not("fornitore","is",null).not("marchio","is",null); var _seen={},_rows=[]; (_as.data||[]).forEach(function(x){ if(x.marchio&&x.fornitore&&!_seen[x.marchio]){ _seen[x.marchio]=1; _rows.push({marchio:x.marchio,fornitore_attivo:x.fornitore,aggiornato_il:new Date().toISOString()}); } }); if(_rows.length){ await sb.from("marchi_fornitori_attivi").upsert(_rows,{onConflict:"marchio",ignoreDuplicates:true}); var _r2=await sb.from("marchi_fornitori_attivi").select("marchio,fornitore_attivo,note").order("marchio"); MA_ROWS=_r2.data||[]; window.__maSeededN=_rows.length; } }catch(e){} } maDraw(); }catch(e){ host.innerHTML='<div class="err">Errore: '+esc(String((e&&e.message)||e))+'</div>'; } }
 async function maSave(marchio,forn,note){ var row=MA_ROWS.find(function(x){return x.marchio===marchio;}); if(!row)return; if(forn!==null)row.fornitore_attivo=forn; if(note!==null)row.note=note; if(!row.fornitore_attivo){ toast("Seleziona un fornitore",true); return; } try{ await sb.from("marchi_fornitori_attivi").upsert({marchio:marchio,fornitore_attivo:row.fornitore_attivo,note:row.note||null,aggiornato_il:new Date().toISOString()},{onConflict:"marchio"}); toast("Salvato: "+marchio); }catch(e){ toast(String((e&&e.message)||e),true); } }
 async function maDelete(marchio){ if(!confirm("Eliminare la mappatura per "+marchio+"?"))return; try{ await sb.from("marchi_fornitori_attivi").delete().eq("marchio",marchio); MA_ROWS=MA_ROWS.filter(function(x){return x.marchio!==marchio;}); maDraw(); toast("Eliminato"); }catch(e){ toast(String((e&&e.message)||e),true); } }
 function maOpenAdd(){
-  openModal('<h3 style="margin:0 0 12px">Aggiungi marchio attivo</h3><label>Marchio</label><input id="maSearch" placeholder="cercaâ¦" style="width:100%;margin-bottom:4px"><select id="maMarSel" size="6" class="urole" style="width:100%"><option>Caricamentoâ¦</option></select><label style="margin-top:8px;display:block">Fornitore attivo</label><select id="maNewForn" class="urole" style="width:100%" disabled><option value="">Seleziona prima il marchio</option></select><div class="err" id="maErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="ghost" id="maCancel">Annulla</button><button class="ubtn" id="maOk">Aggiungi</button></div>');
+  openModal('<h3 style="margin:0 0 12px">Aggiungi marchio attivo</h3><label>Marchio</label><input id="maSearch" placeholder="cerca…" style="width:100%;margin-bottom:4px"><select id="maMarSel" size="6" class="urole" style="width:100%"><option>Caricamento…</option></select><label style="margin-top:8px;display:block">Fornitore attivo</label><select id="maNewForn" class="urole" style="width:100%" disabled><option value="">Seleziona prima il marchio</option></select><div class="err" id="maErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="ghost" id="maCancel">Annulla</button><button class="ubtn" id="maOk">Aggiungi</button></div>');
   window.__maMarchi=[];
   $("#maCancel").onclick=closeModal;
   (async function(){ try{ var rm=await sb.rpc("sv_g_marchi",{p_fornitore:null}); window.__maMarchi=(rm.data||[]).map(function(x){return typeof x==="string"?x:(x.marchio||x.label||Object.values(x)[0]);}); maRenderMarchi(""); }catch(e){ $("#maMarSel").innerHTML='<option value="">Errore marchi</option>'; } })();
   $("#maSearch").oninput=function(){ maRenderMarchi($("#maSearch").value); };
-  $("#maMarSel").onchange=async function(){ var m=$("#maMarSel").value; var sel=$("#maNewForn"); if(!m){ sel.disabled=true; sel.innerHTML='<option value="">Seleziona prima il marchio</option>'; return; } sel.disabled=false; sel.innerHTML='<option>Caricamentoâ¦</option>'; try{ var rf=await sb.rpc("sv_g_fornitori_per_marchio",{p_marchio:m}); var fs=(rf.data||[]).map(function(x){return typeof x==="string"?x:(x.fornitore||x.label||Object.values(x)[0]);}); sel.innerHTML='<option value="">Seleziona fornitore</option>'+fs.map(function(f){return '<option value="'+esc(f)+'">'+esc(f)+'</option>';}).join(""); }catch(e){ sel.innerHTML='<option value="">Errore fornitori</option>'; } };
-  $("#maOk").onclick=async function(){ var m=$("#maMarSel").value; var f=$("#maNewForn").value; var err=$("#maErr"); if(!m){ err.textContent="Seleziona un marchio."; return; } if(!f){ err.textContent="Seleziona un fornitore."; return; } if(MA_ROWS.find(function(x){return x.marchio===m;})){ err.textContent="Marchio giÃ  mappato."; return; } try{ await sb.from("marchi_fornitori_attivi").upsert({marchio:m,fornitore_attivo:f,aggiornato_il:new Date().toISOString()},{onConflict:"marchio"}); MA_ROWS.push({marchio:m,fornitore_attivo:f,note:null}); MA_ROWS.sort(function(a,b){return fmCmp(a.marchio,b.marchio);}); closeModal(); maDraw(); toast("Aggiunto: "+m); }catch(e){ err.textContent=String((e&&e.message)||e); } };
+  $("#maMarSel").onchange=async function(){ var m=$("#maMarSel").value; var sel=$("#maNewForn"); if(!m){ sel.disabled=true; sel.innerHTML='<option value="">Seleziona prima il marchio</option>'; return; } sel.disabled=false; sel.innerHTML='<option>Caricamento…</option>'; try{ var rf=await sb.rpc("sv_g_fornitori_per_marchio",{p_marchio:m}); var fs=(rf.data||[]).map(function(x){return typeof x==="string"?x:(x.fornitore||x.label||Object.values(x)[0]);}); sel.innerHTML='<option value="">Seleziona fornitore</option>'+fs.map(function(f){return '<option value="'+esc(f)+'">'+esc(f)+'</option>';}).join(""); }catch(e){ sel.innerHTML='<option value="">Errore fornitori</option>'; } };
+  $("#maOk").onclick=async function(){ var m=$("#maMarSel").value; var f=$("#maNewForn").value; var err=$("#maErr"); if(!m){ err.textContent="Seleziona un marchio."; return; } if(!f){ err.textContent="Seleziona un fornitore."; return; } if(MA_ROWS.find(function(x){return x.marchio===m;})){ err.textContent="Marchio già mappato."; return; } try{ await sb.from("marchi_fornitori_attivi").upsert({marchio:m,fornitore_attivo:f,aggiornato_il:new Date().toISOString()},{onConflict:"marchio"}); MA_ROWS.push({marchio:m,fornitore_attivo:f,note:null}); MA_ROWS.sort(function(a,b){return fmCmp(a.marchio,b.marchio);}); closeModal(); maDraw(); toast("Aggiunto: "+m); }catch(e){ err.textContent=String((e&&e.message)||e); } };
 }
 function maRenderMarchi(q){ q=String(q||"").toLowerCase(); var list=(window.__maMarchi||[]).filter(function(m){return !q||String(m).toLowerCase().indexOf(q)>=0;}); $("#maMarSel").innerHTML=list.length?list.map(function(m){return '<option value="'+esc(m)+'">'+esc(m)+'</option>';}).join(""):'<option value="">Nessun marchio</option>'; }
 
 // ---------- Tab: Ricircolo (solo admin) ----------
-const RC_FILIALI=[["D","Catania"],["I","Portali"],["G","Giarre"],["Z","Viale Africa"],["C","Acireale"],["E","Augusta"],["H","Lentini"],["B","PaternÃ²"]];
+const RC_FILIALI=[["D","Catania"],["I","Portali"],["G","Giarre"],["Z","Viale Africa"],["C","Acireale"],["E","Augusta"],["H","Lentini"],["B","Paternò"]];
 function rcFlash(row){ row.style.transition="background .15s ease"; row.style.background="rgba(54,201,141,.30)"; setTimeout(function(){ row.style.background=""; },500); }
 async function rcSaveOn(code,dir,nota){ var res=await sb.from("ricircolo_esclusioni").upsert({filiale:code,direzione:dir,nota:(nota||null),modificato_il:new Date().toISOString()},{onConflict:"filiale,direzione"}); if(res&&res.error)throw res.error; }
 async function rcSaveOff(code,dir){ var res=await sb.from("ricircolo_esclusioni").delete().eq("filiale",code).eq("direzione",dir); if(res&&res.error)throw res.error; }
@@ -656,7 +656,7 @@ async function rcRenderMF(wrap){
     var fCount=Object.keys(exForn).length, mCount=Object.keys(exMar).length;
     wrap.innerHTML=''
       +'<h3 style="margin:0 0 4px;font-size:15px">Marchi e fornitori esclusi</h3>'
-      +'<p class="umuted" style="margin:0 0 12px;font-size:12.5px">Marchi e fornitori spuntati non generano nuovi ricircoli. I ricircoli giÃ  presenti restano visibili.</p>'
+      +'<p class="umuted" style="margin:0 0 12px;font-size:12.5px">Marchi e fornitori spuntati non generano nuovi ricircoli. I ricircoli già presenti restano visibili.</p>'
       +'<div style="display:flex;gap:20px;align-items:flex-start">'
         +'<div style="flex:1;min-width:0">'
           +'<h4 style="margin:0 0 8px;font-size:14px">Fornitori esclusi <span id="rcFornBadge" class="urole" style="font-size:11px">'+fCount+' esclusi</span></h4>'
@@ -664,7 +664,7 @@ async function rcRenderMF(wrap){
         +'</div>'
         +'<div style="flex:1;min-width:0">'
           +'<h4 style="margin:0 0 8px;font-size:14px">Marchi esclusi <span id="rcMarBadge" class="urole" style="font-size:11px">'+mCount+' esclusi</span></h4>'
-          +'<input id="rcMarSearch" class="urole" placeholder="Cerca marchioâ¦" style="width:100%;margin-bottom:8px;font-size:13px">'
+          +'<input id="rcMarSearch" class="urole" placeholder="Cerca marchio…" style="width:100%;margin-bottom:8px;font-size:13px">'
           +'<div id="rcMarList" style="max-height:340px;overflow:auto;padding-right:4px">'+mar.map(function(v){return rowHtml("marchio",v,!!exMar[v]);}).join("")+'</div>'
         +'</div>'
       +'</div>';
@@ -695,16 +695,16 @@ async function rcRenderRegole(host){
 </label>
 <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer">
 <input type="checkbox" id="rgReg3" style="margin-top:3px;width:16px;height:16px">
-<span><b>Sposta SE verso chi vende di piÃ¹</b><br><span style="color:var(--muted);font-size:13px">Sposta i pezzi SE dalle filiali che vendono meno il marchio verso quelle che lo vendono di piÃ¹ e ne sono sprovviste</span></span>
+<span><b>Sposta SE verso chi vende di più</b><br><span style="color:var(--muted);font-size:13px">Sposta i pezzi SE dalle filiali che vendono meno il marchio verso quelle che lo vendono di più e ne sono sprovviste</span></span>
 </label>
 <div id="rgMsg" style="font-size:12px;color:var(--muted);margin-top:8px;min-height:14px"></div>`;
     host.insertBefore(box, host.firstChild);
     var c1=box.querySelector('#rgReg1'), c2=box.querySelector('#rgReg2'), c3=box.querySelector('#rgReg3'), msg=box.querySelector('#rgMsg');
     function rgSave(chiave, on){
-      if(msg) msg.textContent='Salvataggioâ¦';
+      if(msg) msg.textContent='Salvataggio…';
       sb.from('impostazioni_sistema').update({valore: on?'true':'false'}).eq('chiave', chiave).then(function(r){
         if(r && r.error){ if(msg) msg.textContent='Errore nel salvataggio'; try{toast(String((r.error&&r.error.message)||r.error), true);}catch(e){} }
-        else { if(msg){ msg.textContent='Salvato â'; setTimeout(function(){ if(msg) msg.textContent=''; }, 1800); } }
+        else { if(msg){ msg.textContent='Salvato ✓'; setTimeout(function(){ if(msg) msg.textContent=''; }, 1800); } }
       });
     }
     c1.addEventListener('change', function(){ rgSave('ricircolo_regola_1', c1.checked); });
@@ -720,7 +720,7 @@ async function rcRenderRegole(host){
 
 async function renderRicircolo(host){
   if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; }
-  host.innerHTML='<div class="umuted">Caricamentoâ¦</div>';
+  host.innerHTML='<div class="umuted">Caricamento…</div>';
   var rows;
   try{ var r=await sb.from("ricircolo_esclusioni").select("filiale,direzione,nota"); if(r.error)throw r.error; rows=r.data||[]; }
   catch(e){ host.innerHTML='<div class="err">Errore: '+esc(String((e&&e.message)||e))+'</div>'; return; }
@@ -738,12 +738,12 @@ async function renderRicircolo(host){
           +'</div>';
       }).join("")+'</div>';
   }
-  host.innerHTML='<p class="umuted" style="margin:0 0 12px">Esclusioni per il motore di ricircolo. Un negozio puÃ² essere escluso in uscita, in entrata, o entrambe.</p>'
+  host.innerHTML='<p class="umuted" style="margin:0 0 12px">Esclusioni per il motore di ricircolo. Un negozio può essere escluso in uscita, in entrata, o entrambe.</p>'
     +'<div style="display:flex;gap:20px;align-items:flex-start">'
-    +section("uscita","Negozi esclusi dallâuscita","Da questi negozi non si preleva mai per il ricircolo")
-    +section("entrata","Negozi esclusi dallâentrata","Questi negozi non ricevono mai pezzi dal ricircolo")
+    +section("uscita","Negozi esclusi dall’uscita","Da questi negozi non si preleva mai per il ricircolo")
+    +section("entrata","Negozi esclusi dall’entrata","Questi negozi non ricevono mai pezzi dal ricircolo")
     +'</div>'
-    +'<div id="rcMFwrap" style="margin-top:22px;border-top:1px solid var(--line);padding-top:16px"><div class="umuted">Caricamento marchi e fornitoriâ¦</div></div>';
+    +'<div id="rcMFwrap" style="margin-top:22px;border-top:1px solid var(--line);padding-top:16px"><div class="umuted">Caricamento marchi e fornitori…</div></div>';
   rcRenderMF(host.querySelector("#rcMFwrap"));
   host.querySelectorAll(".rcRow").forEach(function(row){
     var code=row.dataset.code, dir=row.dataset.dir;
@@ -762,7 +762,7 @@ function rpFlash(row){ row.style.transition="background .15s ease"; row.style.ba
 async function rpSave(ruolo,pagina,acc,mod){ var res=await sb.from("ruoli_permessi").upsert({ruolo:ruolo,pagina:pagina,puo_accedere:acc,puo_modificare:mod},{onConflict:"ruolo,pagina"}); if(res&&res.error)throw res.error; }
 async function renderPermessi(host){
   if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; }
-  host.innerHTML='<div class="umuted">Caricamentoâ¦</div>';
+  host.innerHTML='<div class="umuted">Caricamento…</div>';
   var rows;
   try{ var r=await sb.from("ruoli_permessi").select("ruolo,pagina,puo_accedere,puo_modificare"); if(r.error)throw r.error; rows=r.data||[]; }
   catch(e){ host.innerHTML='<div class="err">Errore: '+esc(String((e&&e.message)||e))+'</div>'; return; }
@@ -772,8 +772,8 @@ async function renderPermessi(host){
       +'<label style="margin-right:10px;font-size:12px;color:var(--muted)"><input type="checkbox" class="rpAcc" '+(p.acc?"checked":"")+'> Accesso</label>'
       +'<label style="font-size:12px;color:var(--muted)"><input type="checkbox" class="rpMod" '+(p.mod?"checked":"")+'> Modifica</label></td>'; }
   var head='<tr><th>Pagina</th><th style="text-align:center">Admin</th>'+RP_ROLES.map(function(rr){return '<th style="text-align:center">'+esc(rr[1])+'</th>';}).join("")+'</tr>';
-  var body=RP_PAGES.map(function(pg){ return '<tr><td><b>'+esc(pg[1])+'</b></td><td style="text-align:center;color:var(--ok);font-size:12px">â Accesso Â· â Modifica</td>'+RP_ROLES.map(function(rr){return cell(rr[0],pg[0]);}).join("")+'</tr>'; }).join("");
-  host.innerHTML='<p class="umuted" style="margin:0 0 12px">Chi puÃ² <b>accedere</b> a ogni pagina e chi puÃ² <b>modificarne</b> i dati. Lâadmin ha sempre accesso completo (non modificabile). Salvataggio immediato.</p><div class="utblwrap"><table class="utbl"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
+  var body=RP_PAGES.map(function(pg){ return '<tr><td><b>'+esc(pg[1])+'</b></td><td style="text-align:center;color:var(--ok);font-size:12px">✓ Accesso · ✓ Modifica</td>'+RP_ROLES.map(function(rr){return cell(rr[0],pg[0]);}).join("")+'</tr>'; }).join("");
+  host.innerHTML='<p class="umuted" style="margin:0 0 12px">Chi può <b>accedere</b> a ogni pagina e chi può <b>modificarne</b> i dati. L’admin ha sempre accesso completo (non modificabile). Salvataggio immediato.</p><div class="utblwrap"><table class="utbl"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
   host.querySelectorAll("td.rpCell").forEach(function(td){ var ruolo=td.dataset.r, pagina=td.dataset.p; var acc=td.querySelector(".rpAcc"), mod=td.querySelector(".rpMod");
     async function save(){ try{ await rpSave(ruolo,pagina,acc.checked,mod.checked); rpFlash(td.parentElement); }catch(e){ toast(String((e&&e.message)||e),true); } }
     acc.onchange=function(){ if(!acc.checked)mod.checked=false; save(); };
@@ -782,7 +782,7 @@ async function renderPermessi(host){
 }
 
 function uPickFiliale(cur){ return new Promise(function(resolve){
-  openModal('<h3 style="margin:0 0 10px">Filiale del venditore</h3><label>Filiale</label><select id="ufSel" class="urole" style="width:100%"><option value="">â seleziona â</option>'+RC_FILIALI.map(function(f){return '<option value="'+f[0]+'"'+(cur===f[0]?" selected":"")+'>'+esc(f[1])+'</option>';}).join("")+'</select><div class="err" id="ufErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="ghost" id="ufCancel">Annulla</button><button class="ubtn" id="ufOk">Salva</button></div>');
+  openModal('<h3 style="margin:0 0 10px">Filiale del venditore</h3><label>Filiale</label><select id="ufSel" class="urole" style="width:100%"><option value="">— seleziona —</option>'+RC_FILIALI.map(function(f){return '<option value="'+f[0]+'"'+(cur===f[0]?" selected":"")+'>'+esc(f[1])+'</option>';}).join("")+'</select><div class="err" id="ufErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="ghost" id="ufCancel">Annulla</button><button class="ubtn" id="ufOk">Salva</button></div>');
   $("#ufCancel").onclick=function(){ closeModal(); resolve(null); };
   $("#ufOk").onclick=function(){ var v=$("#ufSel").value; if(!v){ $("#ufErr").textContent="Filiale obbligatoria."; return; } closeModal(); resolve(v); };
 }); }
@@ -806,12 +806,12 @@ boot();
   function UL(){ try{ return (typeof U_LIST!=='undefined'&&U_LIST)?U_LIST:(window.U_LIST||[]); }catch(e){ return window.U_LIST||[]; } }
   async function loadFORN(){ if(FORN.length) return FORN; try{ var r=await sb.rpc('sv_g_fornitori'); FORN=(r.data||[]).map(function(x){return x.fornitore;}).filter(Boolean); }catch(e){ FORN=[]; } return FORN; }
   async function loadUF(){ try{ var r=await sb.from('user_fornitori').select('user_id,fornitore'); UF={}; (r.data||[]).forEach(function(x){ UF[x.user_id]=x.fornitore; }); }catch(e){ UF={}; } return UF; }
-  function optsFrom(list,cur){ return '<option value="">â seleziona fornitore â</option>'+list.map(function(f){ return '<option value="'+esch(f)+'"'+(f===cur?' selected':'')+'>'+esch(f)+'</option>'; }).join(''); }
+  function optsFrom(list,cur){ return '<option value="">— seleziona fornitore —</option>'+list.map(function(f){ return '<option value="'+esch(f)+'"'+(f===cur?' selected':'')+'>'+esch(f)+'</option>'; }).join(''); }
   /* patch drawUtenti */
   var _draw=window.drawUtenti;
   window.drawUtenti=function(){ var r=_draw.apply(this,arguments); Promise.all([loadUF(),loadFORN()]).then(post).catch(post); return r; };
   function post(){ var wrap=document.getElementById('uwrap'); if(!wrap) return;
-    wrap.querySelectorAll('select.urole[data-id]').forEach(function(sel){ if(!sel.querySelector('option[value="fornitore"]')){ var o=document.createElement('option'); o.value='fornitore'; o.textContent='fornitore'; sel.appendChild(o);} var id=sel.dataset.id; if(UF[id]){ sel.value='fornitore'; var td=sel.parentElement; td.querySelectorAll('.ufil,.ufilmiss').forEach(function(n){n.remove();}); var b=td.querySelector('.uforn-badge'); if(!b){ b=document.createElement('div'); b.className='uforn-badge'; b.style.marginTop='4px'; b.style.fontSize='12px'; b.style.color='#8aa0b6'; td.appendChild(b);} b.innerHTML='ð­ Fornitore: <b>'+esch(UF[id])+'</b>'; } });
+    wrap.querySelectorAll('select.urole[data-id]').forEach(function(sel){ if(!sel.querySelector('option[value="fornitore"]')){ var o=document.createElement('option'); o.value='fornitore'; o.textContent='fornitore'; sel.appendChild(o);} var id=sel.dataset.id; if(UF[id]){ sel.value='fornitore'; var td=sel.parentElement; td.querySelectorAll('.ufil,.ufilmiss').forEach(function(n){n.remove();}); var b=td.querySelector('.uforn-badge'); if(!b){ b=document.createElement('div'); b.className='uforn-badge'; b.style.marginTop='4px'; b.style.fontSize='12px'; b.style.color='#8aa0b6'; td.appendChild(b);} b.innerHTML='🏭 Fornitore: <b>'+esch(UF[id])+'</b>'; } });
   }
   /* patch changeRole */
   var _cr=window.changeRole;
@@ -858,14 +858,14 @@ boot();
   function enh(){ var role=document.getElementById('invRole'); if(!role) return;
     if(!role.querySelector('option[value="fornitore"]')){ var o=document.createElement('option'); o.value='fornitore'; o.textContent='fornitore'; role.appendChild(o); }
     var filRow=document.getElementById('invFilRow');
-    if(filRow && !document.getElementById('invFornRow')){ var d=document.createElement('div'); d.id='invFornRow'; d.style.display='none'; d.style.marginTop='10px'; d.innerHTML='<label>Fornitore</label><input id="invFornSearch" placeholder="cerca fornitoreâ¦" style="width:100%;margin-bottom:6px" /><select id="invFornitore" class="urole" style="width:100%"></select>'; filRow.parentNode.insertBefore(d, filRow.nextSibling); loadFORN().then(function(){ var s=document.getElementById('invFornitore'); if(s) s.innerHTML=optsFrom(FORN,''); }); var si=document.getElementById('invFornSearch'); si.addEventListener('input',function(){ var q=this.value.toLowerCase(); var s=document.getElementById('invFornitore'); s.innerHTML=optsFrom(FORN.filter(function(f){return f.toLowerCase().indexOf(q)>-1;}),''); }); }
+    if(filRow && !document.getElementById('invFornRow')){ var d=document.createElement('div'); d.id='invFornRow'; d.style.display='none'; d.style.marginTop='10px'; d.innerHTML='<label>Fornitore</label><input id="invFornSearch" placeholder="cerca fornitore…" style="width:100%;margin-bottom:6px" /><select id="invFornitore" class="urole" style="width:100%"></select>'; filRow.parentNode.insertBefore(d, filRow.nextSibling); loadFORN().then(function(){ var s=document.getElementById('invFornitore'); if(s) s.innerHTML=optsFrom(FORN,''); }); var si=document.getElementById('invFornSearch'); si.addEventListener('input',function(){ var q=this.value.toLowerCase(); var s=document.getElementById('invFornitore'); s.innerHTML=optsFrom(FORN.filter(function(f){return f.toLowerCase().indexOf(q)>-1;}),''); }); }
     function tgl(){ var v=role.value; var fr=document.getElementById('invFilRow'); if(fr) fr.style.display=(v==='vendita')?'block':'none'; var nr=document.getElementById('invFornRow'); if(nr) nr.style.display=(v==='fornitore')?'block':'none'; }
     role.addEventListener('change',tgl); tgl();
     var send=document.getElementById('invSend');
     if(send && !send.__fw){ send.__fw=true; send.addEventListener('click',function(ev){ if(role.value!=='fornitore') return; ev.stopImmediatePropagation(); ev.preventDefault(); doInv(); }, true); }
   }
   async function doInv(){ var email=(document.getElementById('invEmail').value||'').trim(); var fs=document.getElementById('invFornitore'); var forn=fs?fs.value:''; var err=document.getElementById('invErr'); var send=document.getElementById('invSend'); if(email.indexOf('@')<1){ err.textContent='Inserisci un email valida.'; return; } if(!forn){ err.textContent='Seleziona un fornitore.'; return; } send.disabled=true; try{ await efCall('POST','/invite',{email:email,role:'fornitore',fornitore:forn,filiale:null,redirectTo:'https://andrea-angiolucci.github.io/stockview-dashboard/reset-password.html'}); await loadUtenti(); var u=(typeof U_LIST!=='undefined'?U_LIST:[]).find(function(x){ return (x.email||'').toLowerCase()===email.toLowerCase(); }); if(u){ await sb.from('user_fornitori').upsert({user_id:u.id,fornitore:forn,updated_at:new Date().toISOString()},{onConflict:'user_id'}); } closeModal(); if(typeof toast==='function') toast('Invito fornitore inviato a '+email); await loadUtenti(); }catch(e){ err.textContent=String(e.message||e); send.disabled=false; } }
-  function pick(cur){ return new Promise(function(resolve){ openModal('<h3 style="margin:0 0 12px">Seleziona fornitore</h3><input id="pfS" placeholder="cercaâ¦" style="width:100%;margin-bottom:6px" /><select id="pfL" size="8" style="width:100%"></select><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="ghost" id="pfC">Annulla</button><button class="ubtn" id="pfO">Conferma</button></div>'); var L=document.getElementById('pfL'); function rnd(list){ L.innerHTML=list.map(function(f){ return '<option value="'+esch(f)+'"'+(f===cur?' selected':'')+'>'+esch(f)+'</option>'; }).join(''); } rnd(FORN); document.getElementById('pfS').addEventListener('input',function(){ var q=this.value.toLowerCase(); rnd(FORN.filter(function(f){return f.toLowerCase().indexOf(q)>-1;})); }); document.getElementById('pfC').onclick=function(){ closeModal(); resolve(null); }; document.getElementById('pfO').onclick=function(){ var v=L.value; closeModal(); resolve(v||null); }; }); }
+  function pick(cur){ return new Promise(function(resolve){ openModal('<h3 style="margin:0 0 12px">Seleziona fornitore</h3><input id="pfS" placeholder="cerca…" style="width:100%;margin-bottom:6px" /><select id="pfL" size="8" style="width:100%"></select><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="ghost" id="pfC">Annulla</button><button class="ubtn" id="pfO">Conferma</button></div>'); var L=document.getElementById('pfL'); function rnd(list){ L.innerHTML=list.map(function(f){ return '<option value="'+esch(f)+'"'+(f===cur?' selected':'')+'>'+esch(f)+'</option>'; }).join(''); } rnd(FORN); document.getElementById('pfS').addEventListener('input',function(){ var q=this.value.toLowerCase(); rnd(FORN.filter(function(f){return f.toLowerCase().indexOf(q)>-1;})); }); document.getElementById('pfC').onclick=function(){ closeModal(); resolve(null); }; document.getElementById('pfO').onclick=function(){ var v=L.value; closeModal(); resolve(v||null); }; }); }
 })();
 </script>
 
