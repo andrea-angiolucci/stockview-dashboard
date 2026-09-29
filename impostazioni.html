@@ -934,5 +934,6 @@ boot();
   setInterval(function(){try{build();}catch(e){}},600);
 })();
 </script>
+<script>/*sv-obs-roleopt*/(function(){function add(sel){try{if(sel.querySelector('option[value="osservatore"]'))return;if(!sel.querySelector('option[value="fornitore"]'))return;var o=document.createElement('option');o.value='osservatore';o.textContent='Osservatore';sel.appendChild(o);}catch(e){}}function scan(){try{document.querySelectorAll('select').forEach(add);}catch(e){}}if(document.readyState!=='loading')scan();else document.addEventListener('DOMContentLoaded',scan);try{var mo=new MutationObserver(function(){scan();});mo.observe(document.documentElement,{childList:true,subtree:true});}catch(e){}setInterval(scan,1500);})();</script>
 </body>
 </html>
