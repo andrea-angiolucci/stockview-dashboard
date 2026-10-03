@@ -1112,12 +1112,13 @@ function openCatModal(bc,td){
   document.getElementById('catModal').innerHTML='<h3>Proponi cambio categoria</h3><div class="catinfo">'+info+'</div><div class="catrow"><div><span>Categoria attuale</span><div class="catcur">'+esc(String(c.categoria||'\u2014'))+'</div></div><div style="font-size:20px;color:var(--muted)">\u2192</div><div><span>Nuova categoria</span><select id="catSel" class="catsel">'+opts+'</select></div></div><div class="cerr" id="catErr"></div><div class="acts"><button class="cancel" id="catCancel">Annulla</button><button class="ok" id="catOk">Proponi cambio</button></div>';
   document.getElementById('catModalBack').classList.add('open');
   document.getElementById('catCancel').onclick=closeCatModal;
-  document.getElementById('catOk').onclick=async function(){ var nc=document.getElementById('catSel').value; if(nc===curCat){ document.getElementById('catErr').textContent='Scegli una categoria diversa da quella attuale.'; return; } document.getElementById('catOk').disabled=true;
+  var _catSubmitting=false;
+  document.getElementById('catOk').onclick=async function(){ if(_catSubmitting)return; var nc=document.getElementById('catSel').value; if(nc===curCat){ document.getElementById('catErr').textContent='Scegli una categoria diversa da quella attuale.'; return; } _catSubmitting=true; document.getElementById('catOk').disabled=true;
     var payload={barcode:c.barcode,marchio:c.marchio,modello:c.modello,colore:c.colore,calibro:c.calibro,fornitore:c.fornitore||null,filiale:null,tipo_lenti:c.tipo_lenti,categoria_attuale:curCat,categoria_proposta:nc,richiesta_da:curEmail,stato:'pendente'};
     var r=await sb.from('richieste_cambio_categoria').insert(payload);
-    document.getElementById('catOk').disabled=false;
+    _catSubmitting=false; document.getElementById('catOk').disabled=false;
     if(r.error){ document.getElementById('catErr').textContent='Errore: '+r.error.message; return; }
-    PENDING.add(String(c.barcode)); PEND_CAT[String(c.barcode)]=nc; try{applyPendOverride();}catch(e){} try{if(typeof draw==='function')draw();}catch(e){} if(td){ td.setAttribute('data-pend','1'); td.classList.remove('catflash'); void td.offsetWidth; td.classList.add('catflash'); }
+    PENDING.add(String(c.barcode)); PEND_CAT[String(c.barcode)]=nc; try{applyPendOverride();}catch(e){} try{if(typeof window.draw==='function')window.draw();else if(typeof draw==='function')draw();}catch(e){} if(td){ td.setAttribute('data-pend','1'); td.classList.remove('catflash'); void td.offsetWidth; td.classList.add('catflash'); }
     closeCatModal(); catToast('Proposta inviata: '+(c.categoria||'\u2014')+' \u2192 '+nc);
   };
 }
