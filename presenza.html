@@ -1072,7 +1072,7 @@ function drawMatrix(cells,negozi){
       if(!c){tr+='<td class="filcol cellna" title="non previsto"><div class="cg">0</div><div class="cv">0</div></td>';continue;}
       colTot[n]+=c.disponibile; grand+=c.disponibile; colVend[n]+=c.venduto; grandVend+=c.venduto;
       const t=effTargetActive(c), o=ORD[c.barcode+"|"+c.filiale]||0;
-      let cls; if(t===0)cls="cellna"; else if(c.disponibile<t)cls=(c.in_arrivo>0?"cellordered":"cell0"); else cls="cellok";
+      let cls; if(t===0)cls="cellna"; else if(c.disponibile<t)cls=(c.in_arrivo>0&&c.disponibile>0?"cellordered":"cell0"); else cls="cellok";
       let extra=""; if(c._storico)extra+='<span class="bdg stor" title="fornitore storico">storico</span>';
       if(c.prenotati>0)extra+=`<span class="bdg pkg" title="${c.prenotati} prenotati">📦${c.prenotati}</span>`;
       if(c.in_arrivo>0)extra+=`<span class="bdg truck" title="${c.in_arrivo} in arrivo">🚚${c.in_arrivo}</span>`;
@@ -1081,7 +1081,7 @@ function drawMatrix(cells,negozi){
       tr+=`<td class="filcol ${cls}" data-bc="${esc(c.barcode)}" data-fil="${esc(c.filiale)}" data-tgt="${t}" data-ord="${o}" title="obiettivo ${t} · disp ${c.disponibile} · mag ${c.magazzino} · pren ${c.prenotati} · in arrivo ${c.in_arrivo} · venduto ${c.venduto} · ord.man ${o}"><div class="cg">${c.disponibile}</div>${tg}<div class="cv" title="venduto anno">${c.venduto}</div>${og}${extra?`<span class="bdgs">${extra}</span>`:""}</td>`;
     }
     for(const f of xf){ const s=(extraStock[r.info.barcode]||{})[f]; const t=effTargetExtra(r.info.barcode,f); const disp=s?s.d:0; const vend=s?(s.v||0):0; const o=ORD[r.info.barcode+"|"+f]||0;
-      let cls; if(t>0&&disp<t)cls=(s&&s.a>0?"cellordered":"cell0"); else if(disp>0)cls="cellok"; else cls="cellna";
+      let cls; if(t>0&&disp<t)cls=(s&&s.a>0&&disp>0?"cellordered":"cell0"); else if(disp>0)cls="cellok"; else cls="cellna";
       let ex2="";
       if(s&&s.p>0)ex2+=`<span class="bdg pkg" title="${s.p} prenotati">📦${s.p}</span>`;
       if(s&&s.a>0)ex2+=`<span class="bdg truck" title="${s.a} in arrivo">🚚${s.a}</span>`;
