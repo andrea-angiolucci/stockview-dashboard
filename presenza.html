@@ -1036,7 +1036,7 @@ async function _runOnce(gen){
   if(error){$("#status").innerHTML='<span style="color:var(--bad)">Errore: '+error.message+'</span>';$("#tablewrap").style.display="none";return;}
   var _moSet=(mo&&mo.length)?new Set(mo.map(function(v){return String(v).trim().toUpperCase();})):null; lastCells=buildMasterCells(data||[]); vbarcode={}; applyPendOverride(); refreshOrdCat();
   const bcs=[...new Set(lastCells.map(c=>c.barcode))];
-  if(bcs.length){const ystart=(new Date().getFullYear())+"-01-01";const vb=await svFetchAll("vendite","barcode,quantita",bcs,function(q){return noING(q.gte("data",ystart));});vb.forEach(r=>{vbarcode[r.barcode]=(vbarcode[r.barcode]||0)+(r.quantita||1);});}
+  if(bcs.length){const vb=await sb.rpc("vendite_per_barcode",{p_barcodes:bcs});(vb.data||[]).forEach(r=>vbarcode[r.barcode]=Number(r.pezzi));}
   if(m.length)await loadGiacExtra(m,t,c);
   await loadExtraStock();
   await loadExtraCats();
