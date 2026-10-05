@@ -955,6 +955,15 @@ async function applyFornGiacFilter(){
     if(!farr.length||!lastCells.length)return;
     var bcs=Array.from(new Set(lastCells.map(function(c){return c.barcode;})));
     var allowed=new Set();
+    // DEBUG temporaneo: log fornitore per barcode specifici
+    var debugBcs=["889652557922"];
+    for(var di=0;di<debugBcs.length;di++){
+      if(bcs.indexOf(debugBcs[di])>=0){
+        var dr=await sb.from("giacenze").select("barcode,fornitore").eq("barcode",debugBcs[di]);
+        console.log("DEBUG fornitore per",debugBcs[di],dr.data);
+      }
+    }
+    console.log("DEBUG farr (filtro fornitore UI):",farr);
     for(var i=0;i<bcs.length;i+=200){
       var part=bcs.slice(i,i+200), from=0;
       while(true){
