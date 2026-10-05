@@ -645,32 +645,57 @@ function checkout(){
 }
 
 async function loadExtraCats(){
+  // Carica tutti i barcode da giacenze in base ai filtri UI, senza dipendere da ASSORT/ideale.
+  // L'ideale viene usato solo dopo (in draw) per la formattazione celle, non come filtro.
   try{
-  const ladder={ST:1,P1:1,P2:1,P3:1,P4:1,P5:1,P6:1,P7:1,P8:1,P9:1};
   const f=[...(FILTERS.msFornitore?FILTERS.msFornitore.selected:[])], m=[...(FILTERS.msMarchio?FILTERS.msMarchio.selected:[])], tp=[...(FILTERS.msTipo?FILTERS.msTipo.selected:[])];
   if(!f.length && !m.length) return; // troppo ampio senza fornitore/marchio
-  let rowsA=ASSORT;
-  if(f.length)rowsA=rowsA.filter(r=>f.includes(r.fornitore));
-  if(m.length)rowsA=rowsA.filter(r=>m.includes(r.marchio));
-  if(tp.length)rowsA=rowsA.filter(r=>tp.includes(r.tipo_lenti));
-  const norm=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
-  const normMap={}, fornMap={};
-  rowsA.forEach(r=>{ normMap[norm(r.marchio)]=r.marchio; fornMap[r.marchio]=r.fornitore; });
-  const norms=Object.keys(normMap);
-  if(!norms.length)return;
   const oc=[...(FILTERS.msCategoria?FILTERS.msCategoria.selected:[])];
   const tset=tp.map(x=>String(x).toLowerCase());
+  // Costruisci normMap dai marchi selezionati nel filtro UI (non da ASSORT)
+  const norm=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  const normMap={};
+  if(m.length){ m.forEach(mar=>{ normMap[norm(mar)]=mar; }); }
+  // Se nessun marchio selezionato ma fornitore sì: carichiamo per fornitore direttamente
+  const norms=Object.keys(normMap);
+  // Escludi barcode già presenti in lastCells per questa funzione
+  const already=new Set(lastCells.map(c=>c.barcode+"|"+c.filiale));
   let gi=[];
-  for(let i=0;i<norms.length;i+=100){ const part=norms.slice(i,i+100); let from=0; while(true){ const r=await sb.from("giacenze").select("barcode,filiale,marchio_norm,categoria,tipo_lenti,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo,modello,colore,calibro").in("marchio_norm",part).in("filiale",["B","C","D","E","G","H","I","Z"]).range(from,from+999); const d=r.data||[]; gi=gi.concat(d); if(d.length<1000)break; from+=1000; } }
-  gi=gi.filter(g=>{ const cat=(g.categoria||"").toUpperCase(); if(ladder[cat])return false; if(oc.length && !oc.includes(cat))return false; if(tset.length && !tset.includes((g.tipo_lenti||"").toLowerCase()))return false; return true; });
+  const filAttive=["B","C","D","E","G","H","I","Z"];
+  if(norms.length){
+    for(let i=0;i<norms.length;i+=100){
+      const part=norms.slice(i,i+100); let from=0;
+      while(true){
+        let q=sb.from("giacenze").select("barcode,filiale,marchio,marchio_norm,fornitore,categoria,tipo_lenti,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo,modello,colore,calibro").in("marchio_norm",part).in("filiale",filAttive);
+        if(f.length)q=q.in("fornitore",f);
+        q=q.range(from,from+999);
+        const r=await q; const d=r.data||[]; gi=gi.concat(d); if(d.length<1000)break; from+=1000;
+      }
+    }
+  } else if(f.length){
+    // Solo fornitore selezionato, nessun marchio: carica per fornitore
+    let from=0;
+    while(true){
+      const r=await sb.from("giacenze").select("barcode,filiale,marchio,marchio_norm,fornitore,categoria,tipo_lenti,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo,modello,colore,calibro").in("fornitore",f).in("filiale",filAttive).range(from,from+999);
+      const d=r.data||[]; gi=gi.concat(d); if(d.length<1000)break; from+=1000;
+    }
+  }
+  // Filtri categoria e tipo
+  gi=gi.filter(g=>{
+    if(oc.length && !oc.includes((g.categoria||"").toUpperCase()))return false;
+    if(tset.length && !tset.includes((g.tipo_lenti||"").toLowerCase()))return false;
+    return true;
+  });
+  // Escludi già presenti
+  gi=gi.filter(g=>!already.has(g.barcode+"|"+g.filiale));
   if(!gi.length)return;
   const bcs=[...new Set(gi.map(g=>g.barcode))];
   const vmap={}; const sy=(new Date().getFullYear())+"-01-01";
   for(let i=0;i<bcs.length;i+=150){ const part=bcs.slice(i,i+150); let from=0; while(true){ const r=await sb.from("vendite").select("barcode,filiale,quantita,data").in("barcode",part).gte("data",sy).range(from,from+999); const d=r.data||[]; d.forEach(x=>{ const k=x.barcode+"|"+x.filiale; vmap[k]=(vmap[k]||0)+(x.quantita||1); }); if(d.length<1000)break; from+=1000; } }
   const agg={};
   gi.forEach(g=>{ const k=g.barcode+"|"+g.filiale; if(!agg[k])agg[k]={g:g,d:0,mag:0,pren:0,arr:0}; agg[k].d+=g.quantita_disponibile||0; agg[k].mag+=g.quantita_magazzino||0; agg[k].pren+=g.quantita_prenotata||0; agg[k].arr+=g.quantita_in_arrivo||0; });
-  Object.keys(agg).forEach(k=>{ const a=agg[k], g=a.g; const marchio=normMap[g.marchio_norm]||g.marchio_norm;
-    lastCells.push({fornitore:(fornMap[marchio]||""), marchio:marchio, tipo_lenti:g.tipo_lenti, categoria:(g.categoria||"").toUpperCase(), barcode:g.barcode, modello:g.modello, colore:g.colore, calibro:g.calibro, filiale:g.filiale, negozio:(FIL[g.filiale]?FIL[g.filiale].nome:g.filiale), disponibile:a.d, magazzino:a.mag, prenotati:a.pren, in_arrivo:a.arr, presente:a.d>0, venduto:(vmap[k]||0), _x:true }); });
+  Object.keys(agg).forEach(k=>{ const a=agg[k], g=a.g; const marchio=normMap[g.marchio_norm]||g.marchio||g.marchio_norm;
+    lastCells.push({fornitore:(g.fornitore||""), marchio:marchio, tipo_lenti:g.tipo_lenti, categoria:(g.categoria||"").toUpperCase(), barcode:g.barcode, modello:g.modello, colore:g.colore, calibro:g.calibro, filiale:g.filiale, negozio:(FIL[g.filiale]?FIL[g.filiale].nome:g.filiale), disponibile:a.d, magazzino:a.mag, prenotati:a.pren, in_arrivo:a.arr, presente:a.d>0, venduto:(vmap[k]||0), _x:true }); });
   }catch(e){ console.log("loadExtraCats err",e); }
 }
 
@@ -955,15 +980,6 @@ async function applyFornGiacFilter(){
     if(!farr.length||!lastCells.length)return;
     var bcs=Array.from(new Set(lastCells.map(function(c){return c.barcode;})));
     var allowed=new Set();
-    // DEBUG temporaneo: log fornitore per barcode specifici
-    var debugBcs=["889652557922"];
-    for(var di=0;di<debugBcs.length;di++){
-      if(bcs.indexOf(debugBcs[di])>=0){
-        var dr=await sb.from("giacenze").select("barcode,fornitore").eq("barcode",debugBcs[di]);
-        console.log("DEBUG fornitore per",debugBcs[di],dr.data);
-      }
-    }
-    console.log("DEBUG farr (filtro fornitore UI):",farr);
     for(var i=0;i<bcs.length;i+=200){
       var part=bcs.slice(i,i+200), from=0;
       while(true){
