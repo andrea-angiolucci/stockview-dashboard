@@ -369,7 +369,7 @@ async function gDistinctG(field,f,m,t){
   return [...new Set(vals)].filter(Boolean).sort();
 }
 async function gTipiList(f,m){ return await gDistinctG("tipo_lenti",f,m,null); }
-async function gCatList(f,m,t){ var cats=await gDistinctG("categoria",f,m,t); var VC=["ST","P1","P2","P3","P4","P5","P6","P7","P8","P9","SN","SR","SE","SV","SC"]; return cats.filter(function(x){return VC.indexOf(x)>=0;}); }
+async function gCatList(f,m,t){ var cats=await gDistinctG("categoria",f,m,t); var ESCLUDI_CAT=new Set([""]); return cats.filter(function(x){return x && !ESCLUDI_CAT.has(x);}); }
 async function loadFilters(){
   const {data}=await sb.from("assortimento_marchio").select("fornitore,marchio,tipo_lenti,filiale,qty_ideale");
   const A=data||[]; ASSORT=A;
