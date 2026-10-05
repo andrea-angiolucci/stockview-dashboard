@@ -253,6 +253,7 @@
       </div></div>
       <div class="tbgroup"><div class="tbglabel">Esporta</div><div class="tbrow">
         <div class="fcol"><span>Excel selezione</span><div style="display:flex;gap:6px"><select class="sort" id="dlmode"><option value="sint">Sintetico</option><option value="full">Completo</option></select><button class="ghost" id="dl" style="padding:9px 14px">Scarica Excel</button></div></div>
+        <div class="fcol"><span>Matrice a schermo</span><button class="ghost" id="dlMatrix" style="padding:9px 14px">⬇ Scarica matrice</button></div>
       </div></div>
       <div class="tbgroup" id="revGroup" style="display:none"><div class="tbglabel">Revisioni</div><div class="tbrow">
         <div class="fcol"><span>Modifica categoria</span><button id="editCatBtn" class="ghost">✏ Modifica categoria</button></div><div class="fcol"><span>Target (min stock)</span><div class="seg" id="segTgt"><button data-e="off" class="on">Blocca</button><button data-e="on">Modifica</button></div></div>
@@ -465,6 +466,40 @@ $("#dl").addEventListener("click",async()=>{
     svSave(rows,"_completo");
   }catch(e){alert("Errore export completo: "+e);}
   dl.disabled=false; dl.textContent=lab;
+});
+
+// Download matrice come Excel (come appare a schermo)
+$("#dlMatrix").addEventListener("click",function(){
+  if(!lastCells.length){alert("Nessun dato da esportare: applica un filtro.");return;}
+  try{
+    let cells=lastCells;
+    if(window.__srZeroOn){ try{ var _st={},_sc={}; cells.forEach(function(c){ _st[c.barcode]=(_st[c.barcode]||0)+(c.disponibile||0); if(String(c.categoria||'').trim().toUpperCase()==='SR')_sc[c.barcode]=1; }); cells=cells.filter(function(c){ return !(_sc[c.barcode] && (_st[c.barcode]||0)===0); }); }catch(_e){} }
+    // Costruisci mappa referenze → negozi (come drawMatrix)
+    const refs=new Map();
+    for(const c of cells){ if(!refs.has(c.barcode))refs.set(c.barcode,{info:c,by:{}}); refs.get(c.barcode).by[c.negozio]=c; }
+    const negozi=negList(cells);
+    // Costruisci righe Excel
+    const xlRows=[];
+    for(const r of refs.values()){
+      const row={Marchio:r.info.marchio,Modello:r.info.modello||'',Tipo:r.info.tipo_lenti||'',Categoria:r.info.categoria||'',Colore:r.info.colore||'',Calibro:r.info.calibro||'',Barcode:r.info.barcode};
+      let tot=0;
+      for(const n of negozi){
+        const c=r.by[n];
+        const disp=c?c.disponibile:0;
+        row[n]=disp;
+        tot+=disp;
+      }
+      // Deposito
+      const dep=(extraStock&&extraStock[r.info.barcode]&&extraStock[r.info.barcode]["A"])?((extraStock[r.info.barcode]["A"].d)||0):0;
+      row['Deposito']=dep;
+      row['Totale']=tot+dep;
+      xlRows.push(row);
+    }
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.json_to_sheet(xlRows);
+    XLSX.utils.book_append_sheet(wb,ws,"Matrice");
+    XLSX.writeFile(wb,"matrice_presenza_"+new Date().toISOString().slice(0,10)+".xlsx");
+  }catch(e){alert("Errore export matrice: "+e);}
 });
 
 $("#ordine").addEventListener("click",async()=>{
@@ -1007,6 +1042,12 @@ async function _runOnce(gen){
   if(_moSet){ lastCells=lastCells.filter(function(x){return _moSet.has(String(x.modello||"").trim().toUpperCase());}); }
   /* filtro fornitore: escludi barcode con giacenze.fornitore diverso da quello selezionato */
   await applyFornGiacFilter();
+  // Aggiorna filtro categoria con le categorie realmente presenti in lastCells (non solo quelle dall'ideale)
+  if(FILTERS.msCategoria){
+    const _realCats=[...new Set(lastCells.map(function(c){return (c.categoria||'').trim().toUpperCase();}).filter(Boolean))].sort();
+    const _prevCatSel=[...FILTERS.msCategoria.selected];
+    mkFilter("msCategoria","Categoria",_realCats,_prevCatSel);
+  }
   if(gen!==RUN_GEN)return;
   refreshOrdCat();
   draw();
