@@ -238,7 +238,7 @@ async function load(){
     sb.rpc("sv_marchi")
   ]);
   const usate=new Set((rows||[]).map(r=>r.filiale));
-  PDV=(fil||[]).filter(f=>usate.has(f.codice)).sort((a,b)=>a.nome.localeCompare(b.nome)).map(f=>({codice:f.codice,nome:f.nome}));
+  PDV=(fil||[]).filter(f=>f.attiva).sort((a,b)=>a.nome.localeCompare(b.nome)).map(f=>({codice:f.codice,nome:f.nome}));
   DATA={Vista:{},Sole:{}}; FORN={};
   for(const r of (rows||[])){ (DATA[r.tipo_lenti] ||= {}); (DATA[r.tipo_lenti][r.marchio] ||= {}); DATA[r.tipo_lenti][r.marchio][r.filiale]=r.qty_ideale; FORN[r.marchio]=r.fornitore||"Luxottica"; }
   // selettore fornitore
