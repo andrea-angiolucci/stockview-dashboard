@@ -448,6 +448,8 @@ document.addEventListener("dblclick",e=>{const m=e.target.closest("#tbl td.mar[d
 document.addEventListener("click",e=>{if(!e.target.closest("#tbl td.mar[data-img]"))return;document.querySelectorAll("#tbl tbody tr.selrow").forEach(x=>x.classList.remove("selrow"));});
 function svSave(rows,suff){ const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Presenza"); XLSX.writeFile(wb,"controllo_presenza"+(suff||"")+"_"+new Date().toISOString().slice(0,10)+".xlsx"); }
 async function svFetchAll(table,sel,vals,extra){ let out=[]; const CH=150; for(let i=0;i<vals.length;i+=CH){ const part=vals.slice(i,i+CH); let from=0; while(true){ let q=sb.from(table).select(sel).in("barcode",part); if(extra)q=extra(q); const r=await q.range(from,from+999); const d=r.data||[]; out=out.concat(d); if(d.length<1000)break; from+=1000; } } return out; }
+// Esclude vendite ingrosso (ING) ma mantiene le righe con tipo_operazione NULL (vendite normali)
+function noING(q){ return q.or("tipo_operazione.is.null,tipo_operazione.neq.ING"); }
 $("#dl").addEventListener("click",async()=>{
   if(!lastCells.length){alert("Nessun dato da esportare: applica un filtro.");return;}
   if($("#dlmode").value==="sint"){ svSave(lastCells.map(c=>({Fornitore:c.fornitore,Marchio:c.marchio,Tipo:c.tipo_lenti,Categoria:c.categoria,Barcode:c.barcode,Modello:c.modello,Colore:c.colore,Calibro:c.calibro,Negozio:c.negozio,Disponibile:c.disponibile,Magazzino:c.magazzino,Prenotati:c.prenotati,InArrivo:c.in_arrivo,Venduto:c.venduto,Presente:c.presente}))); return; }
@@ -458,7 +460,7 @@ $("#dl").addEventListener("click",async()=>{
   ORD={}; if(bcs.length){ const om=await svFetchAll("ordine_manuale","barcode,filiale,qta",bcs); om.forEach(r=>ORD[r.barcode+"|"+r.filiale]=r.qta); }
     const gi=await svFetchAll("giacenze","*",bcs); const gm={}; gi.forEach(g=>{gm[g.barcode+"|"+g.filiale]=g;});
     const sy=new Date().getFullYear()+"-01-01";
-    const ve=await svFetchAll("vendite","barcode,filiale,quantita,prezzo_vendita,costo,margine,data",bcs,q=>q.gte("data",sy));
+    const ve=await svFetchAll("vendite","barcode,filiale,quantita,prezzo_vendita,costo,margine,data",bcs,q=>noING(q.gte("data",sy)));
     const va={}; ve.forEach(x=>{const k=x.barcode+"|"+x.filiale; if(!va[k])va[k]={p:0,r:0,co:0,m:0,u:null}; const a=va[k]; a.p+=(x.quantita||1); a.r+=(x.prezzo_vendita||0); a.co+=(x.costo||0); a.m+=(x.margine||0); if(!a.u||x.data>a.u)a.u=x.data;});
     const rnd=x=>Math.round((x||0)*100)/100;
     const rows=lastCells.map(c=>{const k=c.barcode+"|"+c.filiale,g=gm[k]||{},s=va[k]||{};
@@ -726,7 +728,7 @@ async function loadExtraCats(){
   if(!gi.length)return;
   const bcs=[...new Set(gi.map(g=>g.barcode))];
   const vmap={}; const sy=(new Date().getFullYear())+"-01-01";
-  for(let i=0;i<bcs.length;i+=150){ const part=bcs.slice(i,i+150); let from=0; while(true){ const r=await sb.from("vendite").select("barcode,filiale,quantita,data").in("barcode",part).gte("data",sy).range(from,from+999); const d=r.data||[]; d.forEach(x=>{ const k=x.barcode+"|"+x.filiale; vmap[k]=(vmap[k]||0)+(x.quantita||1); }); if(d.length<1000)break; from+=1000; } }
+  for(let i=0;i<bcs.length;i+=150){ const part=bcs.slice(i,i+150); let from=0; while(true){ const r=await noING(sb.from("vendite").select("barcode,filiale,quantita,data").in("barcode",part).gte("data",sy)).range(from,from+999); const d=r.data||[]; d.forEach(x=>{ const k=x.barcode+"|"+x.filiale; vmap[k]=(vmap[k]||0)+(x.quantita||1); }); if(d.length<1000)break; from+=1000; } }
   const agg={};
   gi.forEach(g=>{ const k=g.barcode+"|"+g.filiale; if(!agg[k])agg[k]={g:g,d:0,mag:0,pren:0,arr:0}; agg[k].d+=g.quantita_disponibile||0; agg[k].mag+=g.quantita_magazzino||0; agg[k].pren+=g.quantita_prenotata||0; agg[k].arr+=g.quantita_in_arrivo||0; });
   Object.keys(agg).forEach(k=>{ const a=agg[k], g=a.g; const marchio=normMap[g.marchio_norm]||g.marchio||g.marchio_norm;
@@ -743,7 +745,7 @@ async function injectVialeAfrica(){
     const gi=await svFetchAll("giacenze","barcode,filiale,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo",bcs,q=>q.eq("filiale","Z"));
     const gz={}; gi.forEach(g=>{ if(g.filiale!=="Z")return; const o=gz[g.barcode]=gz[g.barcode]||{d:0,m:0,p:0,a:0}; o.d+=g.quantita_disponibile||0; o.m+=g.quantita_magazzino||0; o.p+=g.quantita_prenotata||0; o.a+=g.quantita_in_arrivo||0; });
     const sy=new Date().getFullYear()+"-01-01";
-    const ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,q=>q.eq("filiale","Z").gte("data",sy));
+    const ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,q=>noING(q.eq("filiale","Z").gte("data",sy)));
     const vz={}; ve.forEach(x=>{ if(x.filiale!=="Z")return; vz[x.barcode]=(vz[x.barcode]||0)+(x.quantita||1); });
     bcs.forEach(bc=>{ const s=gz[bc]; lastCells.push(Object.assign({},meta[bc],{barcode:bc,filiale:"Z",negozio:"Viale Africa",disponibile:s?s.d:0,magazzino:s?s.m:0,prenotati:s?s.p:0,in_arrivo:s?s.a:0,presente:!!(s&&s.d>0),venduto:vz[bc]||0,_x:true})); });
   }catch(e){ console.log("injectVialeAfrica err",e); }
@@ -760,7 +762,7 @@ async function fillGhostCells(){
     const gi=await svFetchAll("giacenze","barcode,filiale,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo",bcs,q=>q.in("filiale",active));
     const gmap={}; gi.forEach(g=>{ const k=g.barcode+"|"+g.filiale; const o=gmap[k]=gmap[k]||{d:0,m:0,p:0,a:0}; o.d+=g.quantita_disponibile||0; o.m+=g.quantita_magazzino||0; o.p+=g.quantita_prenotata||0; o.a+=g.quantita_in_arrivo||0; });
     const sy=new Date().getFullYear()+"-01-01";
-    const ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,q=>q.in("filiale",active).gte("data",sy));
+    const ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,q=>noING(q.in("filiale",active).gte("data",sy)));
     const vmap={}; ve.forEach(x=>{ const k=x.barcode+"|"+x.filiale; vmap[k]=(vmap[k]||0)+(x.quantita||1); });
     bcs.forEach(bc=>{ active.forEach(fil=>{ const k=bc+"|"+fil; if(have.has(k))return; const g=gmap[k], v=vmap[k]||0;
       lastCells.push(Object.assign({},meta[bc],{barcode:bc,filiale:fil,negozio:(FIL[fil]?FIL[fil].nome:fil),disponibile:g?g.d:0,magazzino:g?g.m:0,prenotati:g?g.p:0,in_arrivo:g?g.a:0,presente:!!(g&&g.d>0),venduto:v,_x:true,_np:true})); }); });
@@ -892,7 +894,7 @@ async function loadAgePrev(){
     gi.forEach(function(r){ if(!r.data_ult_acquisto)return; var acq=new Date(r.data_ult_acquisto+"T00:00:00"); var disp=Number(r.quantita_disponibile||0); var end; if(disp>0){ end=now; } else { end=r.data_ult_vendita?new Date(r.data_ult_vendita+"T00:00:00"):now; } AGE[r.barcode+"|"+r.filiale]=Math.max(0,Math.round((end-acq)/86400000)); });
   }
   if(prevOn){
-    var ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,function(q){return q.in("filiale",ACTIVEFIL).gte("data","2025-01-01").lt("data","2026-01-01");});
+    var ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,function(q){return noING(q.in("filiale",ACTIVEFIL).gte("data","2025-01-01").lt("data","2026-01-01"));});
     ve.forEach(function(r){ var k=r.barcode+"|"+r.filiale; PREV[k]=(PREV[k]||0)+(r.quantita||1); });
   }
 }
@@ -1001,7 +1003,7 @@ async function loadGiacExtra(m,t,c){
   if(added.length){
     var abcs=[], s2={}; added.forEach(function(x){ if(!s2[x.barcode]){s2[x.barcode]=1;abcs.push(x.barcode);} });
     var ystart=(new Date().getFullYear())+"-01-01";
-    var ve=await svFetchAll("vendite","barcode,filiale,quantita,data",abcs,function(q){ return q.in("filiale",ACTIVEFIL).gte("data",ystart); });
+    var ve=await svFetchAll("vendite","barcode,filiale,quantita,data",abcs,function(q){ return noING(q.in("filiale",ACTIVEFIL).gte("data",ystart)); });
     var vm={}; ve.forEach(function(r){ var k=r.barcode+"|"+r.filiale; vm[k]=(vm[k]||0)+(r.quantita||1); vbarcode[r.barcode]=(vbarcode[r.barcode]||0)+(r.quantita||1); });
     added.forEach(function(cell){ cell.venduto=vm[cell.barcode+"|"+cell.filiale]||0; });
   }
@@ -1034,7 +1036,7 @@ async function _runOnce(gen){
   if(error){$("#status").innerHTML='<span style="color:var(--bad)">Errore: '+error.message+'</span>';$("#tablewrap").style.display="none";return;}
   var _moSet=(mo&&mo.length)?new Set(mo.map(function(v){return String(v).trim().toUpperCase();})):null; lastCells=buildMasterCells(data||[]); vbarcode={}; applyPendOverride(); refreshOrdCat();
   const bcs=[...new Set(lastCells.map(c=>c.barcode))];
-  if(bcs.length){const vb=await sb.rpc("vendite_per_barcode",{p_barcodes:bcs});(vb.data||[]).forEach(r=>vbarcode[r.barcode]=Number(r.pezzi));}
+  if(bcs.length){const ystart=(new Date().getFullYear())+"-01-01";const vb=await svFetchAll("vendite","barcode,quantita",bcs,function(q){return noING(q.gte("data",ystart));});vb.forEach(r=>{vbarcode[r.barcode]=(vbarcode[r.barcode]||0)+(r.quantita||1);});}
   if(m.length)await loadGiacExtra(m,t,c);
   await loadExtraStock();
   await loadExtraCats();
@@ -1106,7 +1108,7 @@ async function loadExtraStock(){
   const gi=await svFetchAll("giacenze","barcode,filiale,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo",bcs);
   gi.forEach(g=>{ if(g.filiale!=="Z"&&g.filiale!=="A")return; const o=(extraStock[g.barcode]=extraStock[g.barcode]||{}); o[g.filiale]={d:g.quantita_disponibile||0,m:g.quantita_magazzino||0,p:g.quantita_prenotata||0,a:g.quantita_in_arrivo||0,v:0}; });
   const sy=new Date().getFullYear()+"-01-01";
-  const ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,q=>q.gte("data",sy).in("filiale",["Z","A"]));
+  const ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,q=>noING(q.gte("data",sy).in("filiale",["Z","A"])));
   ve.forEach(x=>{ if(x.filiale!=="Z"&&x.filiale!=="A")return; const o=(extraStock[x.barcode]=extraStock[x.barcode]||{}); const f=(o[x.filiale]=o[x.filiale]||{d:0,m:0,p:0,a:0,v:0}); f.v+=(x.quantita||1); });
   if(filView==="tutte") extraFil=["A"];
   else if(filView==="giacenza"){ const has=f=>Object.keys(extraStock).some(bc=>{const e=extraStock[bc][f]; return e&&(e.d||e.m||e.p||e.a||e.v);}); extraFil=["A"].filter(has); }
