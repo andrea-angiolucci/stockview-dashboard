@@ -245,13 +245,14 @@ async function load(){
   const fornitori=[...new Set(Object.values(FORN))].filter(function(f){return !ESCLUSI_FORNITORI.has(f);}).sort();
   $("#forn").innerHTML='<option value="">Tutti i fornitori</option>'+fornitori.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join("");
   if(document.getElementById("marchiList"))$("#marchiList").innerHTML=(marchi||[]).map(m=>`<option value="${esc(typeof m==='string'?m:Object.values(m)[0])}">`).join("");
-  // ripristina tab (Vista/Sole) dall'ultima visita
-  try{const saved=localStorage.getItem("asq_tab"); if(saved==="Vista"||saved==="Sole"){tab=saved;[...$("#seg").children].forEach(x=>x.classList.toggle("on",x.dataset.t===tab));}}catch(e){}
+  // ripristina tab (Vista/Sole) e fornitore dall'ultima visita
+  try{const savedTab=localStorage.getItem("asq_tab"); if(savedTab==="Vista"||savedTab==="Sole"){tab=savedTab;[...$("#seg").children].forEach(x=>x.classList.toggle("on",x.dataset.t===tab));}}catch(e){}
+  try{const savedForn=localStorage.getItem("asq_forn"); if(savedForn&&$("#forn").querySelector('option[value="'+savedForn+'"]'))$("#forn").value=savedForn;}catch(e){}
   render();
 }
 
 $("#seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...$("#seg").children].forEach(x=>x.classList.remove("on"));b.classList.add("on");tab=b.dataset.t;try{localStorage.setItem("asq_tab",tab);}catch(e){} asqShowSpin(); if(deltaOn){loadDelta().then(function(){render();asqHideSpin();});}else{requestAnimationFrame(function(){render();asqHideSpin();});}});
-$("#forn").addEventListener("change",render);
+$("#forn").addEventListener("change",function(){try{localStorage.setItem("asq_forn",$("#forn").value);}catch(e){}render();});
 $("#deltaBtn").addEventListener("click",async function(){ deltaOn=!deltaOn; sessionStorage.setItem("asqDelta",deltaOn?"1":"0"); $("#deltaBtn").classList.toggle("on",deltaOn); applyDeltaUI(); if(deltaOn){ await loadDelta(); } render(); });
 function applyDeltaUI(){ var st=document.getElementById("subToggles"); if(st) st.style.display=deltaOn?"inline-flex":"none"; var a=document.getElementById("subIdealeBtn"),b=document.getElementById("subGiacBtn"),c=document.getElementById("subDiffBtn"); if(a)a.classList.toggle("on",subIdeale); if(b)b.classList.toggle("on",subGiac); if(c)c.classList.toggle("on",subDiff); }
 function _subWire(id,fn){ var el=document.getElementById(id); if(el) el.addEventListener("click",function(){ fn(); applyDeltaUI(); render(); }); }
