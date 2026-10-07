@@ -118,6 +118,8 @@
   #tbl tbody tr.selrow td{background:rgba(61,169,252,.14)!important}
   #tbl tbody tr.selrow td.mar{box-shadow:inset 3px 0 0 var(--accent)}
   .cellage{position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--muted);line-height:1;pointer-events:none}
+  .cellage-grey{color:#888}
+  .cellage-red{color:#e05050}
   .cv2{font-size:10px;color:var(--muted);border-top:1px dashed var(--line);margin-top:2px;padding-top:1px;text-align:center}
   .ageavg{font-size:10px;color:var(--muted);margin-top:2px}
   .badge-noideal{font-size:9px;background:var(--line);color:var(--muted);border-radius:4px;padding:0 4px;margin-left:4px}
@@ -878,18 +880,18 @@ document.addEventListener("click",function(e){ if(e.target&&(e.target.id==="rici
 function scheduleRun(){ RUN_GEN++; clearTimeout(runT); runT=setTimeout(run,50); }
 
 /* ===== Rebuild: Dati toggles ===== */
-var dataMarchi="ideale", ageOn=false, prevOn=false, deadOn=false, AGE={}, PREV={};
+var dataMarchi="ideale", ageOn=false, prevOn=false, deadOn=false, AGE={}, AGE_TYPE={}, PREV={};
 (function(){ try{ var s=JSON.parse(sessionStorage.getItem("svDati")||"{}"); if(s.dm)dataMarchi=s.dm; ageOn=!!s.age; prevOn=!!s.prev; deadOn=!!s.dead; }catch(e){} })();
 function saveDati(){ try{ sessionStorage.setItem("svDati",JSON.stringify({dm:dataMarchi,age:ageOn,prev:prevOn,dead:deadOn})); }catch(e){} }
 var ACTIVEFIL=["B","C","D","E","G","H","I","Z"];
 async function loadAgePrev(){
-  AGE={}; PREV={};
+  AGE={}; AGE_TYPE={}; PREV={};
   var bcs=[], seen={}; lastCells.forEach(function(c){ if(!seen[c.barcode]){seen[c.barcode]=1;bcs.push(c.barcode);} });
   if(!bcs.length) return;
   if(ageOn){
     var gi=await svFetchAll("giacenze","barcode,filiale,data_ult_acquisto,data_ult_vendita,quantita_disponibile",bcs,function(q){return q.in("filiale",ACTIVEFIL);});
     var now=new Date();
-    gi.forEach(function(r){ if(!r.data_ult_acquisto)return; var acq=new Date(r.data_ult_acquisto+"T00:00:00"); var disp=Number(r.quantita_disponibile||0); var end; if(disp>0){ end=now; } else { end=r.data_ult_vendita?new Date(r.data_ult_vendita+"T00:00:00"):now; } AGE[r.barcode+"|"+r.filiale]=Math.max(0,Math.round((end-acq)/86400000)); });
+    gi.forEach(function(r){ var k=r.barcode+"|"+r.filiale; var disp=Number(r.quantita_disponibile||0); if(disp>0){ if(!r.data_ult_acquisto)return; var acq=new Date(r.data_ult_acquisto+"T00:00:00"); AGE[k]=Math.max(0,Math.round((now-acq)/86400000)); AGE_TYPE[k]='acq'; } else { if(!r.data_ult_vendita)return; var vend=new Date(r.data_ult_vendita+"T00:00:00"); AGE[k]=Math.max(0,Math.round((now-vend)/86400000)); AGE_TYPE[k]='vend'; } });
   }
   if(prevOn){
     var ve=await svFetchAll("vendite","barcode,filiale,quantita,data",bcs,function(q){return q.in("filiale",ACTIVEFIL).gte("data","2025-01-01").lt("data","2026-01-01").or("tipo_operazione.neq.ING,tipo_operazione.is.null");});
@@ -942,7 +944,7 @@ function decorate(){
     [].slice.call(td.querySelectorAll(".cellage,.cv2")).forEach(function(x){x.remove();});
     if(!ageOn&&!prevOn) return;
     var k=td.getAttribute("data-bc")+"|"+td.getAttribute("data-fil");
-    if(ageOn&&AGE[k]!==undefined&&(function(){var _g=td.querySelector(".cg"),_v=td.querySelector(".cv");var _gg=_g?(parseInt(_g.textContent)||0):0,_vv=_v?(parseInt(_v.textContent)||0):0;return _gg>0||_vv>0;})()){ var s=document.createElement("span"); s.className="cellage"; s.textContent=AGE[k]+"g"; td.appendChild(s); }
+    if(ageOn&&AGE[k]!==undefined&&(function(){var _g=td.querySelector(".cg"),_v=td.querySelector(".cv");var _gg=_g?(parseInt(_g.textContent)||0):0,_vv=_v?(parseInt(_v.textContent)||0):0;return _gg>0||_vv>0;})()){ var s=document.createElement("span"); s.className="cellage "+(AGE_TYPE[k]==='vend'?'cellage-red':'cellage-grey'); s.textContent=AGE[k]+"g"; td.appendChild(s); }
     if(prevOn){ var d=document.createElement("div"); d.className="cv2"; d.title="venduto 2025"; d.textContent=(PREV[k]!==undefined?PREV[k]:0); td.appendChild(d); }
   });
   var rows=[].slice.call(tbl.querySelectorAll("tbody tr"));
@@ -951,7 +953,7 @@ function decorate(){
   rows.forEach(function(tr){
     var tot=tr.querySelector("td.tot"); if(!tot)return;
     var old=tot.querySelector(".ageavg"); if(old)old.remove();
-    if(ageOn){ var tds=[].slice.call(tr.querySelectorAll("td.filcol[data-bc]")); var sum=0,cnt=0; tds.forEach(function(td){var k=td.getAttribute("data-bc")+"|"+td.getAttribute("data-fil"); if(AGE[k]!==undefined){var _g=td.querySelector(".cg"),_v=td.querySelector(".cv");var _gg=_g?(parseInt(_g.textContent)||0):0,_vv=_v?(parseInt(_v.textContent)||0):0;if(_gg>0||_vv>0){sum+=AGE[k];cnt++;}}}); if(cnt){ var d=document.createElement("div"); d.className="ageavg"; d.textContent="⌀"+Math.round(sum/cnt)+"g"; tot.appendChild(d);} }
+    /* media anzianità rimossa dalla colonna totali */
   });
   rows.forEach(function(tr){
     var tot=tr.querySelector("td.tot"); if(!tot)return;
