@@ -184,6 +184,7 @@
   /* sv-groupB-injected */
   .toolbar .tbgroup.open:has(#btnAllocList) .tbrow,.toolbar .tbgroup:hover:has(#btnAllocList) .tbrow{min-width:0!important;width:min(920px,calc(100vw - 48px))!important;max-width:none!important;flex-wrap:wrap;row-gap:8px}
   td.filcol.svzero:has(.svbadge.alloc){background:rgba(214,158,20,.18)!important;color:#a9791a!important}
+  td.filcol.svzero.cellordered{background:rgba(54,201,141,.13)!important;color:var(--ok)!important}
 </style>
 <style>.ms-btn.svfpending{opacity:.55}.ms-btn.svfpending::after{content:"";display:inline-block;width:8px;height:8px;margin-left:5px;border:2px solid #888;border-top-color:transparent;border-radius:50%;animation:svfspin .6s linear infinite;vertical-align:middle}@keyframes svfspin{to{transform:rotate(360deg)}}</style><script>/*sv-obs-lockdown*/(function(){try{var role=null;for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(/^sb-.*-auth-token$/.test(k)){try{var v=JSON.parse(localStorage.getItem(k));var t=v&&v.access_token;if(t){var pp=JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))));role=(pp.user_metadata&&pp.user_metadata.role)||pp.role||role;}}catch(e){}}}window.__SV_OBS=(role==='osservatore');if(!window.__SV_OBS)return;var of=window.fetch;window.fetch=function(u,o){try{var url=(typeof u==='string')?u:((u&&u.url)||'');var m=((o&&o.method)||(u&&u.method)||'GET').toUpperCase();var isRest=/\/rest\/v1\//.test(url);var isRpc=/\/rest\/v1\/rpc\//.test(url);var isFn=/\/functions\/v1\//.test(url);if(m!=='GET'&&m!=='HEAD'&&((isRest&&!isRpc)||isFn)){console.warn('[osservatore] scrittura bloccata:',m,url);return Promise.resolve(new Response(JSON.stringify({error:'sola lettura',code:'OBS_READONLY'}),{status:403,headers:{'Content-Type':'application/json'}}));}}catch(e){}return of.apply(this,arguments);};function badge(){try{if(document.getElementById('svObsBadge'))return;var b=document.createElement('span');b.id='svObsBadge';b.textContent='\uD83D\uDC41 Sola lettura';b.style.cssText='background:#334155;color:#cbd5e1;border:1px solid #475569;border-radius:12px;padding:3px 10px;font-size:12px;font-weight:600;margin-left:8px;white-space:nowrap;display:inline-block';var nav=document.querySelector('.navbar')||document.querySelector('nav')||document.querySelector('header');if(nav){nav.appendChild(b);}else{b.style.cssText+=';position:fixed;top:8px;right:12px;z-index:99999';document.body.appendChild(b);}}catch(e){}}if(document.readyState!=='loading'){badge();}else{document.addEventListener('DOMContentLoaded',badge);}setTimeout(badge,1500);}catch(e){}})();</script>
 </head>
@@ -944,7 +945,7 @@ function decorate(){
     [].slice.call(td.querySelectorAll(".cellage,.cv2")).forEach(function(x){x.remove();});
     if(!ageOn&&!prevOn) return;
     var k=td.getAttribute("data-bc")+"|"+td.getAttribute("data-fil");
-    if(ageOn&&AGE[k]!==undefined&&(function(){var _g=td.querySelector(".cg"),_v=td.querySelector(".cv");var _gg=_g?(parseInt(_g.textContent)||0):0,_vv=_v?(parseInt(_v.textContent)||0):0;return _gg>0||_vv>0;})()){ var s=document.createElement("span"); s.className="cellage "+(AGE_TYPE[k]==='vend'?'cellage-red':'cellage-grey'); s.textContent=AGE[k]+"g"; td.appendChild(s); }
+    if(ageOn&&AGE[k]!==undefined){ var s=document.createElement("span"); s.className="cellage "+(AGE_TYPE[k]==='vend'?'cellage-red':'cellage-grey'); s.textContent=AGE[k]+"g"; td.appendChild(s); }
     if(prevOn){ var d=document.createElement("div"); d.className="cv2"; d.title="venduto 2025"; d.textContent=(PREV[k]!==undefined?PREV[k]:0); td.appendChild(d); }
   });
   var rows=[].slice.call(tbl.querySelectorAll("tbody tr"));
@@ -1177,12 +1178,14 @@ function openCatModal(bc,td){
   var cats=['ST','P1','P2','P3','P4','SN','SC','SE','SR','SV'];
   var opts=cats.map(function(x){return '<option value="'+x+'"'+(x===curCat?' selected':'')+'>'+x+'</option>';}).join('');
   var info=[['Barcode',c.barcode],['Marchio',c.marchio],['Modello',c.modello||''],['Colore',c.colore||''],['Fornitore',c.fornitore||'\u2014'],['Tipo lenti',c.tipo_lenti||'—']].map(function(p){return '<div><span>'+p[0]+'</span><b>'+esc(String(p[1]==null?'':p[1]))+'</b></div>';}).join('');
-  document.getElementById('catModal').innerHTML='<h3>Proponi cambio categoria</h3><div class="catinfo">'+info+'</div><div class="catrow"><div><span>Categoria attuale</span><div class="catcur">'+esc(String(c.categoria||'\u2014'))+'</div></div><div style="font-size:20px;color:var(--muted)">\u2192</div><div><span>Nuova categoria</span><select id="catSel" class="catsel">'+opts+'</select></div></div><div class="cerr" id="catErr"></div><div class="acts"><button class="cancel" id="catCancel">Annulla</button><button class="ok" id="catOk">Proponi cambio</button></div>';
+  document.getElementById('catModal').innerHTML='<h3>Proponi cambio categoria</h3><div class="catinfo">'+info+'</div><div class="catrow"><div><span>Categoria attuale</span><div class="catcur">'+esc(String(curCat||'\u2014'))+'</div></div><div style="font-size:20px;color:var(--muted)">\u2192</div><div><span>Nuova categoria</span><select id="catSel" class="catsel">'+opts+'</select></div></div><div class="cerr" id="catErr"></div><div class="acts"><button class="cancel" id="catCancel">Annulla</button><button class="ok" id="catOk">Proponi cambio</button></div>';
   document.getElementById('catModalBack').classList.add('open');
   document.getElementById('catCancel').onclick=closeCatModal;
   var _catSubmitting=false;
   document.getElementById('catOk').onclick=async function(){ if(_catSubmitting)return; var nc=document.getElementById('catSel').value; if(nc===curCat){ document.getElementById('catErr').textContent='Scegli una categoria diversa da quella attuale.'; return; } _catSubmitting=true; document.getElementById('catOk').disabled=true;
     var payload={barcode:c.barcode,marchio:c.marchio,modello:c.modello,colore:c.colore,calibro:c.calibro,fornitore:c.fornitore||null,filiale:null,tipo_lenti:c.tipo_lenti,categoria_attuale:curCat,categoria_proposta:nc,richiesta_da:curEmail,stato:'pendente'};
+    /* Elimina eventuali proposte pendenti precedenti per lo stesso barcode, poi inserisce */
+    await sb.from('richieste_cambio_categoria').delete().eq('barcode',c.barcode).eq('stato','pendente');
     var r=await sb.from('richieste_cambio_categoria').insert(payload);
     _catSubmitting=false; document.getElementById('catOk').disabled=false;
     if(r.error){ document.getElementById('catErr').textContent='Errore: '+r.error.message; return; }
