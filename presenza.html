@@ -1423,7 +1423,7 @@ document.addEventListener('click',function(e){if(e.target&&e.target.closest&&e.t
 function decorate2(){
  if(OBS)OBS.disconnect();
  try{
-  if(!(isForn()||rrole()==='admin')){document.querySelectorAll('td.filcol .svbadge').forEach(function(b){b.remove();});document.querySelectorAll('td.filcol.svzero').forEach(function(t){t.classList.remove('svzero');});return;}
+  if(!(isForn()||rrole()==='admin'||rrole()==='gestore')){document.querySelectorAll('td.filcol .svbadge').forEach(function(b){b.remove();});document.querySelectorAll('td.filcol.svzero').forEach(function(t){t.classList.remove('svzero');});return;}
   buildDisp();
   document.querySelectorAll('td.filcol[data-bc]').forEach(function(td){
    var bc=td.getAttribute('data-bc'),fil=td.getAttribute('data-fil');if(bc==null||fil==null)return;
