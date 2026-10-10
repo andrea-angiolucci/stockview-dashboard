@@ -206,6 +206,8 @@ async function loadData(){
   var r=await sb.from("rimpiazzi_deposito")
     .select("*")
     .in("stato",["da_fare","attesa_conferma"])
+    .not("cassetto","is",null)
+    .neq("cassetto","")
     .order("vendite_barcode",{ascending:false})
     .order("vendite_marchio",{ascending:false})
     .order("id",{ascending:true});
