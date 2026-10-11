@@ -332,7 +332,7 @@ $("#saveBtn").addEventListener("click",async()=>{
   const btn=$("#saveBtn"); btn.disabled=true; btn.textContent="Salvataggio…";
   const rows=[];
   for(const m of Object.keys(DATA[tab])) for(const p of PDV){ const q=DATA[tab][m][p.codice]||0; if(q>0) rows.push({marchio:m,tipo_lenti:tab,filiale:p.codice,qty_ideale:q,fornitore:FORN[m]||"Luxottica"}); }
-  const del=await sb.from("assortimento_marchio").delete().eq("tipo_lenti",tab);
+  const _codPDV=PDV.map(function(p){return p.codice;}); const del=await sb.from("assortimento_marchio").delete().eq("tipo_lenti",tab).in("filiale",_codPDV);
   if(del.error){ btn.disabled=false; btn.textContent="Salva modifiche"; toast("Errore: "+del.error.message); return; }
   if(rows.length){ const ins=await sb.from("assortimento_marchio").insert(rows);
     if(ins.error){ btn.disabled=false; btn.textContent="Salva modifiche"; toast("Errore: "+ins.error.message); return; } }
