@@ -438,7 +438,7 @@ function renderNT(){
 }
 
 /* ===================== RIMPIAZZI DEPOSITO ===================== */
-var RM_ROWS=[];
+var RM_ROWS=[]; var FIL_MAP={}; function filName(c){c=(c||"").trim(); if(!c)return "\u2014"; return (FIL_MAP[c]&&String(FIL_MAP[c]).trim())?FIL_MAP[c]:c;}
 
 async function rmEseguito(bt){if(bt.disabled)return;bt.disabled=true;var id=bt.dataset.id,o=bt.textContent;bt.textContent="…";
   try{var upd={stato:"attesa_conferma",eseguito_il:new Date().toISOString(),eseguito_da:USER_EMAIL||null};var r=await sb.from("rimpiazzi_deposito").update(upd).eq("id",id);if(r.error)throw r.error;for(var i=0;i<RM_ROWS.length;i++){if(String(RM_ROWS[i].id)===String(id)){Object.assign(RM_ROWS[i],upd);break;}}renderRM();toast("Rimpiazzo segnato come eseguito");}catch(e){bt.disabled=false;bt.textContent=o;toast("Errore: "+String((e&&e.message)||e),true);}
@@ -472,7 +472,7 @@ function renderRM(){
         '<td><b>'+esc(r.marchio||"—")+'</b></td>'+
         '<td>'+esc(r.modello||"—")+subline(r)+'</td>'+
         '<td><span class="cat-chip">'+esc(r.categoria||"—")+'</span></td>'+
-        '<td class="filiale-dest">'+esc(r.filiale_dest||"—")+'</td>'+
+        '<td class="filiale-dest">'+esc(filName(r.filiale_dest))+'</td>'+
         '<td>'+cas+'</td>'+
         '<td style="white-space:nowrap">'+
           '<button class="pill-eseg rmEseg" data-id="'+esc(r.id)+'">✓ Eseguito</button>'+
@@ -494,7 +494,7 @@ function renderRM(){
         '<td><b>'+esc(r.marchio||"—")+'</b></td>'+
         '<td>'+esc(r.modello||"—")+subline(r)+'</td>'+
         '<td><span class="cat-chip">'+esc(r.categoria||"—")+'</span></td>'+
-        '<td class="filiale-dest">'+esc(r.filiale_dest||"—")+'</td>'+
+        '<td class="filiale-dest">'+esc(filName(r.filiale_dest))+'</td>'+
         '<td>'+cas+'</td>'+
         '<td><span class="badge-wait">⏳ Attesa conferma</span></td>'+
         '<td style="white-space:nowrap">'+
@@ -533,7 +533,7 @@ async function loadAll(){
   NT_ROWS=nt.data||[];
   renderNT();
 
-  /* rimpiazzi deposito */
+  try{var _fil=await sb.from("filiali").select("codice,nome"); (_fil.data||[]).forEach(function(f){ if(f&&f.codice) FIL_MAP[f.codice]=f.nome; });}catch(e){} /* rimpiazzi deposito */
   var rm=await sb.from("rimpiazzi_deposito").select("*").in("stato",["da_fare","attesa_conferma"]).not("cassetto","is",null).neq("cassetto","").order("vendite_barcode",{ascending:false}).order("vendite_marchio",{ascending:false}).order("id",{ascending:true});
   RM_ROWS=rm.data||[];
   renderRM();
