@@ -107,6 +107,8 @@
   .fpmsg.ok{color:var(--ok)}
   .fpmsg.err{color:#ff8585}
 </style>
+<!-- sv-cachebust -->
+<script>(function(){function b(){try{var v=Date.now().toString(36);document.querySelectorAll("a[href]").forEach(function(a){var h=a.getAttribute("href");if(!h)return;if(/^(https?:|mailto:|tel:|#|javascript:)/i.test(h))return;if(!/\.html(\?|#|$)/i.test(h))return;var hi=h.indexOf("#");var hash=hi>=0?h.slice(hi):"";var base=hi>=0?h.slice(0,hi):h;base=base.replace(/([?&])_cb=[^&]*/,"$1").replace(/[?&]$/,"");var sep=base.indexOf("?")>=0?"&":"?";a.setAttribute("href",base+sep+"_cb="+v+hash);});}catch(e){}}if(document.readyState!=="loading")b();else document.addEventListener("DOMContentLoaded",b);})();</script>
 </head>
 <body>
 
