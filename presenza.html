@@ -1053,6 +1053,7 @@ async function _runOnce(gen){
     const _prevCatSel=[...FILTERS.msCategoria.selected];
     mkFilter("msCategoria","Categoria",_realCats,_prevCatSel);
   }
+  try{ if(bcs.length){ const _tg=await svFetchAll("stock_target","barcode,filiale,target_qty",bcs); TGT={}; _tg.forEach(function(r){ TGT[r.barcode+"|"+r.filiale]=r.target_qty; }); } }catch(e){}
   if(gen!==RUN_GEN)return;
   refreshOrdCat();
   draw();
@@ -1147,7 +1148,7 @@ function drawMatrix(cells,negozi){
       let extra=""; if(c._storico)extra+='<span class="bdg stor" title="fornitore storico">storico</span>';
       if(c.prenotati>0)extra+=`<span class="bdg pkg" title="${c.prenotati} prenotati">📦${c.prenotati}</span>`;
       if(c.in_arrivo>0)extra+=`<span class="bdg truck" title="${c.in_arrivo} in arrivo">🚚${c.in_arrivo}</span>`;
-      const tg=editTarget?(TIN+t+'">'):((t>0&&t!==c.disponibile)?`<span style="position:absolute;top:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t}</span>`:"");
+      const tg=editTarget?(TIN+t+'">'):(((t-(c.disponibile||0))>0)?`<span style="position:absolute;top:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t-(c.disponibile||0)}</span>`:"");
       const og=editOrder?((OIN.replace("var(--truck)",o>0?"var(--ok)":"var(--truck)"))+o+'">'):(o>0?`<span style="position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--ok);font-weight:700">✎${o}</span>`:"");
       tr+=`<td class="filcol ${cls}" data-bc="${esc(c.barcode)}" data-fil="${esc(c.filiale)}" data-tgt="${t}" data-ord="${o}" title="obiettivo ${t} · disp ${c.disponibile} · mag ${c.magazzino} · pren ${c.prenotati} · in arrivo ${c.in_arrivo} · venduto ${c.venduto} · ord.man ${o}"><div class="cg">${c.disponibile}</div>${tg}<div class="cv" title="venduto anno">${c.venduto}</div>${og}${extra?`<span class="bdgs">${extra}</span>`:""}</td>`;
     }
@@ -1156,11 +1157,11 @@ function drawMatrix(cells,negozi){
       let ex2="";
       if(s&&s.p>0)ex2+=`<span class="bdg pkg" title="${s.p} prenotati">📦${s.p}</span>`;
       if(s&&s.a>0)ex2+=`<span class="bdg truck" title="${s.a} in arrivo">🚚${s.a}</span>`;
-      const tg=editTarget?(TIN+t+'">'):((t>0&&t!==disp)?`<span style="position:absolute;top:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t}</span>`:"");
+      const tg=editTarget?(TIN+t+'">'):(((t-(disp||0))>0)?`<span style="position:absolute;top:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹${t-(disp||0)}</span>`:"");
       const og=editOrder?((OIN.replace("var(--truck)",o>0?"var(--ok)":"var(--truck)"))+o+'">'):(o>0?`<span style="position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--ok);font-weight:700">✎${o}</span>`:"");
       tr+=`<td class="filcol ${cls}" data-bc="${esc(r.info.barcode)}" data-fil="${esc(f)}" data-tgt="${t}" data-ord="${o}" style="background:rgba(255,255,255,.02)" title="${esc(filName(f))} · obiettivo ${t} · disp ${disp} · mag ${s?s.m:0} · pren ${s?s.p:0} · in arrivo ${s?s.a:0} · venduto ${vend} · ord.man ${o}"><div class="cg">${disp}</div>${tg}<div class="cv" title="venduto anno">${vend}</div>${og}${ex2?`<span class="bdgs">${ex2}</span>`:""}</td>`;
     }
-    {const _de=(extraStock[r.info.barcode]&&extraStock[r.info.barcode]["A"])||null;const _dd=_de?(_de.d||0):0;const _da=_de?(_de.a||0):0;const _dt=effTargetExtra(r.info.barcode,"A");const _dtg=editTarget?(TIN+_dt+'">'):((_dt>0&&_dt!==_dd)?'<span style="position:absolute;top:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹'+_dt+'</span>':'');tr+=`<td class="depcol" data-bc="${esc(r.info.barcode)}" data-fil="A" data-tgt="${_dt}" title="Deposito · obiettivo ${_dt} · disp ${_dd} · in arrivo ${_da}"><div class="cg">${_dd}</div>${_dtg}${_da?`<span class="bdgs"><span class="bdg truck" title="${_da} in arrivo">🚚${_da}</span></span>`:``}</td>`;tr+=`<td class="tot"><div class="cg">${r._tot+_dd}</div><div class="cv">${r._vtot}</div></td></tr>`;} return tr;
+    {const _de=(extraStock[r.info.barcode]&&extraStock[r.info.barcode]["A"])||null;const _dd=_de?(_de.d||0):0;const _da=_de?(_de.a||0):0;const _dt=effTargetExtra(r.info.barcode,"A");const _dtg=editTarget?(TIN+_dt+'">'):(((_dt-_dd)>0)?'<span style="position:absolute;top:1px;left:3px;font-size:9px;color:var(--accent);font-weight:700">◹'+(_dt-_dd)+'</span>':'');tr+=`<td class="depcol" data-bc="${esc(r.info.barcode)}" data-fil="A" data-tgt="${_dt}" title="Deposito · obiettivo ${_dt} · disp ${_dd} · in arrivo ${_da}"><div class="cg">${_dd}</div>${_dtg}${_da?`<span class="bdgs"><span class="bdg truck" title="${_da} in arrivo">🚚${_da}</span></span>`:``}</td>`;tr+=`<td class="tot"><div class="cg">${r._tot+_dd}</div><div class="cv">${r._vtot}</div></td></tr>`;} return tr;
   });
   $("#tbl").tBodies[0].innerHTML=body.join("")||'<tr><td class="mar" colspan="'+(negozi.length+xf.length+3)+'" style="text-align:center;color:var(--muted);padding:24px">Nessuna referenza con mancanti. ✅</td></tr>';
   const _depG=rows.reduce(function(s,r){var e=extraStock[r.info.barcode]&&extraStock[r.info.barcode]["A"];return s+((e&&e.d)||0);},0);const _depA=rows.reduce(function(s,r){var e=extraStock[r.info.barcode]&&extraStock[r.info.barcode]["A"];return s+((e&&e.a)||0);},0);$("#tbl").tFoot.innerHTML="<tr><td class='mar'>Totale giac. / vend.</td>"+negozi.map(n=>`<td><div class="cg">${colTot[n]}</div><div class="cv">${colVend[n]}</div></td>`).join("")+xf.map(()=>"<td></td>").join("")+`<td class='depcol'><div class="cg">${_depG}</div>${_depA?`<span class="bdgs"><span class="bdg truck" title="${_depA} in arrivo">🚚${_depA}</span></span>`:``}</td><td class='tot'><div class="cg">${grand+_depG}</div><div class="cv">${grandVend}</div></td></tr>`;
