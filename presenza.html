@@ -1049,9 +1049,9 @@ async function _runOnce(gen){
   await applyFornGiacFilter();
   // Aggiorna filtro categoria con le categorie realmente presenti in lastCells (non solo quelle dall'ideale)
   if(FILTERS.msCategoria){
-    const _realCats=[...new Set(lastCells.map(function(c){return (c.categoria||'').trim().toUpperCase();}).filter(Boolean))].sort();
+    const _realCats=[...new Set(lastCells.map(function(c){return (c.categoria||'').trim().toUpperCase();}).filter(Boolean))]; const _union=[...new Set([].concat((FILTERS.msCategoria.items||[]), _realCats))].sort();
     const _prevCatSel=[...FILTERS.msCategoria.selected];
-    mkFilter("msCategoria","Categoria",_realCats,_prevCatSel);
+    mkFilter("msCategoria","Categoria",_union,_prevCatSel);
   }
   try{ if(bcs.length){ const _tg=await svFetchAll("stock_target","barcode,filiale,target_qty",bcs); TGT={}; _tg.forEach(function(r){ TGT[r.barcode+"|"+r.filiale]=r.target_qty; }); } }catch(e){}
   if(gen!==RUN_GEN)return;
