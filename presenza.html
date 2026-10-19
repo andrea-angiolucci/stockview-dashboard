@@ -61,10 +61,10 @@
   th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
   thead th{position:sticky;top:0;background:var(--panel2);color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;z-index:5}
   tbody tr:hover td{background:var(--panel2)}
-  .ref b{color:var(--txt)} .ref small{display:block;color:var(--muted);font-size:11.5px}
+  .ref b{color:var(--txt);display:block;overflow:hidden;text-overflow:ellipsis} .ref small{display:block;color:var(--muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis}
   .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11.5px;font-weight:600}
   .pill.bad{background:rgba(255,107,107,.15);color:var(--bad)}
-  .filcol{position:relative;text-align:center;border-left:1px solid var(--line);position:relative}
+  .filcol{position:relative;text-align:center;border-left:1px solid var(--line);min-width:58px;padding-left:4px;padding-right:4px}
   .depcol{text-align:center;border-left:1px solid var(--line);background:rgba(148,163,184,.06);position:relative}
   thead th.depcol-h{text-align:center;background:#2a3546;color:var(--muted);border-left:2px solid var(--line);font-weight:700}
   tfoot td.depcol{background:var(--panel2);font-weight:700}
@@ -132,7 +132,7 @@
   body.editcat #tbl td.mar.ref[data-bc]{cursor:pointer}
   body.editcat #tbl td.mar.ref[data-bc]::after{content:"\270F";position:absolute;bottom:4px;right:6px;font-size:12px;color:var(--accent);opacity:.9;pointer-events:none}
   #tbl td.mar.ref[data-pend]::before{content:"\270E";position:absolute;top:4px;right:6px;font-size:12px;color:var(--accent);font-weight:700;pointer-events:none;text-shadow:0 0 2px #000}
-  #tbl td.mar.ref{position:relative}
+  #tbl td.mar.ref{position:relative;max-width:240px}
   td.catflash{animation:catfl 1s ease}
   @keyframes catfl{0%{background:rgba(54,201,141,.55)}100%{background:transparent}}
   .catmodal-back{position:fixed;inset:0;background:rgba(4,10,18,.66);display:none;align-items:center;justify-content:center;z-index:70;padding:20px}
@@ -1334,7 +1334,7 @@ boot();
 
 <style>
 .svbadge{display:inline-block;font-size:10px;line-height:1.25;padding:1px 5px;border-radius:3px;margin:0 0 1px 0;cursor:pointer;font-weight:700}
-.svbadge.alloc{font-size:9px;color:#5b9bd5;background:rgba(91,155,213,.20);border-radius:4px;padding:0 3px;line-height:1.3;white-space:nowrap;cursor:pointer}
+.svbadge.alloc{display:block;margin-top:2px;text-align:center;font-size:9px;color:#5b9bd5;line-height:1.2;white-space:nowrap;cursor:pointer}
 .svbadge.arr{background:#127a2e;color:#fff}
 .svzero-btn{cursor:pointer;display:inline-block;min-width:14px;padding:0 5px;border-radius:4px;font-weight:700}
 .svzero-btn:hover{background:rgba(255,107,107,.28);outline:1px solid var(--bad)}
@@ -1440,7 +1440,7 @@ function decorate2(){
    td.classList.add('svzero');
    var _cg=td.querySelector('.cg');if(_cg&&!_cg.querySelector('.svzero-btn')){_cg.innerHTML='<span class="svzero-btn">'+(_cg.textContent||'0').trim()+'</span>';}
    var a=ALLOC[kk]||(window.ALLOC_ALL&&window.ALLOC_ALL[kk])||null;
-   if(a){var b=document.createElement('span');b.className='svbadge alloc';b.textContent='🔒 '+ddmm(a.allocato_il);b.title='Allocato da '+(a.allocato_da||'\u2014')+' il '+ddmm(a.allocato_il)+(a.note?(' - '+a.note):'');var _bd=td.querySelector('.bdgs');if(!_bd){_bd=document.createElement('span');_bd.className='bdgs';td.appendChild(_bd);}_bd.appendChild(b);}
+   if(a){var b=document.createElement('span');b.className='svbadge alloc';b.textContent='🔒 '+ddmm(a.allocato_il);b.title='Allocato da '+(a.allocato_da||'\u2014')+' il '+ddmm(a.allocato_il)+(a.note?(' - '+a.note):'');td.appendChild(b);}
   });
  }catch(e){}
  finally{ if(OBS)try{OBS.observe(document.body,{childList:true,subtree:true});}catch(e){} }
