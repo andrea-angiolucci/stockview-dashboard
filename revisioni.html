@@ -183,7 +183,8 @@ function sArrow(st,k){ return st.key===k?'<span class="arw">'+(st.dir==="asc"?"�
 function sTh(st,k,label){ return '<th class="rvsort'+(st.key===k?" on":"")+'" data-k="'+k+'">'+esc(label)+sArrow(st,k)+'</th>'; }
 function sApply(rows,st,fn){ var d=st.dir==="asc"?1:-1; rows.sort(function(a,b){ var va=fn(a,st.key),vb=fn(b,st.key),c; if(typeof va==="number"&&typeof vb==="number")c=va-vb; else c=String(va).localeCompare(String(vb)); return c*d; }); return rows; }
 function sWire(host,st,rerender){ if(!host)return; host.querySelectorAll("th.rvsort").forEach(function(th){ th.onclick=function(){ var k=th.getAttribute("data-k"); if(st.key===k){ st.dir=(st.dir==="asc"?"desc":"asc"); } else { st.key=k; st.dir=(k==="data"||k==="giorni")?"desc":"asc"; } rerender(); }; }); }
-function ccVal(r,k){ if(k==="data")return r.richiesta_il?new Date(r.richiesta_il).getTime():0; if(k==="barcode")return r.barcode||""; if(k==="marchio")return r.marchio||""; if(k==="modello")return r.modello||""; if(k==="fornitore")return r.fornitore||""; if(k==="tipo")return r.tipo_lenti||""; if(k==="cata")return r.categoria_attuale||""; if(k==="catp")return r.categoria_proposta||""; if(k==="richda")return r.richiesta_da||""; return ""; }
+function _ggDa(ts){ try{ return Math.max(0, Math.floor((Date.now()-new Date(ts).getTime())/86400000)); }catch(e){ return 0; } }
+  function ccVal(r,k){ if(k==="data")return r.richiesta_il?new Date(r.richiesta_il).getTime():0; if(k==="barcode")return r.barcode||""; if(k==="marchio")return r.marchio||""; if(k==="modello")return r.modello||""; if(k==="fornitore")return r.fornitore||""; if(k==="tipo")return r.tipo_lenti||""; if(k==="cata")return r.categoria_attuale||""; if(k==="catp")return r.categoria_proposta||""; if(k==="richda")return r.richiesta_da||""; return ""; }
 function coVal(r,k){ if(k==="data")return r.completata_il?new Date(r.completata_il).getTime():0; return ccVal(r,k); }
 function ntVal(r,k){ if(k==="data")return r.aggiornato_il?new Date(r.aggiornato_il).getTime():0; if(k==="barcode")return r.barcode||""; if(k==="marchio")return r.marchio||""; if(k==="modello")return r.modello||""; if(k==="da")return ntFn(r.filiale_da); if(k==="a")return ntFn(r.filiale_a); if(k==="segn")return r.aggiornato_da||""; if(k==="giorni"){ var ag=r.aggiornato_il?new Date(r.aggiornato_il).getTime():0; return ag?(Date.now()-ag):0; } return ""; }
 function subline(r){ var x=[r.colore,r.calibro].filter(Boolean).map(esc).join(" · "); return x?'<span class="subline">'+x+'</span>':""; }
@@ -213,10 +214,10 @@ function renderCC(){
     h+='<div class="tablewrap" id="ccPendWrap"><table><thead>'+head+'</thead><tbody>'+P.map(function(r){
       var eseg=r.stato_operatore==="eseguito";
       var act;
-      if(eseg){ act='<span class="badge-wait">⏳ Attesa conferma</span><button class="btn-undo ccUndo" data-id="'+esc(r.id)+'">↩ Annulla</button>'; }
+      if(eseg){ act='<span class="badge-wait">⏳ Attesa conferma</span>'+(r.eseguito_il?'<span style="font-size:11px;color:var(--muted);margin:0 6px">da '+_ggDa(r.eseguito_il)+'g</span>':'')+'<button class="btn-undo ccUndo" data-id="'+esc(r.id)+'">↩ Annulla</button>'; }
       else{ act=(canEseg?'<button class="pill-eseg ccEseg" data-id="'+esc(r.id)+'">✓ Eseguito</button>':''); if(isAdmin){ act+=(act?' ':'')+'<button class="btn-annulla ccDel" data-del="'+esc(r.id)+'" title="Elimina richiesta">🗑</button>'; } }
       return '<tr class="'+(eseg?"eseg":"")+'">'+
-        '<td class="muted" style="white-space:nowrap">'+esc(fmtDate(r.richiesta_il))+'</td>'+
+        '<td class="muted" style="white-space:nowrap">'+esc(fmtDate(r.richiesta_il))+(r.richiesta_il?'<div style="font-size:11px;color:var(--accent)">'+_ggDa(r.richiesta_il)+'g fa</div>':'')+'</td>'+
         '<td>'+esc(r.barcode||"")+'</td>'+
         '<td><b>'+esc(r.marchio||"—")+'</b></td>'+
         '<td>'+esc(r.modello||"—")+subline(r)+'</td>'+
