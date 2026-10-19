@@ -1334,7 +1334,7 @@ boot();
 
 <style>
 .svbadge{display:inline-block;font-size:10px;line-height:1.25;padding:1px 5px;border-radius:3px;margin:0 0 1px 0;cursor:pointer;font-weight:700}
-.svbadge.alloc{position:absolute;bottom:1px;left:2px;font-size:10px;line-height:1;color:#5b9bd5;pointer-events:none;background:transparent}
+.svbadge.alloc{font-size:9px;color:#5b9bd5;background:rgba(91,155,213,.20);border-radius:4px;padding:0 3px;line-height:1.3;white-space:nowrap;cursor:pointer}
 .svbadge.arr{background:#127a2e;color:#fff}
 .svzero-btn{cursor:pointer;display:inline-block;min-width:14px;padding:0 5px;border-radius:4px;font-weight:700}
 .svzero-btn:hover{background:rgba(255,107,107,.28);outline:1px solid var(--bad)}
@@ -1440,7 +1440,7 @@ function decorate2(){
    td.classList.add('svzero');
    var _cg=td.querySelector('.cg');if(_cg&&!_cg.querySelector('.svzero-btn')){_cg.innerHTML='<span class="svzero-btn">'+(_cg.textContent||'0').trim()+'</span>';}
    var a=ALLOC[kk]||(window.ALLOC_ALL&&window.ALLOC_ALL[kk])||null;
-   if(a){var b=document.createElement('span');b.className='svbadge alloc';b.textContent='🔒';b.title='Allocato da '+(a.allocato_da||'\u2014')+' il '+ddmm(a.allocato_il)+(a.note?(' - '+a.note):'');td.appendChild(b);}
+   if(a){var b=document.createElement('span');b.className='svbadge alloc';b.textContent='🔒 '+ddmm(a.allocato_il);b.title='Allocato da '+(a.allocato_da||'\u2014')+' il '+ddmm(a.allocato_il)+(a.note?(' - '+a.note):'');var _bd=td.querySelector('.bdgs');if(!_bd){_bd=document.createElement('span');_bd.className='bdgs';td.appendChild(_bd);}_bd.appendChild(b);}
   });
  }catch(e){}
  finally{ if(OBS)try{OBS.observe(document.body,{childList:true,subtree:true});}catch(e){} }
