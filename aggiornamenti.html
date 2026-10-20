@@ -59,7 +59,9 @@
 
   /* Badges & buttons */
   .badge-wait{display:inline-block;background:rgba(245,165,36,.18);color:var(--warn);border:1px solid rgba(245,165,36,.4);border-radius:10px;padding:3px 9px;font-size:12px;font-weight:700;white-space:nowrap}
-  .pill-eseg{display:inline-block;background:var(--ok);color:#04121f;border:none;border-radius:10px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .badge-transit{display:inline-block;background:rgba(245,165,36,.18);color:var(--warn);border:1px solid rgba(245,165,36,.4);border-radius:10px;padding:3px 9px;font-size:12px;font-weight:600;white-space:nowrap}
+.badge-transit.overdue{background:rgba(229,72,77,.18);color:#e5484d;border-color:rgba(229,72,77,.45)}
+.pill-eseg{display:inline-block;background:var(--ok);color:#04121f;border:none;border-radius:10px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
   .pill-eseg:hover{filter:brightness(1.08)}
   .pill-eseg:disabled{opacity:.55;cursor:wait}
   .btn-undo{background:transparent;border:1px solid var(--muted);color:var(--muted);border-radius:8px;padding:3px 9px;font-size:12px;font-weight:600;cursor:pointer;margin-left:6px;white-space:nowrap}
@@ -193,14 +195,7 @@
       <div id="secNTcomp"><div class="notice">Caricamento…</div></div>
     </div>
 
-    <div class="family">
-      <div class="family-header">
-        <span class="fam-icon">📦</span>
-        <h3>Rimpiazzi confermati</h3>
-        <span class="cnt" id="cntRMcomp">…</span>
-      </div>
-      <div id="secRMcomp"><div class="notice">Caricamento…</div></div>
-    </div>
+    
 
   </div>
 </div>
@@ -454,57 +449,40 @@ async function rmTrash(id){
   try{var r=await sb.from("rimpiazzi_deposito").update({stato:"eliminato"}).eq("id",id);if(r.error)throw r.error;RM_ROWS=RM_ROWS.filter(function(x){return String(x.id)!==String(id);});renderRM();toast("Rimpiazzo eliminato");}catch(e){toast("Errore: "+String((e&&e.message)||e),true);}
 }
 
+function rmOverdue(ts){ if(!ts)return false; try{ var d=new Date(ts); var now=new Date(); d.setHours(0,0,0,0); now.setHours(0,0,0,0); return d.getTime()<now.getTime(); }catch(e){ return false; } }
 function renderRM(){
-  var daFare=RM_ROWS.filter(function(r){return r.stato==="da_fare";});
-  var attesa=RM_ROWS.filter(function(r){return r.stato==="attesa_conferma";});
-
-  var cntEl=document.getElementById("cntRM"); if(cntEl) cntEl.textContent=daFare.length;
-  var cntCEl=document.getElementById("cntRMcomp"); if(cntCEl) cntCEl.textContent=attesa.length;
-
+  var open=RM_ROWS.filter(function(r){return r.stato==="da_fare"||r.stato==="attesa_conferma";});
+  open.sort(function(a,b){ var sa=a.stato==="da_fare"?0:1, sb2=b.stato==="da_fare"?0:1; if(sa!==sb2)return sa-sb2; var ga=a.generato_il?new Date(a.generato_il).getTime():0, gb=b.generato_il?new Date(b.generato_il).getTime():0; return ga-gb; });
+  var cntEl=document.getElementById("cntRM"); if(cntEl) cntEl.textContent=open.length;
+  var hostC=document.getElementById("secRMcomp"); if(hostC) hostC.innerHTML="";
   var hostP=document.getElementById("secRM"); if(!hostP)return;
-  if(!daFare.length){hostP.innerHTML='<div class="notice">Nessun rimpiazzo da eseguire.</div>';}
-  else{
-    var head='<tr><th>Barcode</th><th>Marchio</th><th>Modello</th><th>Categoria</th><th>Destinazione</th><th>Cassetto</th><th></th></tr>';
-    hostP.innerHTML='<div class="tablewrap"><table><thead>'+head+'</thead><tbody>'+daFare.map(function(r){
-      var cas=r.cassetto?'<span class="cassetto">'+esc(r.cassetto)+'</span>':'<span class="muted">—</span>';
-      return '<tr>'+
-        '<td class="muted">'+esc(r.barcode||"")+'</td>'+
-        '<td><b>'+esc(r.marchio||"—")+'</b></td>'+
-        '<td>'+esc(r.modello||"—")+subline(r)+'</td>'+
-        '<td><span class="cat-chip">'+esc(r.categoria||"—")+'</span></td>'+
-        '<td class="filiale-dest">'+esc(filName(r.filiale_dest))+'</td>'+
-        '<td>'+cas+'</td>'+
-        '<td style="white-space:nowrap">'+
-          '<button class="pill-eseg rmEseg" data-id="'+esc(r.id)+'">✓ Eseguito</button>'+
-          ' <button class="btn-trash rmTrash" data-id="'+esc(r.id)+'" title="Elimina">🗑</button>'+
-        '</td></tr>';
-    }).join("")+'</tbody></table></div>';
-    hostP.querySelectorAll(".rmEseg").forEach(function(bt){bt.onclick=function(){rmEseguito(bt);};});
-    hostP.querySelectorAll(".rmTrash").forEach(function(bt){bt.onclick=function(){rmTrash(bt.dataset.id);};});
-  }
-
-  var hostC=document.getElementById("secRMcomp"); if(!hostC)return;
-  if(!attesa.length){hostC.innerHTML='<div class="notice">Nessun rimpiazzo in attesa di conferma.</div>';}
-  else{
-    var head2='<tr><th>Barcode</th><th>Marchio</th><th>Modello</th><th>Categoria</th><th>Destinazione</th><th>Cassetto</th><th>Stato</th><th></th></tr>';
-    hostC.innerHTML='<div class="tablewrap"><table><thead>'+head2+'</thead><tbody>'+attesa.map(function(r){
-      var cas=r.cassetto?'<span class="cassetto">'+esc(r.cassetto)+'</span>':'<span class="muted">—</span>';
-      return '<tr>'+
-        '<td class="muted">'+esc(r.barcode||"")+'</td>'+
-        '<td><b>'+esc(r.marchio||"—")+'</b></td>'+
-        '<td>'+esc(r.modello||"—")+subline(r)+'</td>'+
-        '<td><span class="cat-chip">'+esc(r.categoria||"—")+'</span></td>'+
-        '<td class="filiale-dest">'+esc(filName(r.filiale_dest))+'</td>'+
-        '<td>'+cas+'</td>'+
-        '<td><span class="badge-wait">⏳ Attesa conferma</span></td>'+
-        '<td style="white-space:nowrap">'+
-          '<button class="btn-undo rmUndo" data-id="'+esc(r.id)+'">↩ Annulla</button>'+
-          ' <button class="btn-trash rmTrash" data-id="'+esc(r.id)+'" title="Elimina">🗑</button>'+
-        '</td></tr>';
-    }).join("")+'</tbody></table></div>';
-    hostC.querySelectorAll(".rmUndo").forEach(function(bt){bt.onclick=function(){rmUndo(bt.dataset.id);};});
-    hostC.querySelectorAll(".rmTrash").forEach(function(bt){bt.onclick=function(){rmTrash(bt.dataset.id);};});
-  }
+  if(!open.length){ hostP.innerHTML='<div class="notice">Nessun rimpiazzo da gestire.</div>'; updateTotals(); return; }
+  var head='<tr><th>Data</th><th>Barcode</th><th>Marchio</th><th>Modello</th><th>Categoria</th><th>Destinazione</th><th>Cassetto</th><th>Stato</th><th></th></tr>';
+  hostP.innerHTML='<div class="tablewrap"><table><thead>'+head+'</thead><tbody>'+open.map(function(r){
+    var cas=r.cassetto?'<span class="cassetto">'+esc(r.cassetto)+'</span>':'<span class="muted">\u2014</span>';
+    var stato,act;
+    if(r.stato==="attesa_conferma"){
+      var over=rmOverdue(r.eseguito_il);
+      stato='<span class="badge-transit'+(over?" overdue":"")+'">\uD83D\uDE9A In trasferimento dal '+esc(fmtDate(r.eseguito_il))+'</span>';
+      act='<button class="btn-undo rmUndo" data-id="'+esc(r.id)+'">\u21A9 Annulla</button> <button class="btn-trash rmTrash" data-id="'+esc(r.id)+'" title="Elimina">\uD83D\uDDD1</button>';
+    } else {
+      stato='<span class="muted">Da trasferire</span>';
+      act='<button class="pill-eseg rmEseg" data-id="'+esc(r.id)+'">\u2713 Eseguito</button> <button class="btn-trash rmTrash" data-id="'+esc(r.id)+'" title="Elimina">\uD83D\uDDD1</button>';
+    }
+    return '<tr>'+
+      '<td class="muted">'+esc(fmtDate(r.generato_il))+'</td>'+
+      '<td class="muted">'+esc(r.barcode||"")+'</td>'+
+      '<td><b>'+esc(r.marchio||"\u2014")+'</b></td>'+
+      '<td>'+esc(r.modello||"\u2014")+subline(r)+'</td>'+
+      '<td><span class="cat-chip">'+esc(r.categoria||"\u2014")+'</span></td>'+
+      '<td class="filiale-dest">'+esc(filName(r.filiale_dest))+'</td>'+
+      '<td>'+cas+'</td>'+
+      '<td>'+stato+'</td>'+
+      '<td style="white-space:nowrap">'+act+'</td></tr>';
+  }).join("")+'</tbody></table></div>';
+  hostP.querySelectorAll(".rmEseg").forEach(function(bt){bt.onclick=function(){rmEseguito(bt);};});
+  hostP.querySelectorAll(".rmUndo").forEach(function(bt){bt.onclick=function(){rmUndo(bt.dataset.id);};});
+  hostP.querySelectorAll(".rmTrash").forEach(function(bt){bt.onclick=function(){rmTrash(bt.dataset.id);};});
   updateTotals();
 }
 
@@ -512,10 +490,10 @@ function renderRM(){
 function updateTotals(){
   var df=(CC_PEND.filter(function(r){return r.stato_operatore!=="eseguito";}).length)+
          (NT_ROWS.filter(function(x){return !isEseg(x.note);}).length)+
-         (RM_ROWS.filter(function(r){return r.stato==="da_fare";}).length);
+         (RM_ROWS.filter(function(r){return r.stato==="da_fare"||r.stato==="attesa_conferma";}).length);
   var comp=(CC_COMP.length)+
             (NT_ROWS.filter(function(x){return isEseg(x.note);}).length)+
-            (RM_ROWS.filter(function(r){return r.stato==="attesa_conferma";}).length);
+            0);
   var elDF=document.getElementById("cntDaFare"); if(elDF) elDF.textContent=df;
   var elC=document.getElementById("cntComp"); if(elC) elC.textContent=comp;
 }
