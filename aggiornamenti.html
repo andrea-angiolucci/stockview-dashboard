@@ -493,7 +493,7 @@ function updateTotals(){
          (RM_ROWS.filter(function(r){return r.stato==="da_fare"||r.stato==="attesa_conferma";}).length);
   var comp=(CC_COMP.length)+
             (NT_ROWS.filter(function(x){return isEseg(x.note);}).length)+
-            0);
+            0;
   var elDF=document.getElementById("cntDaFare"); if(elDF) elDF.textContent=df;
   var elC=document.getElementById("cntComp"); if(elC) elC.textContent=comp;
 }
