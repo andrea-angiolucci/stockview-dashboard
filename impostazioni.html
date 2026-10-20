@@ -686,22 +686,26 @@ async function rcRenderRegole(host){
     var box=document.createElement('div');
     box.style.cssText='background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;color:var(--txt)';
     box.innerHTML=`<h3 style="margin:0 0 4px;font-size:16px">Regole ricircolo</h3>
-<div style="color:var(--muted);font-size:13px;margin-bottom:12px">Attiva o disattiva le regole applicate dal calcolo notturno dei ricircoli.</div>
+<div style="color:var(--muted);font-size:13px;margin-bottom:12px">Attiva o disattiva le regole applicate dal calcolo notturno dei ricircoli. Le sigle tra parentesi sono le etichette mostrate sui badge nella pagina Ricircolo.</div>
 <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;cursor:pointer">
 <input type="checkbox" id="rgReg1" style="margin-top:3px;width:16px;height:16px">
-<span><b>Sposta doppioni</b><br><span style="color:var(--muted);font-size:13px">Sposta i pezzi in eccesso verso filiali che ne sono sprovviste</span></span>
+<span><b>Doppione <span style="color:var(--accent)">(D)</span></b><br><span style="color:var(--muted);font-size:13px">Sposta i doppioni (pezzi oltre l'obiettivo) verso i negozi che quel modello lo prevedono in assortimento ma ne sono sprovvisti.</span></span>
+</label>
+<label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;cursor:pointer">
+<input type="checkbox" id="rgReg1b" style="margin-top:3px;width:16px;height:16px">
+<span><b>Doppione esteso <span style="color:var(--accent)">(D+)</span></b><br><span style="color:var(--muted);font-size:13px">Estende la regola Doppione: quando tutti i negozi previsti sono coperti e restano ancora doppioni, li manda ai negozi dove il modello NON è previsto ma è a zero, con priorità a chi vende di più quel marchio. Serve a non tenere fermo un doppione e a dare una chance di vendita in più; appena un negozio previsto resta scoperto, la regola Fuori ideale riporta indietro il pezzo. Rispetta le esclusioni. Attiva solo con Doppione attiva.</span></span>
 </label>
 <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;cursor:pointer">
 <input type="checkbox" id="rgReg2" style="margin-top:3px;width:16px;height:16px">
-<span><b>Sposta da filiali fuori ideale</b><br><span style="color:var(--muted);font-size:13px">Sposta i pezzi presenti in filiali non previste dall'assortimento ideale verso filiali con gap negativo</span></span>
+<span><b>Fuori ideale <span style="color:var(--accent)">(I)</span></b><br><span style="color:var(--muted);font-size:13px">Sposta i pezzi che si trovano in negozi dove il modello non è previsto (fuori assortimento) verso i negozi che lo prevedono e sono scoperti.</span></span>
 </label>
 <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer">
 <input type="checkbox" id="rgReg3" style="margin-top:3px;width:16px;height:16px">
-<span><b>Sposta SE verso chi vende di più</b><br><span style="color:var(--muted);font-size:13px">Sposta i pezzi SE dalle filiali che vendono meno il marchio verso quelle che lo vendono di più e ne sono sprovviste</span></span>
+<span><b>Modelli End <span style="color:var(--accent)">(SE)</span></b><br><span style="color:var(--muted);font-size:13px">Sposta le montature di categoria SE dai negozi che vendono meno quel marchio verso quelli che lo vendono di più e ne sono sprovvisti.</span></span>
 </label>
 <div id="rgMsg" style="font-size:12px;color:var(--muted);margin-top:8px;min-height:14px"></div>`;
     host.insertBefore(box, host.firstChild);
-    var c1=box.querySelector('#rgReg1'), c2=box.querySelector('#rgReg2'), c3=box.querySelector('#rgReg3'), msg=box.querySelector('#rgMsg');
+    var c1=box.querySelector('#rgReg1'), c1b=box.querySelector('#rgReg1b'), c2=box.querySelector('#rgReg2'), c3=box.querySelector('#rgReg3'), msg=box.querySelector('#rgMsg');
     function rgSave(chiave, on){
       if(msg) msg.textContent='Salvataggio…';
       sb.from('impostazioni_sistema').update({valore: on?'true':'false'}).eq('chiave', chiave).then(function(r){
@@ -710,12 +714,13 @@ async function rcRenderRegole(host){
       });
     }
     c1.addEventListener('change', function(){ rgSave('ricircolo_regola_1', c1.checked); });
+    c1b.addEventListener('change', function(){ rgSave('ricircolo_regola_1b', c1b.checked); });
     c2.addEventListener('change', function(){ rgSave('ricircolo_regola_2', c2.checked); });
     c3.addEventListener('change', function(){ rgSave('ricircolo_regola_3', c3.checked); });
-    sb.from('impostazioni_sistema').select('chiave,valore').in('chiave', ['ricircolo_regola_1','ricircolo_regola_2','ricircolo_regola_3']).then(function(r){
+    sb.from('impostazioni_sistema').select('chiave,valore').in('chiave', ['ricircolo_regola_1','ricircolo_regola_1b','ricircolo_regola_2','ricircolo_regola_3']).then(function(r){
       var mp={}; ((r&&r.data)||[]).forEach(function(x){ mp[x.chiave]=x.valore; });
       function on(k){ return (mp[k]==null) ? true : String(mp[k]).trim().toLowerCase()==='true'; }
-      c1.checked=on('ricircolo_regola_1'); c2.checked=on('ricircolo_regola_2'); c3.checked=on('ricircolo_regola_3');
+      c1.checked=on('ricircolo_regola_1'); c1b.checked=on('ricircolo_regola_1b'); c2.checked=on('ricircolo_regola_2'); c3.checked=on('ricircolo_regola_3');
     });
   }catch(e){}
 }
