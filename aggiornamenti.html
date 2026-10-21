@@ -260,6 +260,7 @@ var FIL={D:"Catania",I:"Portali",G:"Giarre",Z:"Viale Africa",C:"Acireale",E:"Aug
 function ntFn(c){return FIL[c]||c||"";}
 function subline(r){var x=[r.colore,r.calibro].filter(Boolean).map(esc).join(" · ");return x?'<span class="subline">'+x+'</span>':""; }
 function fmtDate(s){if(!s)return"—";try{var d=new Date(s);return d.toLocaleDateString("it-IT");}catch(e){return s;}}
+function _ggDa(ts){try{return Math.max(0,Math.floor((Date.now()-new Date(ts).getTime())/86400000));}catch(e){return 0;}}
 function isEseg(note){return String(note||"").indexOf("Eseguito")===0;}
 
 let ROLE="gestore", isAdmin=false, USER_EMAIL="";
@@ -319,7 +320,7 @@ function renderCC(){
       if(eseg){act='<span class="badge-wait">⏳ Attesa conferma</span><button class="btn-undo ccUndo" data-id="'+esc(r.id)+'">↩ Annulla</button>';}
       else{act=(canEseg?'<button class="pill-eseg ccEseg" data-id="'+esc(r.id)+'">✓ Eseguito</button>':'');if(isAdmin){act+=(act?' ':'')+'<button class="btn-trash ccDel" data-id="'+esc(r.id)+'" title="Elimina">🗑</button>';}}
       return '<tr class="'+(eseg?"eseg":"")+'">'+
-        '<td class="muted">'+esc(fmtDate(r.richiesta_il))+'</td>'+
+        '<td class="muted">'+esc(fmtDate(r.richiesta_il))+(r.richiesta_il?'<div style="font-size:11px;color:#3da9fc">'+_ggDa(r.richiesta_il)+'g fa</div>':'')+'</td>'+
         '<td>'+esc(r.barcode||"")+'</td>'+
         '<td><b>'+esc(r.marchio||"—")+'</b></td>'+
         '<td>'+esc(r.modello||"—")+subline(r)+'</td>'+
@@ -470,7 +471,7 @@ function renderRM(){
       act='<button class="pill-eseg rmEseg" data-id="'+esc(r.id)+'">\u2713 Eseguito</button> <button class="btn-trash rmTrash" data-id="'+esc(r.id)+'" title="Elimina">\uD83D\uDDD1</button>';
     }
     return '<tr>'+
-      '<td class="muted">'+esc(fmtDate(r.generato_il))+'</td>'+
+      '<td class="muted">'+esc(fmtDate(r.generato_il))+(r.generato_il?'<div style="font-size:11px;color:#3da9fc">'+_ggDa(r.generato_il)+'g fa</div>':'')+'</td>'+
       '<td class="muted">'+esc(r.barcode||"")+'</td>'+
       '<td><b>'+esc(r.marchio||"\u2014")+'</b></td>'+
       '<td>'+esc(r.modello||"\u2014")+subline(r)+'</td>'+
