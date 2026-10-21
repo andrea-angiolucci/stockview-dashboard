@@ -317,7 +317,7 @@ function renderCC(){
     hostP.innerHTML='<div class="tablewrap" id="ccPendWrap"><table><thead>'+head+'</thead><tbody>'+P.map(function(r){
       var eseg=r.stato_operatore==="eseguito";
       var act;
-      if(eseg){act='<span class="badge-wait">⏳ Attesa conferma</span><button class="btn-undo ccUndo" data-id="'+esc(r.id)+'">↩ Annulla</button>';}
+      if(eseg){act='<span class="badge-wait">⏳ Attesa conferma'+(r.eseguito_il?' dal '+esc(fmtDate(r.eseguito_il)):'')+'</span><button class="btn-undo ccUndo" data-id="'+esc(r.id)+'">↩ Annulla</button>';}
       else{act=(canEseg?'<button class="pill-eseg ccEseg" data-id="'+esc(r.id)+'">✓ Eseguito</button>':'');if(isAdmin){act+=(act?' ':'')+'<button class="btn-trash ccDel" data-id="'+esc(r.id)+'" title="Elimina">🗑</button>';}}
       return '<tr class="'+(eseg?"eseg":"")+'">'+
         '<td class="muted">'+esc(fmtDate(r.richiesta_il))+'</td>'+'<td class="muted">'+(r.richiesta_il?_ggDa(r.richiesta_il)+'g':'—')+'</td>'+
@@ -416,7 +416,7 @@ function renderNT(){
     var head2='<tr><th>Data</th><th>Barcode</th><th>Marchio</th><th>Modello</th><th>Da</th><th>A</th><th>Eseguito da</th><th></th></tr>';
     hostC.innerHTML='<div class="tablewrap"><table><thead>'+head2+'</thead><tbody>'+drows.map(function(x){
       var ag=x.aggiornato_il?new Date(x.aggiornato_il):null;
-      var act='<span class="badge-wait">⏳ Attesa conferma</span><button class="btn-undo ntUndo" data-id="'+esc(x.id)+'">↩ Annulla</button>';
+      var act='<span class="badge-wait">⏳ Attesa conferma'+(ag?' dal '+esc(ag.toLocaleDateString("it-IT")):'')+'</span><button class="btn-undo ntUndo" data-id="'+esc(x.id)+'">↩ Annulla</button>';
       return '<tr class="eseg">'+
         '<td class="muted">'+(ag?ag.toLocaleDateString("it-IT"):"—")+'</td>'+
         '<td>'+esc(x.barcode||"")+'</td>'+
