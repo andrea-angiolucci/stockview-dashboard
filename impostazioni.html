@@ -244,6 +244,7 @@ const TABS=[
   {id:"marchiattivi", label:"Marchi attivi", render:renderMarchiAttivi, admin:true},
   {id:"utenti", label:"Utenti", render:renderUtenti, admin:true},
   {id:"ricircolo", label:"Ricircolo", render:renderRicircolo, admin:true},
+  {id:"rimpiazzi", label:"Rimpiazzi deposito", render:renderRimpiazzi, admin:true},
   {id:"permessi", label:"Permessi", render:renderPermessi, admin:true},
   {id:'sistema', label:'Sistema', render:function(h){renderSistema(h);svRenderAggiornamento(h);}, admin:true},
   {id:'filiali', label:'Filiali', render:renderFiliali, admin:true}
@@ -725,7 +726,38 @@ async function rcRenderRegole(host){
   }catch(e){}
 }
 
-async function renderRicircolo(host){
+async function renderRimpiazzi(host){
+  if(!host)return;
+  host.innerHTML='<h3 style="margin:0 0 4px;font-size:15px">Rimpiazzi deposito \u2014 esclusioni per punto vendita</h3>'
+    +'<p class="umuted" style="margin:0 0 12px;font-size:12.5px">Scegli un negozio e spunta i marchi che <b>non</b> devono essere rimpiazzati dal deposito verso quel negozio (es. private label non voluti a Viale Africa). Vale solo per i rimpiazzi deposito.</p>'
+    +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">'
+      +'<label style="font-size:13px;color:var(--muted)">Negozio</label>'
+      +'<select id="rdFil" class="urole" style="min-width:180px"></select>'
+      +'<input id="rdSearch" class="urole" placeholder="Filtra marchi\u2026" style="min-width:160px">'
+      +'<span id="rdBadge" class="urole" style="font-size:11px">0 esclusi</span>'
+    +'</div><div id="rdList" style="max-height:420px;overflow:auto"></div>';
+  var selFil=host.querySelector("#rdFil"),srch=host.querySelector("#rdSearch"),list=host.querySelector("#rdList"),badge=host.querySelector("#rdBadge");
+  var MAR=[],EXC={};
+  function cnt(fil){return Object.keys(EXC[fil]||{}).length;}
+  function renderList(){
+    var fil=selFil.value,q=(srch.value||"").trim().toLowerCase(),ex=EXC[fil]||{};
+    var n=cnt(fil);badge.textContent=n+" esclus"+(n===1?"o":"i");
+    var rows=MAR.filter(function(m){return !q||String(m).toLowerCase().indexOf(q)>=0;});
+    list.innerHTML=rows.length?rows.map(function(m){var on=!!ex[m];return '<div class="rdRow" data-m="'+esc(m)+'" style="padding:5px 8px;border:1px solid var(--line);border-radius:7px;margin-bottom:5px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px"><input type="checkbox" class="rdChk" '+(on?"checked":"")+'> '+esc(m)+'</label></div>';}).join(""):'<div class="umuted" style="padding:10px;font-size:13px">Nessun marchio.</div>';
+    list.querySelectorAll(".rdChk").forEach(function(chk){chk.onchange=async function(){var row=chk.closest(".rdRow"),m=row.getAttribute("data-m"),fil=selFil.value;chk.disabled=true;try{if(chk.checked){var r=await sb.from("rimpiazzi_esclusioni").upsert({filiale:fil,marchio:m},{onConflict:"filiale,marchio"});if(r.error)throw r.error;EXC[fil]=EXC[fil]||{};EXC[fil][m]=1;}else{var r2=await sb.from("rimpiazzi_esclusioni").delete().eq("filiale",fil).eq("marchio",m);if(r2.error)throw r2.error;if(EXC[fil])delete EXC[fil][m];}var n2=cnt(fil);badge.textContent=n2+" esclus"+(n2===1?"o":"i");toast(chk.checked?"Marchio escluso":"Esclusione rimossa");}catch(e){chk.checked=!chk.checked;toast("Errore: "+String((e&&e.message)||e),true);}chk.disabled=false;};});
+  }
+  (async function(){try{
+    var rf=await sb.from("filiali").select("codice,nome").eq("attiva",true).neq("codice","A").order("nome");if(rf.error)throw rf.error;
+    var FIL=(rf.data||[]).filter(function(x){return x.nome;});
+    selFil.innerHTML=FIL.map(function(x){return '<option value="'+esc(x.codice)+'">'+esc(x.nome)+'</option>';}).join("");
+    var rm=await sb.rpc("sv_g_marchi",{p_fornitore:null});if(rm.error)throw rm.error;
+    MAR=(rm.data||[]).map(function(x){return x.marchio;}).filter(Boolean);MAR.sort(function(a,b){return String(a).localeCompare(String(b));});
+    var re=await sb.from("rimpiazzi_esclusioni").select("filiale,marchio");if(re.error)throw re.error;
+    EXC={};(re.data||[]).forEach(function(r){EXC[r.filiale]=EXC[r.filiale]||{};EXC[r.filiale][r.marchio]=1;});
+    selFil.onchange=renderList;srch.oninput=renderList;renderList();
+  }catch(e){list.innerHTML='<div style="color:var(--bad);padding:12px">Errore: '+esc(String((e&&e.message)||e))+'</div>';}})();
+}
+function renderRicircolo(host){
   if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; }
   host.innerHTML='<div class="umuted">Caricamento…</div>';
   var rows;
