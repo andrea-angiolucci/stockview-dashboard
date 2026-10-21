@@ -313,14 +313,14 @@ function renderCC(){
 
   if(!P.length){hostP.innerHTML='<div class="notice">Nessuna richiesta pendente.</div>';}
   else{
-    var head='<tr>'+sTh(CC_SORT,"data","Data")+sTh(CC_SORT,"barcode","Barcode")+sTh(CC_SORT,"marchio","Marchio")+sTh(CC_SORT,"modello","Modello")+sTh(CC_SORT,"fornitore","Fornitore")+sTh(CC_SORT,"tipo","Tipo")+sTh(CC_SORT,"cata","Cat. attuale")+sTh(CC_SORT,"catp","Cat. proposta")+sTh(CC_SORT,"richda","Richiesta da")+'<th></th></tr>';
+    var head='<tr>'+sTh(CC_SORT,"data","Data")+'<th>Giorni</th>'+sTh(CC_SORT,"barcode","Barcode")+sTh(CC_SORT,"marchio","Marchio")+sTh(CC_SORT,"modello","Modello")+sTh(CC_SORT,"fornitore","Fornitore")+sTh(CC_SORT,"tipo","Tipo")+sTh(CC_SORT,"cata","Cat. attuale")+sTh(CC_SORT,"catp","Cat. proposta")+sTh(CC_SORT,"richda","Richiesta da")+'<th></th></tr>';
     hostP.innerHTML='<div class="tablewrap" id="ccPendWrap"><table><thead>'+head+'</thead><tbody>'+P.map(function(r){
       var eseg=r.stato_operatore==="eseguito";
       var act;
       if(eseg){act='<span class="badge-wait">⏳ Attesa conferma</span><button class="btn-undo ccUndo" data-id="'+esc(r.id)+'">↩ Annulla</button>';}
       else{act=(canEseg?'<button class="pill-eseg ccEseg" data-id="'+esc(r.id)+'">✓ Eseguito</button>':'');if(isAdmin){act+=(act?' ':'')+'<button class="btn-trash ccDel" data-id="'+esc(r.id)+'" title="Elimina">🗑</button>';}}
       return '<tr class="'+(eseg?"eseg":"")+'">'+
-        '<td class="muted">'+esc(fmtDate(r.richiesta_il))+(r.richiesta_il?'<div style="font-size:11px;color:#3da9fc">'+_ggDa(r.richiesta_il)+'g fa</div>':'')+'</td>'+
+        '<td class="muted">'+esc(fmtDate(r.richiesta_il))+'</td>'+'<td class="muted">'+(r.richiesta_il?_ggDa(r.richiesta_il)+'g':'—')+'</td>'+
         '<td>'+esc(r.barcode||"")+'</td>'+
         '<td><b>'+esc(r.marchio||"—")+'</b></td>'+
         '<td>'+esc(r.modello||"—")+subline(r)+'</td>'+
@@ -386,7 +386,7 @@ function renderNT(){
   if(!pending.length){host.innerHTML='<div class="notice">Nessuna correzione richiesta. ✅</div>';}
   else{
     var rows=pending.slice(); sApply(rows,NT_SORT,ntVal);
-    var head='<tr>'+sTh(NT_SORT,"data","Data")+sTh(NT_SORT,"barcode","Barcode")+sTh(NT_SORT,"marchio","Marchio")+sTh(NT_SORT,"modello","Modello")+sTh(NT_SORT,"da","Da")+sTh(NT_SORT,"a","A")+sTh(NT_SORT,"segn","Segnalato da")+sTh(NT_SORT,"giorni","Giorni")+'<th></th></tr>';
+    var head='<tr>'+sTh(NT_SORT,"data","Data")+sTh(NT_SORT,"giorni","Giorni")+sTh(NT_SORT,"barcode","Barcode")+sTh(NT_SORT,"marchio","Marchio")+sTh(NT_SORT,"modello","Modello")+sTh(NT_SORT,"da","Da")+sTh(NT_SORT,"a","A")+sTh(NT_SORT,"segn","Segnalato da")+'<th></th></tr>';
     host.innerHTML='<div class="tablewrap" id="ntWrap"><table><thead>'+head+'</thead><tbody>'+rows.map(function(x){
       var ag=x.aggiornato_il?new Date(x.aggiornato_il):null;
       var days=ag?Math.floor((today-ag.getTime())/86400000):0;
@@ -394,14 +394,13 @@ function renderNT(){
       if(canEseg) act='<button class="pill-eseg ntEseg" data-id="'+esc(x.id)+'">✓ Eseguito</button>';
       if(isAdmin) act+=(act?' ':'')+'<button class="btn-ripristina ntRip" data-id="'+esc(x.id)+'">↩ Ripristina</button>';
       return '<tr>'+
-        '<td class="muted">'+(ag?ag.toLocaleDateString("it-IT"):"—")+'</td>'+
+        '<td class="muted">'+(ag?ag.toLocaleDateString("it-IT"):"—")+'</td>'+'<td class="muted">'+days+'g</td>'+
         '<td>'+esc(x.barcode||"")+'</td>'+
         '<td><b>'+esc(x.marchio||"—")+'</b></td>'+
         '<td>'+esc(x.modello||"—")+subline(x)+'</td>'+
         '<td>'+esc(ntFn(x.filiale_da))+'</td>'+
         '<td>'+esc(ntFn(x.filiale_a))+'</td>'+
         '<td class="muted">'+esc(x.aggiornato_da||"")+'</td>'+
-        '<td class="muted">'+days+'g</td>'+
         '<td style="white-space:nowrap">'+act+'</td></tr>';
     }).join("")+'</tbody></table></div>';
     sWire(document.getElementById("ntWrap"),NT_SORT,renderNT);
@@ -458,7 +457,7 @@ function renderRM(){
   var hostC=document.getElementById("secRMcomp"); if(hostC) hostC.innerHTML="";
   var hostP=document.getElementById("secRM"); if(!hostP)return;
   if(!open.length){ hostP.innerHTML='<div class="notice">Nessun rimpiazzo da gestire.</div>'; updateTotals(); return; }
-  var head='<tr><th>Data</th><th>Barcode</th><th>Marchio</th><th>Modello</th><th>Categoria</th><th>Destinazione</th><th>Cassetto</th><th>Stato</th><th></th></tr>';
+  var head='<tr><th>Data</th><th>Giorni</th><th>Barcode</th><th>Marchio</th><th>Modello</th><th>Categoria</th><th>Destinazione</th><th>Cassetto</th><th>Stato</th><th></th></tr>';
   hostP.innerHTML='<div class="tablewrap"><table><thead>'+head+'</thead><tbody>'+open.map(function(r){
     var cas=r.cassetto?'<span class="cassetto">'+esc(r.cassetto)+'</span>':'<span class="muted">\u2014</span>';
     var stato,act;
@@ -471,7 +470,7 @@ function renderRM(){
       act='<button class="pill-eseg rmEseg" data-id="'+esc(r.id)+'">\u2713 Eseguito</button> <button class="btn-trash rmTrash" data-id="'+esc(r.id)+'" title="Elimina">\uD83D\uDDD1</button>';
     }
     return '<tr>'+
-      '<td class="muted">'+esc(fmtDate(r.generato_il))+(r.generato_il?'<div style="font-size:11px;color:#3da9fc">'+_ggDa(r.generato_il)+'g fa</div>':'')+'</td>'+
+      '<td class="muted">'+esc(fmtDate(r.generato_il))+'</td>'+'<td class="muted">'+(r.generato_il?_ggDa(r.generato_il)+'g':'—')+'</td>'+
       '<td class="muted">'+esc(r.barcode||"")+'</td>'+
       '<td><b>'+esc(r.marchio||"\u2014")+'</b></td>'+
       '<td>'+esc(r.modello||"\u2014")+subline(r)+'</td>'+
