@@ -726,7 +726,7 @@ async function rcRenderRegole(host){
   }catch(e){}
 }
 
-async function renderRimpiazzi(host){
+function renderRimpiazzi(host){
   if(!host)return;
   host.innerHTML='<h3 style="margin:0 0 4px;font-size:15px">Rimpiazzi deposito \u2014 esclusioni per punto vendita</h3>'
     +'<p class="umuted" style="margin:0 0 12px;font-size:12.5px">Scegli un negozio e spunta i marchi che <b>non</b> devono essere rimpiazzati dal deposito verso quel negozio (es. private label non voluti a Viale Africa). Vale solo per i rimpiazzi deposito.</p>'
@@ -757,7 +757,7 @@ async function renderRimpiazzi(host){
     selFil.onchange=renderList;srch.oninput=renderList;renderList();
   }catch(e){list.innerHTML='<div style="color:var(--bad);padding:12px">Errore: '+esc(String((e&&e.message)||e))+'</div>';}})();
 }
-function renderRicircolo(host){
+async function renderRicircolo(host){
   if(!isAdmin){ host.innerHTML='<div class="err">Sezione riservata agli amministratori.</div>'; return; }
   host.innerHTML='<div class="umuted">Caricamento…</div>';
   var rows;
