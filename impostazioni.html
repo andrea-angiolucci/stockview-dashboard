@@ -799,7 +799,88 @@ async function renderRicircolo(host){
   });
 
       rcRenderRegole(host);
+      rcRenderAdhoc(host);
     }
+
+// ---------- Regole ad-hoc ricircolo (solo admin) ----------
+function rcFilNome(code){ for(var i=0;i<RC_FILIALI.length;i++){ if(RC_FILIALI[i][0]===code) return RC_FILIALI[i][1]; } return code; }
+function rcAdhocLabel(r){
+  var parts=[];
+  if(r.filiale){ var d=r.direzione||"entrambe"; var dl = d==="prelievo"?"prelievo da":(d==="consegna"?"consegna a":"prelievo/consegna"); parts.push(dl+" "+rcFilNome(r.filiale)); }
+  if(r.marchio) parts.push("marchio "+r.marchio);
+  if(r.fornitore) parts.push("fornitore "+r.fornitore);
+  return parts.join(" \u00b7 ");
+}
+async function rcRenderAdhoc(host){
+  if(!isAdmin) return;
+  var wrap=document.createElement("div");
+  wrap.id="rcAdhocWrap";
+  wrap.style.cssText="margin-top:22px;border-top:1px solid var(--line);padding-top:16px";
+  wrap.innerHTML='<div class="umuted">Caricamento regole ad-hoc\u2026</div>';
+  host.appendChild(wrap);
+  var forn=[], mar=[], rules=[];
+  try{
+    var rf=await sb.rpc("sv_g_fornitori"); if(rf.error)throw rf.error;
+    var rm=await sb.rpc("sv_g_marchi",{p_fornitore:null}); if(rm.error)throw rm.error;
+    forn=(rf.data||[]).map(function(x){return x.fornitore;}).filter(Boolean).sort(function(a,b){return String(a).localeCompare(String(b));});
+    mar=(rm.data||[]).map(function(x){return x.marchio;}).filter(Boolean).sort(function(a,b){return String(a).localeCompare(String(b));});
+    var rr=await sb.from("ricircolo_regole_adhoc").select("id,filiale,direzione,marchio,fornitore,attiva,nota").order("id",{ascending:true});
+    if(rr.error)throw rr.error; rules=rr.data||[];
+  }catch(e){ wrap.innerHTML='<div class="err">Errore: '+esc(String((e&&e.message)||e))+'</div>'; return; }
+  rcAdhocDraw(wrap, forn, mar, rules);
+}
+function rcAdhocDraw(wrap, forn, mar, rules){
+  function opt(v,label,sel){ return '<option value="'+esc(v)+'"'+(sel?" selected":"")+'>'+esc(label)+'</option>'; }
+  var filOpts='<option value="">\u2014 qualsiasi \u2014</option>'+RC_FILIALI.map(function(f){return opt(f[0],f[1]+" ("+f[0]+")");}).join("");
+  var dirOpts=opt("prelievo","solo prelievo (mittente)")+opt("consegna","solo consegna (destinataria)")+opt("entrambe","entrambe le direzioni",true);
+  var marOpts='<option value="">\u2014 qualsiasi \u2014</option>'+mar.map(function(v){return opt(v,v);}).join("");
+  var fornOpts='<option value="">\u2014 qualsiasi \u2014</option>'+forn.map(function(v){return opt(v,v);}).join("");
+  var builder='<div style="border:1px dashed var(--line);border-radius:8px;padding:12px;margin-bottom:14px">'
+    +'<div style="font-size:13px;font-weight:600;margin-bottom:8px">\u2795 Nuova regola \u2014 combina i mattoni (lascia \u201cqualsiasi\u201d per ignorare un mattone)</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">'
+      +'<div><label style="font-size:11px;color:var(--muted);display:block">Filiale</label><select id="ahFil" class="urole">'+filOpts+'</select></div>'
+      +'<div><label style="font-size:11px;color:var(--muted);display:block">Direzione</label><select id="ahDir" class="urole">'+dirOpts+'</select></div>'
+      +'<div><label style="font-size:11px;color:var(--muted);display:block">Marchio</label><select id="ahMar" class="urole">'+marOpts+'</select></div>'
+      +'<div><label style="font-size:11px;color:var(--muted);display:block">Fornitore</label><select id="ahForn" class="urole">'+fornOpts+'</select></div>'
+      +'<div><label style="font-size:11px;color:var(--muted);display:block">Nota</label><input id="ahNota" class="urole" placeholder="facoltativa" style="min-width:140px"></div>'
+      +'<button id="ahAdd" class="ubtn" style="white-space:nowrap">Crea regola</button>'
+    +'</div>'
+    +'<div class="err" id="ahErr" style="min-height:14px;margin-top:6px"></div>'
+  +'</div>';
+  var list = rules.length? rules.map(function(r){ var onoff=r.attiva!==false;
+      return '<div class="ahRow" data-id="'+r.id+'" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;'+(onoff?"":"opacity:.55")+'">'
+        +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted)"><input type="checkbox" class="ahChk" '+(onoff?"checked":"")+'> attiva</label>'
+        +'<div style="flex:1;min-width:0;font-size:13.5px"><b>Blocca:</b> '+esc(rcAdhocLabel(r))+(r.nota?' <span class="umuted" style="font-size:11px">\u2014 '+esc(r.nota)+'</span>':"")+'</div>'
+        +'<button class="ahDel" title="Elimina" style="background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:6px 9px;cursor:pointer">\uD83D\uDDD1</button>'
+      +'</div>';
+    }).join("") : '<div class="umuted" style="font-size:12.5px">Nessuna regola ad-hoc. Creane una qui sopra.</div>';
+  wrap.innerHTML='<h3 style="margin:0 0 4px;font-size:15px">Regole ad-hoc</h3>'
+    +'<p class="umuted" style="margin:0 0 12px;font-size:12.5px">Regole su misura, componibili a mattoni e indipendenti dalle esclusioni generali. Un movimento di ricircolo che soddisfa <b>tutte</b> le condizioni di una regola attiva viene bloccato. Es: Portali + solo prelievo + Cartier = \u00abda Portali non esce Cartier\u00bb.</p>'
+    +builder
+    +'<div id="ahList">'+list+'</div>';
+  wrap.querySelector("#ahAdd").onclick=async function(){
+    var fil=wrap.querySelector("#ahFil").value||null;
+    var dir=wrap.querySelector("#ahDir").value||"entrambe";
+    var m=wrap.querySelector("#ahMar").value||null;
+    var f=wrap.querySelector("#ahForn").value||null;
+    var nota=(wrap.querySelector("#ahNota").value||"").trim()||null;
+    var err=wrap.querySelector("#ahErr"); err.textContent="";
+    if(!fil && !m && !f){ err.textContent="Imposta almeno un mattone (filiale, marchio o fornitore)."; return; }
+    try{
+      var ins=await sb.from("ricircolo_regole_adhoc").insert({filiale:fil,direzione:(fil?dir:null),marchio:m,fornitore:f,nota:nota,attiva:true});
+      if(ins.error)throw ins.error;
+      toast("Regola creata");
+      var rr=await sb.from("ricircolo_regole_adhoc").select("id,filiale,direzione,marchio,fornitore,attiva,nota").order("id",{ascending:true});
+      rcAdhocDraw(wrap, forn, mar, (rr.data||[]));
+    }catch(e){ err.textContent=String((e&&e.message)||e); }
+  };
+  wrap.querySelectorAll(".ahRow").forEach(function(row){
+    var id=row.dataset.id;
+    var chk=row.querySelector(".ahChk");
+    chk.onchange=async function(){ try{ var r=await sb.from("ricircolo_regole_adhoc").update({attiva:chk.checked}).eq("id",id); if(r.error)throw r.error; row.style.opacity=chk.checked?"":".55"; rcFlash(row); }catch(e){ chk.checked=!chk.checked; toast(String((e&&e.message)||e),true); } };
+    row.querySelector(".ahDel").onclick=async function(){ if(!confirm("Eliminare questa regola?"))return; try{ var r=await sb.from("ricircolo_regole_adhoc").delete().eq("id",id); if(r.error)throw r.error; row.remove(); toast("Regola eliminata"); }catch(e){ toast(String((e&&e.message)||e),true); } };
+  });
+}
 
 // ---------- Tab: Permessi ruoli (solo admin) ----------
 const RP_PAGES=[["presenza","Controllo presenza"],["assortimento","Assortimento ideale"],["ricircolo","Ricircolo"],["aggiornamenti","Aggiornamenti"],["impostazioni","Impostazioni"]];
