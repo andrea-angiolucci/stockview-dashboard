@@ -75,6 +75,13 @@ function esc(s){s=String(s==null?"":s);return s.replace(/&/g,"&amp;").replace(/<
 var FN={D:"Catania",I:"Portali",G:"Giarre",Z:"Viale Africa",C:"Acireale",E:"Augusta",H:"Lentini",B:"Paternò",A:"Deposito"};
 function filName(c){return FN[c]||c||"";}
 var ROWS=[], PAGE=0, PER=50, RC_ROLE="gestore", RC_FIL=null;
+var STO_STACK=[{key:"data",dir:"desc"}];
+function stoVal(x,k){if(k==="data")return x.aggiornato_il?new Date(x.aggiornato_il).getTime():0;if(k==="barcode")return x.barcode||"";if(k==="desc")return [x.marchio,x.modello,x.colore].filter(Boolean).join(" ");if(k==="daa")return filName(x.filiale_da)+" "+filName(x.filiale_a);if(k==="giorni"){var ag=x.aggiornato_il?new Date(x.aggiornato_il).getTime():0,cr=x.creato_il?new Date(x.creato_il).getTime():0;return (ag&&cr)?Math.max(0,Math.round((ag-cr)/86400000)):-1;}return "";}
+function stoSort(rows){var s=STO_STACK;if(!s.length)return rows;rows.sort(function(a,b){for(var i=0;i<s.length;i++){var k=s[i].key,d=(s[i].dir==="asc"?1:-1),va=stoVal(a,k),vb=stoVal(b,k),c;if(typeof va==="number"&&typeof vb==="number")c=va-vb;else c=String(va).localeCompare(String(vb));if(c)return c*d;}return 0;});return rows;}
+function stoArrow(k){for(var i=0;i<STO_STACK.length;i++){if(STO_STACK[i].key===k){var a=(STO_STACK[i].dir==="asc"?"\u2191":"\u2193");return '<span style="font-size:11px;margin-left:3px">'+a+(STO_STACK.length>1?'<sup style="font-size:9px">'+(i+1)+'</sup>':"")+'</span>';}}return "";}
+function stoTh(k,label){var on=(STO_STACK.length&&STO_STACK[0].key===k);return '<th data-k="'+k+'" style="cursor:pointer;user-select:none'+(on?";color:var(--accent)":"")+'">'+label+stoArrow(k)+'</th>';}
+function stoWire(){var body=$("#body");body.querySelectorAll('th[data-k]').forEach(function(th){th.onclick=function(){var k=th.getAttribute("data-k");var s=STO_STACK;if(s.length&&s[0].key===k){s[0].dir=(s[0].dir==="asc"?"desc":"asc");}else{for(var i=0;i<s.length;i++){if(s[i].key===k){s.splice(i,1);break;}}s.unshift({key:k,dir:(k==="data"||k==="giorni")?"desc":"asc"});if(s.length>4)s.length=4;}render();};});}
+
 async function boot(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){ $("#login").style.display="flex"; return; }
@@ -108,14 +115,16 @@ function inPeriod(d, per){ if(!per)return true; if(!d)return false; var diff=Dat
 function render(){
   var ff=$("#fFil").value, fm=$("#fMar").value, fp=$("#fPer").value;
   var rows=ROWS.filter(function(x){ if(ff && x.filiale_da!==ff && x.filiale_a!==ff)return false; if(fm && x.marchio!==fm)return false; if(fp && !inPeriod(x.aggiornato_il?new Date(x.aggiornato_il):null, fp))return false; return true; });
+  stoSort(rows);
   $("#cnt").innerHTML='<b>'+rows.length+'</b> trasferimenti';
   var body=$("#body");
   if(!rows.length){ body.innerHTML='<div class="empty">Nessun ricircolo effettuato.</div>'; $("#pager").innerHTML=""; return; }
   var pages=Math.ceil(rows.length/PER); if(PAGE>=pages)PAGE=pages-1; if(PAGE<0)PAGE=0;
   var slice=rows.slice(PAGE*PER,(PAGE+1)*PER);
-  var head='<tr><th>Data trasferimento</th><th>Barcode</th><th>Marchio · Modello · Colore</th><th>Da → A</th><th>Giorni impiegati</th></tr>';
+  var head='<tr>'+stoTh("data","Data trasferimento")+stoTh("barcode","Barcode")+stoTh("desc","Marchio · Modello · Colore")+stoTh("daa","Da → A")+stoTh("giorni","Giorni impiegati")+'</tr>';
   var b=slice.map(function(x){ var ag=x.aggiornato_il?new Date(x.aggiornato_il):null; var cr=x.creato_il?new Date(x.creato_il):null; var gg=(ag&&cr)?Math.max(0,Math.round((ag.getTime()-cr.getTime())/86400000)):"-"; var desc=[x.marchio,x.modello,x.colore].filter(Boolean).join(" · "); return '<tr><td style="white-space:nowrap">'+(ag?ag.toLocaleDateString("it-IT"):"-")+'</td><td>'+esc(x.barcode||"")+'</td><td>'+esc(desc)+'</td><td style="white-space:nowrap">'+esc(filName(x.filiale_da))+' → '+esc(filName(x.filiale_a))+'</td><td>'+gg+(gg==="-"?"":"g")+'</td></tr>'; }).join("");
   body.innerHTML='<table><thead>'+head+'</thead><tbody>'+b+'</tbody></table>';
+  stoWire();
   var pg='<button class="btn" id="prev"'+(PAGE<=0?" disabled":"")+'>‹ Prec</button><span class="who">Pagina '+(PAGE+1)+' di '+pages+'</span><button class="btn" id="next"'+(PAGE>=pages-1?" disabled":"")+'>Succ ›</button>';
   $("#pager").innerHTML=pg;
   var pv=$("#prev"), nx=$("#next"); if(pv)pv.onclick=function(){PAGE--;render();}; if(nx)nx.onclick=function(){PAGE++;render();};
