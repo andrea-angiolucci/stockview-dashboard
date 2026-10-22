@@ -47,7 +47,7 @@
   .savebtn:disabled{opacity:.5}
   .legend{color:var(--muted);font-size:12px;margin:0 0 12px}
   .legend b{color:var(--ink)}
-  .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:var(--shadow)}
+  .tablewrap{overflow:auto;max-height:calc(100vh - 200px);border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:var(--shadow)}
   table{border-collapse:collapse;width:100%;font-size:13px}
   th,td{padding:7px 9px;text-align:center;border-bottom:1px solid var(--line);border-right:1px solid var(--line);white-space:nowrap}
   thead th{position:sticky;top:0;background:#f1f5fa;color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;z-index:5}
@@ -59,8 +59,8 @@
   td input.q:focus{border-color:var(--accent);background:#fff}
   td.has input.q{font-weight:700;color:var(--accent2)}
   td.tot,th.tot{background:#f1f5fa;font-weight:700;border-left:2px solid var(--line)}
-  tfoot td{background:#eef4fb;font-weight:700;border-top:2px solid var(--line);position:sticky;bottom:0}
-  tfoot td.mar{background:#e4eef9}
+  tfoot td{background:#eef4fb;font-weight:700;border-top:2px solid var(--line);position:sticky;bottom:0;z-index:5}
+  tfoot td.mar{background:#e4eef9;position:sticky;left:0;bottom:0;z-index:7}
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:9px;font-size:13.5px;opacity:0;transition:.25s;pointer-events:none}
   .toast.show{opacity:1}
   .qd{padding:4px 6px;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-size:12px}
@@ -111,6 +111,12 @@
   td.tot .dl-diff.dpos{color:var(--ok)}
   td.tot .dl-diff.dneg{color:var(--bad)}
   td.tot .dl-diff.dzero{color:var(--muted)}
+  tfoot td .dl-ideale{font-weight:700}
+  tfoot td .dl-giac{color:var(--ink)}
+  tfoot td .dl-diff{font-weight:700}
+  tfoot td .dl-diff.dpos{color:var(--ok)}
+  tfoot td .dl-diff.dneg{color:var(--bad)}
+  tfoot td .dl-diff.dzero{color:var(--muted)}
 
 /* sv-dark-a1 */
 thead th{background:#1c2a3a!important;color:#8aa0b6!important}
@@ -314,14 +320,15 @@ function onEdit(e){
   const i=e.target; const m=i.dataset.m, f=i.dataset.f; let v=parseInt(i.value,10); if(isNaN(v)||v<0)v=0;
   DATA[tab][m][f]=v; i.parentElement.classList.toggle("has",v>0); i.title=tiers(v); dirty=true; recalc();
 }
+function deltaBlock(rt,rg){ var rd=rg-rt; var rows=""; if(subIdeale)rows+='<div class="dl-ideale">'+rt+'</div>'; if(subGiac)rows+='<div class="dl-giac">'+rg+'</div>'; if(subDiff){ var dc=rd<0?"dneg":(rd>0?"dpos":"dzero"); rows+='<div class="dl-diff '+dc+'">'+(rd>0?"+":"")+rd+'</div>'; } if(!rows)rows='<div class="dl-diff dzero">\u00b7</div>'; return rows; }
 function recalc(){
   const fornSel=$("#forn").value;
   const marchi=Object.keys(DATA[tab]).filter(m=>(!fornSel||FORN[m]===fornSel)&&!ESCLUSI_MARCHI.has(m)&&!ESCLUSI_FORNITORI.has(FORN[m]));
-  const col={}; PDV.forEach(p=>col[p.codice]=0); let grand=0;
-  marchi.forEach(m=>{ let rt=0, rg=0; PDV.forEach(p=>{const q=DATA[tab][m][p.codice]||0; rt+=q; col[p.codice]+=q; rg+=Number((typeof ADISP!=='undefined'&&ADISP[m+"|"+p.codice])||0);}); grand+=rt;
+  const col={},colG={}; PDV.forEach(p=>{col[p.codice]=0;colG[p.codice]=0;}); let grand=0,grandG=0;
+  marchi.forEach(m=>{ let rt=0, rg=0; PDV.forEach(p=>{const q=DATA[tab][m][p.codice]||0; rt+=q; col[p.codice]+=q; const gq=Number((typeof ADISP!=='undefined'&&ADISP[m+"|"+p.codice])||0); rg+=gq; colG[p.codice]+=gq;}); grand+=rt; grandG+=rg;
     const c=$(`[data-rowtot="${cssEsc(m)}"]`); if(c){ if(deltaOn){ var rd=rg-rt; var rows=""; if(subIdeale)rows+='<div class="dl-ideale">'+rt+'</div>'; if(subGiac)rows+='<div class="dl-giac">'+rg+'</div>'; if(subDiff){ var dc=rd<0?"dneg":(rd>0?"dpos":"dzero"); rows+='<div class="dl-diff '+dc+'">'+(rd>0?"+":"")+rd+'</div>'; } if(!rows)rows='<div class="dl-diff dzero">·</div>'; c.innerHTML=rows; } else { c.textContent=rt; } } });
-  PDV.forEach(p=>{const c=$(`[data-coltot="${p.codice}"]`); if(c)c.textContent=col[p.codice];});
-  const g=$("#grandtot"); if(g)g.textContent=grand;
+  PDV.forEach(p=>{const c=$(`[data-coltot="${p.codice}"]`); if(c){ if(deltaOn) c.innerHTML=deltaBlock(col[p.codice],colG[p.codice]); else c.textContent=col[p.codice]; }});
+  const g=$("#grandtot"); if(g){ if(deltaOn) g.innerHTML=deltaBlock(grand,grandG); else g.textContent=grand; }
 }
 function tiers(q){ if(!q)return "spento"; const n=Math.round(q/7); const lad=["ST","P1","P2","P3","P4","T0","T1","T2","T3","T4","T5","T6","T7","T8","T9"];
   return q+" pezzi · "+lad.slice(0,Math.min(n,lad.length)).join("+")+(n>lad.length?"…":""); }
