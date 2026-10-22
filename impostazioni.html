@@ -665,7 +665,7 @@ async function rcRenderMF(wrap){
       +'<div style="display:flex;gap:20px;align-items:flex-start">'
         +'<div style="flex:1;min-width:0">'
           +'<h4 style="margin:0 0 8px;font-size:14px">Fornitori esclusi <span id="rcFornBadge" class="urole" style="font-size:11px">'+fCount+' esclusi</span></h4>'
-          +'<div id="rcFornList" style="max-height:340px;overflow:auto;padding-right:4px">'+forn.map(function(v){return rowHtml("fornitore",v,!!exForn[v]);}).join("")+'</div>'
+          +'<input id="rcFornSearch" class="urole" placeholder="Cerca fornitore…" style="width:100%;margin-bottom:8px;font-size:13px"><div id="rcFornList" style="max-height:340px;overflow:auto;padding-right:4px">'+forn.map(function(v){return rowHtml("fornitore",v,!!exForn[v]);}).join("")+'</div>'
         +'</div>'
         +'<div style="flex:1;min-width:0">'
           +'<h4 style="margin:0 0 8px;font-size:14px">Marchi esclusi <span id="rcMarBadge" class="urole" style="font-size:11px">'+mCount+' esclusi</span></h4>'
@@ -680,6 +680,8 @@ async function rcRenderMF(wrap){
     });
     var srch=wrap.querySelector("#rcMarSearch");
     if(srch){ srch.oninput=function(){ var q=srch.value.toLowerCase(); wrap.querySelectorAll('.rcMFRow[data-tipo="marchio"]').forEach(function(row){ row.style.display=(String(row.dataset.val).toLowerCase().indexOf(q)>-1)?"":"none"; }); }; }
+    var srchF=wrap.querySelector("#rcFornSearch");
+    if(srchF){ srchF.oninput=function(){ var qf=srchF.value.toLowerCase(); wrap.querySelectorAll('.rcMFRow[data-tipo="fornitore"]').forEach(function(row){ row.style.display=(String(row.dataset.val).toLowerCase().indexOf(qf)>-1)?"":"none"; }); }; }
   }catch(e){ wrap.innerHTML='<div class="err">Errore caricamento marchi/fornitori: '+esc(String((e&&e.message)||e))+'</div>'; }
 }
 
@@ -812,6 +814,7 @@ async function renderRicircolo(host){
 
       rcRenderRegole(host);
       rcRenderAdhoc(host);
+      try{ var _a=host.querySelector('#rcAdhocWrap'); var _r=host.firstElementChild; if(_a&&_r&&_r!==_a){ host.insertBefore(_a,_r.nextElementSibling); } }catch(e){}
     }
 
 // ---------- Regole ad-hoc ricircolo (solo admin) ----------
