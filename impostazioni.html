@@ -742,16 +742,28 @@ function renderRimpiazzi(host){
       +'<select id="rdFil" class="urole" style="min-width:180px"></select>'
       +'<input id="rdSearch" class="urole" placeholder="Filtra marchi\u2026" style="min-width:160px">'
       +'<span id="rdBadge" class="urole" style="font-size:11px">0 esclusi</span>'
-    +'</div><div id="rdList" style="max-height:420px;overflow:auto"></div>';
-  var selFil=host.querySelector("#rdFil"),srch=host.querySelector("#rdSearch"),list=host.querySelector("#rdList"),badge=host.querySelector("#rdBadge");
+    +'</div><div id="rdChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div><div id="rdList" style="max-height:420px;overflow:auto"></div>';
+  var selFil=host.querySelector("#rdFil"),srch=host.querySelector("#rdSearch"),list=host.querySelector("#rdList"),badge=host.querySelector("#rdBadge"),chips=host.querySelector("#rdChips");
   var MAR=[],EXC={};
   function cnt(fil){return Object.keys(EXC[fil]||{}).length;}
+  function renderChips(){
+    var fil=selFil.value, ex=EXC[fil]||{};
+    var keys=Object.keys(ex).sort(function(a,b){return String(a).localeCompare(String(b));});
+    if(!keys.length){ chips.innerHTML='<span class="umuted" style="font-size:12px">Nessun marchio escluso per questo negozio.</span>'; return; }
+    chips.innerHTML='<span class="umuted" style="font-size:12px;margin-right:4px;align-self:center">Esclusi:</span>'+keys.map(function(m){return '<span class="rdChip" data-m="'+esc(m)+'" style="display:inline-flex;align-items:center;gap:4px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:3px 4px 3px 10px;font-size:12.5px">'+esc(m)+' <button class="rdDel" title="Rimuovi esclusione" style="border:none;background:transparent;color:var(--bad);cursor:pointer;font-size:15px;line-height:1;padding:0 3px">\u00d7</button></span>';}).join("");
+    chips.querySelectorAll(".rdDel").forEach(function(btn){ btn.onclick=async function(){
+      var m=btn.closest(".rdChip").getAttribute("data-m"), fil=selFil.value; btn.disabled=true;
+      try{ var r=await sb.from("rimpiazzi_esclusioni").delete().eq("filiale",fil).eq("marchio",m); if(r.error)throw r.error;
+        if(EXC[fil])delete EXC[fil][m]; var n=cnt(fil); badge.textContent=n+" esclus"+(n===1?"o":"i"); renderList(); toast("Esclusione rimossa");
+      }catch(e){ btn.disabled=false; toast("Errore: "+String((e&&e.message)||e),true); }
+    };});
+  }
   function renderList(){
     var fil=selFil.value,q=(srch.value||"").trim().toLowerCase(),ex=EXC[fil]||{};
-    var n=cnt(fil);badge.textContent=n+" esclus"+(n===1?"o":"i");
+    var n=cnt(fil);badge.textContent=n+" esclus"+(n===1?"o":"i");renderChips();
     var rows=MAR.filter(function(m){return !q||String(m).toLowerCase().indexOf(q)>=0;});
     list.innerHTML=rows.length?rows.map(function(m){var on=!!ex[m];return '<div class="rdRow" data-m="'+esc(m)+'" style="padding:5px 8px;border:1px solid var(--line);border-radius:7px;margin-bottom:5px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px"><input type="checkbox" class="rdChk" '+(on?"checked":"")+'> '+esc(m)+'</label></div>';}).join(""):'<div class="umuted" style="padding:10px;font-size:13px">Nessun marchio.</div>';
-    list.querySelectorAll(".rdChk").forEach(function(chk){chk.onchange=async function(){var row=chk.closest(".rdRow"),m=row.getAttribute("data-m"),fil=selFil.value;chk.disabled=true;try{if(chk.checked){var r=await sb.from("rimpiazzi_esclusioni").upsert({filiale:fil,marchio:m},{onConflict:"filiale,marchio"});if(r.error)throw r.error;EXC[fil]=EXC[fil]||{};EXC[fil][m]=1;}else{var r2=await sb.from("rimpiazzi_esclusioni").delete().eq("filiale",fil).eq("marchio",m);if(r2.error)throw r2.error;if(EXC[fil])delete EXC[fil][m];}var n2=cnt(fil);badge.textContent=n2+" esclus"+(n2===1?"o":"i");toast(chk.checked?"Marchio escluso":"Esclusione rimossa");}catch(e){chk.checked=!chk.checked;toast("Errore: "+String((e&&e.message)||e),true);}chk.disabled=false;};});
+    list.querySelectorAll(".rdChk").forEach(function(chk){chk.onchange=async function(){var row=chk.closest(".rdRow"),m=row.getAttribute("data-m"),fil=selFil.value;chk.disabled=true;try{if(chk.checked){var r=await sb.from("rimpiazzi_esclusioni").upsert({filiale:fil,marchio:m},{onConflict:"filiale,marchio"});if(r.error)throw r.error;EXC[fil]=EXC[fil]||{};EXC[fil][m]=1;}else{var r2=await sb.from("rimpiazzi_esclusioni").delete().eq("filiale",fil).eq("marchio",m);if(r2.error)throw r2.error;if(EXC[fil])delete EXC[fil][m];}var n2=cnt(fil);badge.textContent=n2+" esclus"+(n2===1?"o":"i");renderChips();toast(chk.checked?"Marchio escluso":"Esclusione rimossa");}catch(e){chk.checked=!chk.checked;toast("Errore: "+String((e&&e.message)||e),true);}chk.disabled=false;};});
   }
   (async function(){try{
     var rf=await sb.from("filiali").select("codice,nome").eq("attiva",true).neq("codice","A").order("nome");if(rf.error)throw rf.error;
