@@ -327,12 +327,27 @@ $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault(); const b
   b.disabled=false; b.textContent="Accedi"; if(error){er.textContent=error.message.includes("Invalid")?"Email o password non corretti.":error.message;return;} showApp(data.session); });
 $("#logout").addEventListener("click",async()=>{ await sb.auth.signOut(); location.reload(); });
 
+async function ccFillFornitore(rows){
+  try{
+    var need=Array.from(new Set((rows||[]).filter(function(r){return !r.fornitore;}).map(function(r){return r.barcode;}))).filter(Boolean);
+    if(!need.length) return;
+    var map={};
+    for(var i=0;i<need.length;i+=200){
+      var part=need.slice(i,i+200);
+      var r=await sb.from("giacenze").select("barcode,fornitore").in("barcode",part).not("fornitore","is",null);
+      if(r.error) continue;
+      (r.data||[]).forEach(function(x){ if(x.fornitore && !map[x.barcode]) map[x.barcode]=x.fornitore; });
+    }
+    (rows||[]).forEach(function(r){ if(!r.fornitore && map[r.barcode]) r.fornitore=map[r.barcode]; });
+  }catch(e){}
+}
 async function loadAll(){
   $("#secPend").innerHTML='<div class="status">Carico…</div>';
   const pend=await sb.from("richieste_cambio_categoria").select("*").eq("stato","pendente").order("richiesta_il",{ascending:false});
   const comp=await sb.from("richieste_cambio_categoria").select("*").eq("stato","completata").order("completata_il",{ascending:false}).limit(50);
   if(pend.error){ $("#secPend").innerHTML='<div class="notice" style="color:var(--bad)">Errore: '+esc(pend.error.message)+'</div>'; return; }
   CC_PEND=pend.data||[]; CC_COMP=comp.data||[];
+  await ccFillFornitore(CC_PEND.concat(CC_COMP));
   renderCC();
 }
 
