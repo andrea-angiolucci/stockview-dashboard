@@ -123,6 +123,9 @@
     <div id="nonTrovati"></div>
     <h2 class="pagetitle" id="hCompletati" style="margin-top:28px">Completati <span class="cnt" id="cntCompletati"></span></h2>
     <div id="secComp"></div>
+    <h2 class="pagetitle" id="hNoteQ" style="margin-top:28px">Note qualità <span class="cnt" id="cntNoteQ"></span></h2>
+    <p style="color:var(--muted);margin:-6px 0 12px;font-size:13px">Note di qualità sui modelli o sui singoli barcode, impostate da Controllo presenza. Si possono modificare ed eliminare qui.</p>
+    <div id="secNoteQ"></div>
   </div>
 </div>
 
@@ -341,6 +344,40 @@ async function ccFillFornitore(rows){
     (rows||[]).forEach(function(r){ if(!r.fornitore && map[r.barcode]) r.fornitore=map[r.barcode]; });
   }catch(e){}
 }
+var NQ_ROWS=[];
+async function loadNoteQ(){
+  var host=$("#secNoteQ"); if(!host)return;
+  host.innerHTML='<div class="status">Carico…</div>';
+  try{
+    var r=await sb.from("note_qualita").select("id,ambito,barcode,marchio,modello,nota,autore,aggiornato_il").order("aggiornato_il",{ascending:false});
+    if(r.error)throw r.error;
+    NQ_ROWS=r.data||[]; renderNoteQ();
+  }catch(e){ host.innerHTML='<div class="notice" style="color:var(--bad)">Errore: '+esc(String((e&&e.message)||e))+'</div>'; }
+}
+function renderNoteQ(){
+  var host=$("#secNoteQ"); if(!host)return;
+  var cEl=$("#cntNoteQ"); if(cEl)cEl.textContent=NQ_ROWS.length;
+  if(!NQ_ROWS.length){ host.innerHTML='<div class="status">Nessuna nota di qualità.</div>'; return; }
+  var head='<tr><th>Marchio</th><th>Modello</th><th>Ambito</th><th>Barcode</th><th>Nota</th><th>Autore</th><th></th></tr>';
+  var body=NQ_ROWS.map(function(n){
+    var amb = n.ambito==="barcode" ? '<span class="cat-att">Codice</span>' : '<span class="cat-pro">Modello</span>';
+    return '<tr data-id="'+n.id+'">'+
+      '<td><b>'+esc(n.marchio||"")+'</b></td>'+
+      '<td>'+esc(n.modello||"")+'</td>'+
+      '<td>'+amb+'</td>'+
+      '<td class="muted">'+esc(n.ambito==="barcode"?(n.barcode||""):"—")+'</td>'+
+      '<td><textarea class="nqEdit" rows="2" style="width:100%;min-width:240px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:7px;padding:6px;font-size:12.5px">'+esc(n.nota||"")+'</textarea></td>'+
+      '<td class="muted" style="font-size:11.5px">'+esc(n.autore||"")+'</td>'+
+      '<td style="white-space:nowrap"><button class="nqSave" style="background:var(--accent);color:#04121f;border:none;border-radius:7px;padding:6px 10px;font-weight:700;cursor:pointer">Salva</button> <button class="nqDel" style="background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:6px 9px;cursor:pointer">🗑</button></td>'+
+    '</tr>';
+  }).join("");
+  host.innerHTML='<div style="overflow:auto"><table><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
+  host.querySelectorAll("tr[data-id]").forEach(function(tr){
+    var id=tr.getAttribute("data-id");
+    tr.querySelector(".nqSave").onclick=async function(){ var txt=(tr.querySelector(".nqEdit").value||"").trim(); if(!txt){ toast("Nota vuota",true); return; } var b=this; b.disabled=true; try{ var r=await sb.from("note_qualita").update({nota:txt,aggiornato_il:new Date().toISOString()}).eq("id",id); if(r.error)throw r.error; toast("Nota aggiornata"); }catch(e){ toast(String((e&&e.message)||e),true); } b.disabled=false; };
+    tr.querySelector(".nqDel").onclick=async function(){ if(!confirm("Eliminare questa nota?"))return; try{ var r=await sb.from("note_qualita").delete().eq("id",id); if(r.error)throw r.error; NQ_ROWS=NQ_ROWS.filter(function(x){return String(x.id)!==String(id);}); renderNoteQ(); toast("Nota eliminata"); }catch(e){ toast(String((e&&e.message)||e),true); } };
+  });
+}
 async function loadAll(){
   $("#secPend").innerHTML='<div class="status">Carico…</div>';
   const pend=await sb.from("richieste_cambio_categoria").select("*").eq("stato","pendente").order("richiesta_il",{ascending:false});
@@ -349,6 +386,7 @@ async function loadAll(){
   CC_PEND=pend.data||[]; CC_COMP=comp.data||[];
   await ccFillFornitore(CC_PEND.concat(CC_COMP));
   renderCC();
+  loadNoteQ();
 }
 
 function confirmDelete(id){
