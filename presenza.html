@@ -1265,6 +1265,58 @@ boot();
 </script>
 
 <script>
+/* Note qualità: toggle in gruppo "Qualità" (admin+gestore), clic referenza -> modal (modello/barcode) + badge */
+(function(){
+  if(window.__noteQual) return; window.__noteQual=true;
+  var NOTE_MODEL={}, NOTE_BC={}, noteMode=false;
+  function nqToast(m,e){ try{ (window.catToast||window.toast||function(){})(m,e); }catch(_){} }
+  function esc2(s){ return String(s==null?"":s).replace(/[&<>"\x27]/g,function(ch){return {"&":"&amp;","<":"&lt;",">":"&gt;","\x22":"&quot;","\x27":"&#39;"}[ch];}); }
+  function keyM(mar,mod){ return String(mar||"").trim().toUpperCase()+"|"+String(mod||"").trim().toUpperCase(); }
+  var st=document.createElement("style");
+  st.textContent="#tbl td.mar.ref[data-bc]{position:relative}"+
+    "#tbl td.mar.ref[data-bc] .noteq-badge{position:absolute;top:1px;right:3px;font-size:11px;z-index:5;cursor:help}"+
+    "body.noteq #tbl td.mar.ref[data-bc]{outline:1px dashed rgba(123,97,255,.45);outline-offset:-1px;cursor:pointer}"+
+    ".nqback{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:99999}"+
+    ".nqback.open{display:flex}"+
+    ".nqbox{background:var(--panel,#121821);border:1px solid var(--line,#2a3442);border-radius:12px;padding:18px;width:470px;max-width:92vw;color:var(--txt,#e8edf2)}";
+  (document.head||document.documentElement).appendChild(st);
+  var back=document.createElement("div"); back.className="nqback"; back.id="nqBack"; back.innerHTML='<div class="nqbox" id="nqBox"></div>'; document.body.appendChild(back);
+  back.addEventListener("click",function(e){ if(e.target.id==="nqBack") closeNq(); });
+  function closeNq(){ back.classList.remove("open"); var b=document.getElementById("nqBox"); if(b)b.innerHTML=""; }
+  async function loadNotes(){ try{ var r=await sb.from("note_qualita").select("id,ambito,barcode,marchio,modello,nota,autore"); if(r.error)throw r.error; NOTE_MODEL={}; NOTE_BC={}; (r.data||[]).forEach(function(n){ if(n.ambito==="barcode"&&n.barcode){NOTE_BC[n.barcode]=n;} else {NOTE_MODEL[keyM(n.marchio,n.modello)]=n;} }); renderBadges(); }catch(e){} }
+  function infoForTd(td){ var bc=td.getAttribute("data-bc"); var c=(window.lastCells||[]).find(function(x){return String(x.barcode)===String(bc);}); var mar=c?c.marchio:""; var mod=c?c.modello:""; return {bc:bc,c:c,mar:mar,mod:mod,nbc:NOTE_BC[bc]||null,nmod:NOTE_MODEL[keyM(mar,mod)]||null}; }
+  function renderBadges(){ try{ document.querySelectorAll("#tbl td.mar.ref[data-bc]").forEach(function(td){ var old=td.querySelector(".noteq-badge"); if(old)old.remove(); var i=infoForTd(td); var n=i.nbc||i.nmod; if(n){ var sp=document.createElement("span"); sp.className="noteq-badge"; sp.textContent="\uD83D\uDCDD"; sp.title=(i.nbc?"Nota (barcode): ":"Nota (modello): ")+(n.nota||""); td.appendChild(sp); } }); }catch(e){} }
+  function openNq(td){ var i=infoForTd(td); if(!i.c){ nqToast("Dati cella non trovati",true); return; } var def=i.nbc?"barcode":"modello"; var box=document.getElementById("nqBox");
+    box.innerHTML='<h3 style="margin:0 0 6px;font-size:16px">Nota qualità</h3>'+
+      '<div style="font-size:12.5px;color:var(--muted,#8aa);margin-bottom:10px">'+esc2(i.mar)+" "+esc2(i.mod)+" · "+esc2(i.bc)+'</div>'+
+      '<div style="display:flex;gap:16px;margin-bottom:10px;font-size:13px">'+
+        '<label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="radio" name="nqAmb" value="modello" '+(def==="modello"?"checked":"")+'> Modello <span style="color:var(--muted,#8aa);font-size:11.5px">(tutte le varianti)</span></label>'+
+        '<label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="radio" name="nqAmb" value="barcode" '+(def==="barcode"?"checked":"")+'> Codice a barre</label>'+
+      '</div>'+
+      '<textarea id="nqText" rows="4" placeholder="Scrivi la nota di qualità…" style="width:100%;box-sizing:border-box;background:var(--panel2,#0f1520);color:var(--txt,#e8edf2);border:1px solid var(--line,#2a3442);border-radius:8px;padding:8px;font-size:13px"></textarea>'+
+      '<div id="nqErr" style="color:#ff6b6b;font-size:12px;min-height:15px;margin-top:6px"></div>'+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;align-items:center">'+
+        '<button id="nqDel" class="ghost" style="margin-right:auto;display:none">Elimina</button>'+
+        '<button id="nqCancel" class="ghost">Chiudi</button>'+
+        '<button id="nqSave" style="background:var(--accent,#3da9fc);color:#04121f;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Salva</button>'+
+      '</div>';
+    function sync(){ var amb=box.querySelector('input[name="nqAmb"]:checked').value; var ex=amb==="barcode"?i.nbc:i.nmod; box.querySelector("#nqText").value=ex?(ex.nota||""):""; var d=box.querySelector("#nqDel"); if(d)d.style.display=ex?"":"none"; }
+    box.querySelectorAll('input[name="nqAmb"]').forEach(function(r){ r.addEventListener("change",sync); }); sync();
+    back.classList.add("open"); box.querySelector("#nqText").focus();
+    box.querySelector("#nqCancel").onclick=closeNq;
+    box.querySelector("#nqDel").onclick=async function(){ var amb=box.querySelector('input[name="nqAmb"]:checked').value; var ex=amb==="barcode"?i.nbc:i.nmod; if(!ex){closeNq();return;} try{ var r=await sb.from("note_qualita").delete().eq("id",ex.id); if(r.error)throw r.error; nqToast("Nota eliminata"); closeNq(); await loadNotes(); }catch(e){ box.querySelector("#nqErr").textContent=String((e&&e.message)||e); } };
+    box.querySelector("#nqSave").onclick=async function(){ var amb=box.querySelector('input[name="nqAmb"]:checked').value; var txt=(box.querySelector("#nqText").value||"").trim(); if(!txt){ box.querySelector("#nqErr").textContent="Scrivi una nota."; return; } var ex=amb==="barcode"?i.nbc:i.nmod; var p={ambito:amb,nota:txt,marchio:i.mar,modello:i.mod,autore:(window.curEmail||""),aggiornato_il:new Date().toISOString(),barcode:(amb==="barcode"?i.bc:null)}; try{ var r; if(ex){ r=await sb.from("note_qualita").update(p).eq("id",ex.id); } else { p.creato_il=new Date().toISOString(); r=await sb.from("note_qualita").insert(p); } if(r.error)throw r.error; nqToast("Nota salvata"); closeNq(); await loadNotes(); }catch(e){ box.querySelector("#nqErr").textContent=String((e&&e.message)||e); } };
+  }
+  function canUse(){ return !!(window.isAdmin || window.ROLE==="gestore"); }
+  function addGroup(){ var rg=document.getElementById("revGroup"); if(!rg||!rg.parentNode) return; var g=document.getElementById("qualGroup"); if(!g){ g=document.createElement("div"); g.className="tbgroup"; g.id="qualGroup"; g.innerHTML='<div class="tbglabel">Qualità</div><div class="tbrow"><div class="fcol"><span>Nota qualità</span><button id="noteQualBtn" class="ghost">\uD83D\uDCDD Nota qualità</button></div></div>'; rg.parentNode.insertBefore(g, rg.nextSibling); g.querySelector("#noteQualBtn").addEventListener("click",function(){ noteMode=!noteMode; document.body.classList.toggle("noteq",noteMode); this.classList.toggle("on",noteMode); nqToast(noteMode?"Modalità Nota qualità attiva: clicca una referenza":"Modalità Nota qualità disattivata"); }); } g.style.display=canUse()?"":"none"; }
+  document.addEventListener("click",function(ev){ if(!noteMode||!canUse())return; var td=ev.target.closest("#tbl td.mar.ref[data-bc]"); if(!td)return; ev.preventDefault(); ev.stopPropagation(); openNq(td); },true);
+  var _d=window.draw; if(typeof _d==="function"){ window.draw=function(){ var r=_d.apply(this,arguments); try{ addGroup(); renderBadges(); }catch(e){} return r; }; }
+  setTimeout(function(){ addGroup(); loadNotes(); },1500);
+  setTimeout(function(){ addGroup(); },4000);
+})();
+</script>
+
+<script>
 /* Pulsante Stop calcolo: compare nell'overlay durante una run; invalida la run in corso e sblocca i filtri (matrice invariata) */
 (function(){
   if(window.__stopBtn) return; window.__stopBtn=true;
