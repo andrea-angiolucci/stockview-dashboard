@@ -1274,8 +1274,10 @@ boot();
   function keyM(mar,mod){ return String(mar||"").trim().toUpperCase()+"|"+String(mod||"").trim().toUpperCase(); }
   var st=document.createElement("style");
   st.textContent="#tbl td.mar.ref[data-bc]{position:relative}"+
-    "#tbl td.mar.ref[data-bc] .noteq-badge{position:absolute;top:1px;right:3px;font-size:11px;z-index:5;cursor:help}"+
-    "body.noteq #tbl td.mar.ref[data-bc]{outline:1px dashed rgba(123,97,255,.45);outline-offset:-1px;cursor:pointer}"+
+    "#tbl td.mar.ref[data-bc] .noteq-line{display:block;font-size:10.5px;line-height:1.3;margin-top:3px;color:#8ab4ff;white-space:normal;word-break:break-word}"+
+    "#tbl td.mar.ref[data-bc] .noteq-line.noteq-add{display:none;color:var(--muted);font-style:italic}"+
+    "body.noteq #tbl td.mar.ref[data-bc] .noteq-line{cursor:pointer}"+
+    "body.noteq #tbl td.mar.ref[data-bc] .noteq-line.noteq-add{display:block}"+
     ".nqback{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:99999}"+
     ".nqback.open{display:flex}"+
     ".nqbox{background:var(--panel,#121821);border:1px solid var(--line,#2a3442);border-radius:12px;padding:18px;width:470px;max-width:92vw;color:var(--txt,#e8edf2)}";
@@ -1285,7 +1287,7 @@ boot();
   function closeNq(){ back.classList.remove("open"); var b=document.getElementById("nqBox"); if(b)b.innerHTML=""; }
   async function loadNotes(){ try{ var r=await sb.from("note_qualita").select("id,ambito,barcode,marchio,modello,nota,autore"); if(r.error)throw r.error; NOTE_MODEL={}; NOTE_BC={}; (r.data||[]).forEach(function(n){ if(n.ambito==="barcode"&&n.barcode){NOTE_BC[n.barcode]=n;} else {NOTE_MODEL[keyM(n.marchio,n.modello)]=n;} }); renderBadges(); }catch(e){} }
   function infoForTd(td){ var bc=td.getAttribute("data-bc"); var LC=((typeof lastCells!=="undefined"&&lastCells)?lastCells:(window.lastCells||[])); var c=LC.find(function(x){return String(x.barcode)===String(bc);}); var mar=c?c.marchio:""; var mod=c?c.modello:""; return {bc:bc,c:c,mar:mar,mod:mod,nbc:NOTE_BC[bc]||null,nmod:NOTE_MODEL[keyM(mar,mod)]||null}; }
-  function renderBadges(){ try{ document.querySelectorAll("#tbl td.mar.ref[data-bc]").forEach(function(td){ var old=td.querySelector(".noteq-badge"); if(old)old.remove(); var i=infoForTd(td); var n=i.nbc||i.nmod; if(n){ var sp=document.createElement("span"); sp.className="noteq-badge"; sp.textContent="\uD83D\uDCDD"; sp.title=(i.nbc?"Nota (barcode): ":"Nota (modello): ")+(n.nota||""); td.appendChild(sp); } }); }catch(e){} }
+  function renderBadges(){ try{ document.querySelectorAll("#tbl td.mar.ref[data-bc]").forEach(function(td){ var old=td.querySelector(".noteq-line"); if(old)old.remove(); var i=infoForTd(td); var n=i.nbc||i.nmod; var ln=document.createElement("div"); if(n){ ln.className="noteq-line"; ln.textContent="\uD83D\uDCDD "+(n.nota||""); ln.title=(i.nbc?"Nota (codice a barre) — clicca per modificare in modalità Nota qualità":"Nota (modello) — clicca per modificare in modalità Nota qualità"); } else { ln.className="noteq-line noteq-add"; ln.textContent="\uD83D\uDCDD aggiungi nota\u2026"; } td.appendChild(ln); }); }catch(e){} }
   function openNq(td){ var i=infoForTd(td); if(!i.c){ nqToast("Dati cella non trovati",true); return; } var def=i.nbc?"barcode":"modello"; var box=document.getElementById("nqBox");
     box.innerHTML='<h3 style="margin:0 0 6px;font-size:16px">Nota qualità</h3>'+
       '<div style="font-size:12.5px;color:var(--muted,#8aa);margin-bottom:10px">'+esc2(i.mar)+" "+esc2(i.mod)+" · "+esc2(i.bc)+'</div>'+
@@ -1309,7 +1311,7 @@ boot();
   }
   function canUse(){ return !!(window.isAdmin || window.ROLE==="gestore"); }
   function addGroup(){ var rg=document.getElementById("revGroup"); if(!rg) return; if(document.getElementById("noteQualBtn")) return; var row=rg.querySelector(".tbrow")||rg; var col=document.createElement("div"); col.className="fcol"; col.innerHTML='<span>Nota qualità</span><button id="noteQualBtn" class="ghost">\uD83D\uDCDD Nota qualità</button>'; row.appendChild(col); document.getElementById("noteQualBtn").addEventListener("click",function(){ noteMode=!noteMode; document.body.classList.toggle("noteq",noteMode); this.classList.toggle("on",noteMode); nqToast(noteMode?"Modalità Nota qualità attiva: clicca una referenza (colonna sinistra)":"Modalità Nota qualità disattivata"); }); }
-  document.addEventListener("click",function(ev){ if(!noteMode||!canUse())return; var td=ev.target.closest("#tbl td.mar.ref[data-bc]"); if(!td)return; ev.preventDefault(); ev.stopPropagation(); openNq(td); },true);
+  document.addEventListener("click",function(ev){ if(!noteMode||!canUse())return; var ln=ev.target.closest("#tbl td.mar.ref[data-bc] .noteq-line"); if(!ln)return; var td=ln.closest("td.mar.ref[data-bc]"); if(!td)return; ev.preventDefault(); ev.stopPropagation(); openNq(td); },true);
   var _d=window.draw; if(typeof _d==="function"){ window.draw=function(){ var r=_d.apply(this,arguments); try{ addGroup(); renderBadges(); }catch(e){} return r; }; }
   setTimeout(function(){ addGroup(); loadNotes(); },1500);
   setTimeout(function(){ addGroup(); },4000);
