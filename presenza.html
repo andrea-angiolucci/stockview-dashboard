@@ -1274,7 +1274,7 @@ boot();
   function keyM(mar,mod){ return String(mar||"").trim().toUpperCase()+"|"+String(mod||"").trim().toUpperCase(); }
   var st=document.createElement("style");
   st.textContent="#tbl td.mar.ref[data-bc]{position:relative}"+
-    "#tbl td.mar.ref[data-bc] .noteq-line{display:block;font-size:10.5px;line-height:1.3;margin-top:3px;color:#8ab4ff;white-space:normal;word-break:break-word}"+
+    "#tbl td.mar.ref[data-bc] .noteq-line{position:absolute;bottom:2px;right:6px;max-width:48%;text-align:right;font-size:10px;line-height:1.15;color:#8ab4ff;white-space:normal;word-break:break-word;z-index:3}"+
     "#tbl td.mar.ref[data-bc] .noteq-line.noteq-add{display:none;color:var(--muted);font-style:italic}"+
     "body.noteq #tbl td.mar.ref[data-bc] .noteq-line{cursor:pointer}"+
     "body.noteq #tbl td.mar.ref[data-bc] .noteq-line.noteq-add{display:block}"+
