@@ -1077,5 +1077,99 @@ boot();
 })();
 </script>
 <script>/*sv-obs-roleopt*/(function(){function add(sel){try{if(sel.querySelector('option[value="osservatore"]'))return;if(!sel.querySelector('option[value="fornitore"]'))return;var o=document.createElement('option');o.value='osservatore';o.textContent='Osservatore';sel.appendChild(o);}catch(e){}}function scan(){try{document.querySelectorAll('select').forEach(add);}catch(e){}}if(document.readyState!=='loading')scan();else document.addEventListener('DOMContentLoaded',scan);try{var mo=new MutationObserver(function(){scan();});mo.observe(document.documentElement,{childList:true,subtree:true});}catch(e){}setInterval(scan,1500);})();</script>
+
+<script>
+/* ===== Tab IQV incentivi ===== */
+(function(){
+  if(typeof TABS==='undefined') return;
+  var MODS=['A','B','C','G1','ESCLUSO'];
+  function e2(s){return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});}
+  var ALERTS=[],RULES=[],PAR={};
+  async function renderIqv(host){
+    host.innerHTML='<div style="padding:4px 2px 12px"><button id="iqvRecalc" class="btn" style="width:auto;padding:8px 16px;margin:0">\u21BB Ricalcola IQV ora</button> <span id="iqvRecalcMsg" style="color:var(--muted);font-size:12.5px;margin-left:10px"></span></div>'
+      +'<h2 style="margin:10px 0 6px">Alert da regolamentare</h2><div id="iqvAlerts">\u2026</div>'
+      +'<h2 style="margin:22px 0 6px">Regole marchi</h2>'
+      +'<div class="toolbar" style="margin-bottom:8px"><div class="fcol"><span>Cerca</span><input id="iqvSearch" type="text" placeholder="marchio\u2026" style="padding:6px 8px"></div>'
+      +'<div class="fcol"><span>Tipo</span><select id="iqvFTipo"><option value="">Tutti</option><option>Vista</option><option>Sole</option><option>Entrambi</option></select></div>'
+      +'<div class="fcol"><span>Modalit\u00E0</span><select id="iqvFMod"><option value="">Tutte</option>'+MODS.map(function(m){return '<option>'+m+'</option>';}).join('')+'</select></div></div>'
+      +'<div id="iqvRules">\u2026</div>'
+      +'<h2 style="margin:22px 0 6px">Parametri IQV</h2><div id="iqvParams">\u2026</div>';
+    document.getElementById('iqvRecalc').onclick=async function(){ this.disabled=true; var m=document.getElementById('iqvRecalcMsg'); m.textContent='ricalcolo\u2026'; try{ var r=await sb.rpc('iqv_ricalcola'); m.textContent='fatto: '+JSON.stringify(r.data); }catch(ex){ m.textContent='errore: '+ex.message; } this.disabled=false; loadAlerts(); };
+    document.getElementById('iqvSearch').oninput=renderRules;
+    document.getElementById('iqvFTipo').onchange=renderRules;
+    document.getElementById('iqvFMod').onchange=renderRules;
+    await loadAlerts(); await loadRules(); await loadParams();
+  }
+  async function loadAlerts(){ var r=await sb.from('iqv_alert').select('*').eq('stato','pendente').order('tipo').order('marchio'); ALERTS=r.data||[]; renderAlerts(); }
+  function renderAlerts(){
+    var host=document.getElementById('iqvAlerts'); if(!host)return;
+    if(!ALERTS.length){ host.innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px">Nessun alert pendente \uD83C\uDF89</div>'; return; }
+    var by={}; ALERTS.forEach(function(a){ (by[a.tipo]=by[a.tipo]||[]).push(a); });
+    var TLB={marchio_nuovo:'Marchi nuovi (da classificare)',categoria_nuova:'Categorie nuove',tornato_in_stock:'Tornati in stock',contribuzione_anomala:'Contribuzione anomala',tipo_mancante:'Tipo lenti mancante',rivaluta_modalita:'Da rivalutare (B\u2192A)'};
+    var html='';
+    Object.keys(by).forEach(function(tp){
+      html+='<div style="font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--accent);font-weight:700;margin:10px 0 4px">'+e2(TLB[tp]||tp)+' ('+by[tp].length+')</div>';
+      html+='<div class="tablewrap"><table><thead><tr><th>Marchio</th><th>Tipo</th><th>Categoria</th><th>Barcode</th><th>Dettaglio</th><th>Azione</th></tr></thead><tbody>';
+      by[tp].forEach(function(a){
+        var act='';
+        if(tp==='marchio_nuovo'||tp==='tipo_mancante'||tp==='rivaluta_modalita'){
+          act='<select data-id="'+a.id+'" class="iqvNewMod">'+MODS.map(function(m){return '<option value="'+m+'"'+(m==='C'?' selected':'')+'>'+m+'</option>';}).join('')+'</select> <label style="font-size:11px"><input type="checkbox" class="iqvNewPl" data-id="'+a.id+'"> PL</label> <button class="ghost iqvSaveNew" data-id="'+a.id+'" data-m="'+e2(a.marchio||'')+'" data-t="'+e2(a.tipo_lenti||'')+'" style="padding:3px 8px">Salva</button>';
+        }
+        html+='<tr><td>'+e2(a.marchio)+'</td><td>'+e2(a.tipo_lenti)+'</td><td>'+e2(a.categoria)+'</td><td>'+e2(a.barcode)+'</td><td style="white-space:normal">'+e2(a.dettaglio)+'</td><td style="white-space:nowrap">'+act+' <button class="ghost iqvIgn" data-id="'+a.id+'" style="padding:3px 8px">Ignora</button></td></tr>';
+      });
+      html+='</tbody></table></div>';
+    });
+    host.innerHTML=html;
+    host.querySelectorAll('.iqvSaveNew').forEach(function(b){ b.onclick=async function(){ var id=b.dataset.id,mar=b.dataset.m,tl=b.dataset.t||'Entrambi'; var mod=host.querySelector('.iqvNewMod[data-id="'+id+'"]').value; var pl=host.querySelector('.iqvNewPl[data-id="'+id+'"]').checked; try{ await sb.from('iqv_marchi').upsert({marchio:mar,tipo_lenti:tl,modalita:mod,private_label:pl},{onConflict:'marchio,tipo_lenti'}); await sb.from('iqv_alert').update({stato:'risolto',risolto_il:new Date().toISOString()}).eq('id',id); toast('Classificato: '+mar+' \u2192 '+mod); loadAlerts(); loadRules(); }catch(ex){ toast('Errore: '+ex.message,true); } }; });
+    host.querySelectorAll('.iqvIgn').forEach(function(b){ b.onclick=async function(){ try{ await sb.from('iqv_alert').update({stato:'ignorato',risolto_il:new Date().toISOString()}).eq('id',b.dataset.id); loadAlerts(); }catch(ex){ toast('Errore: '+ex.message,true);} }; });
+  }
+  async function loadRules(){ var r=await sb.from('iqv_marchi').select('*').order('marchio'); RULES=r.data||[]; renderRules(); }
+  function renderRules(){
+    var host=document.getElementById('iqvRules'); if(!host)return;
+    var q=(document.getElementById('iqvSearch').value||'').toLowerCase();
+    var ft=document.getElementById('iqvFTipo').value,fm=document.getElementById('iqvFMod').value;
+    var rows=RULES.filter(function(r){ return (!q||(r.marchio||'').toLowerCase().indexOf(q)>=0)&&(!ft||r.tipo_lenti===ft)&&(!fm||r.modalita===fm); });
+    var html='<div style="color:var(--muted);font-size:12px;margin-bottom:4px">'+rows.length+' regole</div><div class="tablewrap" style="max-height:420px"><table><thead><tr><th>Marchio</th><th>Tipo</th><th>Modalit\u00E0</th><th>PL</th><th></th></tr></thead><tbody>';
+    rows.forEach(function(r){
+      html+='<tr><td>'+e2(r.marchio)+'</td><td>'+e2(r.tipo_lenti)+'</td>'
+        +'<td><select class="iqvRMod" data-id="'+r.id+'">'+MODS.map(function(m){return '<option'+(m===r.modalita?' selected':'')+'>'+m+'</option>';}).join('')+'</select></td>'
+        +'<td><input type="checkbox" class="iqvRPl" data-id="'+r.id+'"'+(r.private_label?' checked':'')+'></td>'
+        +'<td style="white-space:nowrap"><button class="ghost iqvRSave" data-id="'+r.id+'" style="padding:2px 8px">\uD83D\uDCBE</button> <button class="ghost iqvRDel" data-id="'+r.id+'" style="padding:2px 8px;border-color:var(--bad);color:var(--bad)">\uD83D\uDDD1</button></td></tr>';
+    });
+    html+='</tbody><tfoot><tr><td><input id="iqvAddM" placeholder="nuovo marchio" style="padding:4px 6px;width:140px"></td><td><select id="iqvAddT"><option>Vista</option><option>Sole</option><option>Entrambi</option></select></td><td><select id="iqvAddMod">'+MODS.map(function(m){return '<option>'+m+'</option>';}).join('')+'</select></td><td><input type="checkbox" id="iqvAddPl"></td><td><button class="ghost" id="iqvAddBtn" style="padding:2px 8px">+ Aggiungi</button></td></tr></tfoot></table></div>';
+    host.innerHTML=html;
+    host.querySelectorAll('.iqvRSave').forEach(function(b){ b.onclick=async function(){ var id=b.dataset.id; var mo=host.querySelector('.iqvRMod[data-id="'+id+'"]').value; var pl=host.querySelector('.iqvRPl[data-id="'+id+'"]').checked; try{ await sb.from('iqv_marchi').update({modalita:mo,private_label:pl,modificato_il:new Date().toISOString()}).eq('id',id); toast('Salvato'); loadRules(); }catch(ex){ toast('Errore: '+ex.message,true);} }; });
+    host.querySelectorAll('.iqvRDel').forEach(function(b){ b.onclick=async function(){ if(!confirm('Eliminare questa regola?'))return; try{ await sb.from('iqv_marchi').delete().eq('id',b.dataset.id); loadRules(); }catch(ex){ toast('Errore: '+ex.message,true);} }; });
+    document.getElementById('iqvAddBtn').onclick=async function(){ var m=document.getElementById('iqvAddM').value.trim(); if(!m){toast('Marchio?',true);return;} try{ await sb.from('iqv_marchi').upsert({marchio:m,tipo_lenti:document.getElementById('iqvAddT').value,modalita:document.getElementById('iqvAddMod').value,private_label:document.getElementById('iqvAddPl').checked},{onConflict:'marchio,tipo_lenti'}); toast('Aggiunto'); loadRules(); }catch(ex){ toast('Errore: '+ex.message,true);} };
+  }
+  async function loadParams(){ var r=await sb.from('iqv_parametri').select('*'); PAR={}; (r.data||[]).forEach(function(p){PAR[p.chiave]=p.valore;}); renderParams(); }
+  function nf(id,v,w){ return '<input id="'+id+'" type="number" step="any" value="'+(v==null?'':v)+'" style="width:'+(w||70)+'px;padding:4px 6px">'; }
+  function renderParams(){
+    var host=document.getElementById('iqvParams'); if(!host)return; var p=PAR; function gg(k){return p[k]||{};}
+    var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 26px;max-width:880px;font-size:13px">';
+    html+='<div><b>Pesi</b> (somma=1)<br>Contrib '+nf('pp_c',gg('pesi').contribuzione)+' \u00B7 Anzianit\u00E0 '+nf('pp_a',gg('pesi').anzianita)+' \u00B7 Lavorato '+nf('pp_l',gg('pesi').lavorato)+'</div>';
+    html+='<div><b>Contribuzione \u20AC</b><br>anomalia&lt; '+nf('sc_an',gg('soglie_contribuzione').anomalia_sotto)+' \u00B7 p1&lt; '+nf('sc_1',gg('soglie_contribuzione').p1_max)+' \u00B7 p2\u2264 '+nf('sc_2',gg('soglie_contribuzione').p2_max)+'<br>punteggio anomalia '+nf('sc_ap',p.anomalia_contribuzione_punteggio)+'</div>';
+    html+='<div><b>Anzianit\u00E0 (anni)</b><br>p1\u2264 '+nf('an_1',gg('soglie_anzianita_anni').p1_max)+' \u00B7 p2\u2264 '+nf('an_2',gg('soglie_anzianita_anni').p2_max)+'</div>';
+    html+='<div><b>Modalit\u00E0 B \u2014 soglia</b><br>vecchio se \u2265 '+nf('b_n',p.modalita_b_anni_soglia)+' anni (auto-scalante 31/12)</div>';
+    html+='<div><b>Tagli punteggio\u2192IQV</b><br>IQV1\u2264 '+nf('t_1',gg('tagli_iqv').iqv1_max)+' \u00B7 IQV2\u2264 '+nf('t_2',gg('tagli_iqv').iqv2_max)+'</div>';
+    html+='<div><b>Punteggi lavorato/non</b><br>lavorato '+nf('v_l',gg('punteggi_v3').lavorato)+' \u00B7 non lav. '+nf('v_n',gg('punteggi_v3').non_lavorato)+' \u00B7 private '+nf('v_p',gg('punteggi_v3').private_label)+'</div>';
+    html+='<div style="grid-column:1/3"><b>Categorie premiate</b> <input id="cat_p" value="'+e2((p.categorie_premiate||[]).join(', '))+'" style="width:60%;padding:4px 6px"></div>';
+    html+='<div style="grid-column:1/3"><b>Categorie NON premiate</b> <input id="cat_np" value="'+e2((p.categorie_non_premiate||[]).join(', '))+'" style="width:60%;padding:4px 6px"></div>';
+    html+='<div><label><input type="checkbox" id="cat_unk"'+(p.categoria_sconosciuta_premiata?' checked':'')+'> Categoria sconosciuta \u2192 premiata</label></div>';
+    html+='<div>Default marchio nuovo <select id="def_mod">'+MODS.map(function(m){return '<option'+(m===p.default_modalita_marchio_nuovo?' selected':'')+'>'+m+'</option>';}).join('')+'</select></div>';
+    html+='</div><div style="margin-top:12px"><button id="iqvParSave" class="btn" style="width:auto;padding:8px 16px;margin:0">Salva parametri</button> <span style="color:var(--muted);font-size:12px;margin-left:8px">dopo il salvataggio premi "Ricalcola IQV ora" per applicarli</span></div>';
+    host.innerHTML=html;
+    document.getElementById('iqvParSave').onclick=saveParams;
+  }
+  async function saveParams(){
+    function v(id){return parseFloat(document.getElementById(id).value);}
+    var ups=[['pesi',{contribuzione:v('pp_c'),anzianita:v('pp_a'),lavorato:v('pp_l')}],['soglie_contribuzione',{anomalia_sotto:v('sc_an'),p1_max:v('sc_1'),p2_max:v('sc_2')}],['anomalia_contribuzione_punteggio',v('sc_ap')],['soglie_anzianita_anni',{p1_max:v('an_1'),p2_max:v('an_2')}],['modalita_b_anni_soglia',v('b_n')],['tagli_iqv',{iqv1_max:v('t_1'),iqv2_max:v('t_2')}],['punteggi_v3',{lavorato:v('v_l'),non_lavorato:v('v_n'),private_label:v('v_p')}],['categorie_premiate',document.getElementById('cat_p').value.split(',').map(function(s){return s.trim().toUpperCase();}).filter(Boolean)],['categorie_non_premiate',document.getElementById('cat_np').value.split(',').map(function(s){return s.trim().toUpperCase();}).filter(Boolean)],['categoria_sconosciuta_premiata',document.getElementById('cat_unk').checked],['default_modalita_marchio_nuovo',document.getElementById('def_mod').value]];
+    try{ for(var i=0;i<ups.length;i++){ await sb.from('iqv_parametri').update({valore:ups[i][1],modificato_il:new Date().toISOString()}).eq('chiave',ups[i][0]); } toast('Parametri salvati'); loadParams(); }catch(ex){ toast('Errore: '+ex.message,true); }
+  }
+  TABS.push({id:'iqv', label:'IQV incentivi', render:renderIqv, admin:true});
+  try{ if(typeof isAdmin!=='undefined' && isAdmin && typeof renderTabbar==='function') renderTabbar(); }catch(ex){}
+})();
+</script>
+
 </body>
 </html>
