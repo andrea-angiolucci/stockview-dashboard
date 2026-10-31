@@ -81,22 +81,6 @@
   .amdepths{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px;margin-top:4px}
   .amdrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 4px}
   .amdrow span{font-size:12px;color:var(--ink)}
-  /* PL / Nascondi */
-  .pl-btn{font-size:11px;padding:3px 7px;border-radius:6px;border:1px solid var(--warn,#f5a524);background:transparent;color:var(--warn,#f5a524);cursor:pointer;margin-left:4px;white-space:nowrap}
-  .pl-btn.is-pl{background:var(--muted);color:var(--bg);border-color:var(--muted);opacity:0.6}
-  .hide-btn{font-size:11px;padding:3px 7px;border-radius:6px;border:1px solid var(--muted);background:transparent;color:var(--muted);cursor:pointer;margin-left:4px;white-space:nowrap}
-  .hide-btn:hover{border-color:var(--bad);color:var(--bad)}
-  .pl-view,.nascosti-view{max-width:600px;margin:18px auto;padding:18px;background:var(--panel);border:1px solid var(--line);border-radius:14px}
-  .pl-view h2,.nascosti-view h2{margin:0 0 14px;font-size:16px}
-  .pl-list-row{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--line)}
-  .pl-list-row:last-child{border-bottom:none}
-  .pl-list-row span{font-size:13px;font-weight:600}
-  .pl-remove-btn{font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid var(--bad);background:transparent;color:var(--bad);cursor:pointer}
-  .breadcrumb-link{color:var(--accent);text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;background:none;border:none;padding:0;margin-bottom:14px;display:inline-block}
-  .breadcrumb-link:hover{text-decoration:underline}
-  .pl-nav-link{color:var(--accent);text-decoration:none;font-size:12px;cursor:pointer;background:none;border:none;padding:0;margin-left:8px}
-  .pl-nav-link:hover{text-decoration:underline}
-  #plView,#nascostiView{display:none}
   td.dep0{color:var(--muted)}
   td.dep7{background:rgba(26,169,116,.14);color:#1aa974}
   td.dep14{background:rgba(214,158,20,.18);color:#a9791a}
@@ -191,26 +175,10 @@ input,select,textarea{background:#16212e;color:#e8eef5;border-color:#26384c}
       <button class="dtoggle" id="deltaBtn" title="Delta disponibile vs ideale">△ Delta ideale</button><span id="subToggles"><button class="dpill" id="subIdealeBtn">Ideale</button><button class="dpill" id="subGiacBtn">Giacenza</button><button class="dpill" id="subDiffBtn">Differenza</button></span>
         <button class="addbtn adminonly" id="addBtn">+ Aggiungi marchio</button>
         <button class="savebtn adminonly" id="saveBtn">Salva modifiche</button>
-        <button class="pl-nav-link" id="viewPLBtn" onclick="showPL(null)">🏷 PL</button>
-        <button class="pl-nav-link" id="viewNascostiBtn" onclick="showNascosti()">👁 Nascosti</button>
     </div>
     <div class="legend">Profondità: <b>7</b>=ST · <b>14</b>=ST+P1 · <b>21</b>=ST+P1+P2 · <b>28</b>=+P3 · <b>35</b>=+P4 … (vuoto/0 = linea spenta). Totali riga/colonna in tempo reale. Il <b>fornitore</b> filtra i marchi mostrati.</div>
     <div class="tablewrap"><table id="tbl"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
     <div class="miss" id="miss"></div>
-
-    <!-- Vista PL -->
-    <div id="plView" class="pl-view">
-      <button class="breadcrumb-link" id="plBack">← Torna alla filiale</button>
-      <h2>🏷 Private Label</h2>
-      <div id="plList"><div style="color:var(--muted);padding:12px 0">Caricamento…</div></div>
-    </div>
-
-    <!-- Vista Nascosti -->
-    <div id="nascostiView" class="nascosti-view">
-      <button class="breadcrumb-link" id="nascostiBack">← Torna</button>
-      <h2>👁‍🗨 Marchi nascosti</h2>
-      <div id="nascostiList"><div style="color:var(--muted);padding:12px 0">Caricamento…</div></div>
-    </div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -275,9 +243,7 @@ async function load(){
   const [{data:fil},{data:rows},{data:marchi}]=await Promise.all([
     sb.from("filiali").select("codice,nome,tipo,attiva"),
     sb.from("assortimento_marchio").select("marchio,tipo_lenti,filiale,qty_ideale,fornitore"),
-    sb.rpc("sv_marchi"),
-    loadPL(),
-    loadNascondi()
+    sb.rpc("sv_marchi")
   ]);
   const usate=new Set((rows||[]).map(r=>r.filiale));
   PDV=(fil||[]).filter(f=>f.attiva).sort((a,b)=>a.nome.localeCompare(b.nome)).map(f=>({codice:f.codice,nome:f.nome}));
@@ -335,18 +301,10 @@ async function openAddModal(){ if(!isAdmin)return; var back=document.getElementB
 function render(){
   const fornSel=$("#forn").value;
   let marchi=Object.keys(DATA[tab]).filter(m=>(!fornSel||FORN[m]===fornSel)&&!ESCLUSI_MARCHI.has(m)&&!ESCLUSI_FORNITORI.has(FORN[m])).sort((a,b)=>a.localeCompare(b));
-  // filtra marchi nascosti
-  marchi=marchi.filter(function(m){ return !isNascosto(m,null,tab); });
   let head="<tr><th class='mar'>Marchio</th>"+PDV.map(p=>`<th>${esc(p.nome)}</th>`).join("")+"<th class='tot'>Totale</th></tr>";
   $("#tbl").tHead.innerHTML=head;
   const body=marchi.map(m=>{
-    var isPL=_plSet.has(m);
-    var plLabel=isPL?'🏷 PL ✓':'🏷 PL';
-    var plTitle=isPL?'Marchio già PL — clicca per rimuoverlo':'Aggiungi ai Private Label';
-    var plClass=isPL?'pl-btn is-pl':'pl-btn';
-    var plOnclick="togglePL('"+m.replace(/'/g,"\\'")+"',false,null)";
-    var hideOnclick="nascondiMarchio('"+m.replace(/'/g,"\\'")+"','*','"+tab+"')";
-    let tr=`<tr><td class="mar">${esc(m)}<br><small style="color:var(--muted);font-weight:400">${esc(FORN[m]||"")}</small><button class="delrow adminonly" data-m="${esc(m)}" title="Elimina marchio">🗑</button><br><button class="${plClass}" title="${plTitle}" onclick="${plOnclick}">${plLabel}</button> <button class="hide-btn" title="Nascondi questo marchio" onclick="${hideOnclick}">👁 Nascondi</button></td>`;
+    let tr=`<tr><td class="mar">${esc(m)}<br><small style="color:var(--muted);font-weight:400">${esc(FORN[m]||"")}</small><button class="delrow adminonly" data-m="${esc(m)}" title="Elimina marchio">🗑</button></td>`;
     for(const p of PDV){ tr+=aCellHTML(m,p.codice);
     }
     tr+=`<td class="tot" data-rowtot="${esc(m)}">0</td></tr>`;
@@ -393,174 +351,6 @@ function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show")
 window.addEventListener("beforeunload",e=>{ if(dirty){e.preventDefault();e.returnValue="";} });
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
 function cssEsc(s){return String(s).replace(/["\\]/g,"\\$&");}
-
-/* ==================== PL / NASCONDI ==================== */
-var _plSet=new Set();        // marchi PL (da marchi_tag)
-var _nascondiSet=new Set();  // chiave "filiale|tipo|marchio" (da marchi_nascosti)
-var _plLoaded=false, _nascondiLoaded=false;
-
-async function loadPL(){
-  if(_plLoaded) return;
-  try{
-    var r=await sb.from("marchi_tag").select("marchio").eq("tag","private_label");
-    _plSet=new Set((r.data||[]).map(function(x){return x.marchio;}));
-  }catch(e){ _plSet=new Set(); }
-  _plLoaded=true;
-}
-
-async function loadNascondi(){
-  if(_nascondiLoaded) return;
-  try{
-    var r=await sb.from("marchi_nascosti").select("filiale,tipo_lenti,marchio");
-    _nascondiSet=new Set((r.data||[]).map(function(x){return x.filiale+"|"+x.tipo_lenti+"|"+x.marchio;}));
-  }catch(e){ _nascondiSet=new Set(); }
-  _nascondiLoaded=true;
-}
-
-async function togglePL(marchio, fromPL, filialeDiRitorno){
-  var isNow=_plSet.has(marchio);
-  if(isNow){
-    // rimuovi
-    await sb.from("marchi_tag").delete().match({marchio:marchio,tag:"private_label"});
-    _plSet.delete(marchio);
-  } else {
-    // aggiungi
-    await sb.from("marchi_tag").upsert({marchio:marchio,tag:"private_label"},{onConflict:"marchio,tag"});
-    _plSet.add(marchio);
-  }
-  if(fromPL){
-    showPL(filialeDiRitorno);
-  } else {
-    render();
-  }
-}
-
-async function nascondiMarchio(marchio, filiale, tipoLenti){
-  var key=filiale+"|"+tipoLenti+"|"+marchio;
-  if(_nascondiSet.has(key)) return; // già nascosto
-  await sb.from("marchi_nascosti").upsert({filiale:filiale,tipo_lenti:tipoLenti,marchio:marchio},{onConflict:"filiale,tipo_lenti,marchio"});
-  _nascondiSet.add(key);
-  render();
-  toast("Nascosto: "+marchio);
-}
-
-async function ripristinaMarchio(marchio, filiale, tipoLenti, isFromNascosti){
-  var key=filiale+"|"+tipoLenti+"|"+marchio;
-  await sb.from("marchi_nascosti").delete().match({filiale:filiale,tipo_lenti:tipoLenti,marchio:marchio});
-  _nascondiSet.delete(key);
-  if(isFromNascosti){
-    showNascosti();
-  } else {
-    render();
-  }
-}
-
-function isNascosto(marchio, filiale, tipoLenti){
-  // filiale null o "*" = qualsiasi filiale
-  for(var k of _nascondiSet){
-    var parts=k.split("|");
-    if(parts[2]===marchio && parts[1]===tipoLenti){
-      if(!filiale || filiale===null || filiale==="*" || parts[0]===filiale || parts[0]==="*") return true;
-    }
-  }
-  return false;
-}
-
-var _plFilialeDiRitorno=null;
-
-async function showPL(filialeDiRitorno){
-  _plFilialeDiRitorno=filialeDiRitorno||null;
-  _plLoaded=false; // forza ricaricamento dati freschi
-  await loadPL();
-
-  // nascondi tabella, mostra vista PL
-  document.querySelector(".tablewrap").style.display="none";
-  document.querySelector(".legend").style.display="none";
-  document.getElementById("plView").style.display="block";
-  document.getElementById("nascostiView").style.display="none";
-
-  // breadcrumb
-  var backBtn=document.getElementById("plBack");
-  if(filialeDiRitorno){
-    backBtn.textContent="← Torna a "+filialeDiRitorno;
-    backBtn.onclick=function(){ hidePlNascostiViews(); render(); };
-  } else {
-    backBtn.textContent="← Torna all'assortimento";
-    backBtn.onclick=function(){ hidePlNascostiViews(); render(); };
-  }
-
-  // lista PL
-  var list=document.getElementById("plList");
-  var items=Array.from(_plSet).sort();
-  if(!items.length){
-    list.innerHTML='<div style="color:var(--muted);padding:12px 0">Nessun marchio Private Label.</div>';
-    return;
-  }
-  list.innerHTML=items.map(function(m){
-    return '<div class="pl-list-row"><span>'+esc(m)+'</span>'
-      +'<button class="pl-remove-btn" onclick="togglePL(\''+esc(m).replace(/'/g,"\\'")+'\'  ,true,\''+esc(_plFilialeDiRitorno||'').replace(/'/g,"\\'")+'\')">Togli da PL</button>'
-      +'</div>';
-  }).join("");
-}
-
-async function showNascosti(){
-  _nascondiLoaded=false; // forza ricaricamento
-  await loadNascondi();
-
-  document.querySelector(".tablewrap").style.display="none";
-  document.querySelector(".legend").style.display="none";
-  document.getElementById("plView").style.display="none";
-  document.getElementById("nascostiView").style.display="block";
-
-  var backBtn=document.getElementById("nascostiBack");
-  backBtn.textContent="← Torna all'assortimento";
-  backBtn.onclick=function(){ hidePlNascostiViews(); render(); };
-
-  var list=document.getElementById("nascostiList");
-  // raggruppa per filiale+tipo
-  var rows=[];
-  for(var k of _nascondiSet){
-    var parts=k.split("|");
-    rows.push({filiale:parts[0],tipo:parts[1],marchio:parts[2]});
-  }
-  rows.sort(function(a,b){ return (a.filiale+a.tipo+a.marchio).localeCompare(b.filiale+b.tipo+b.marchio); });
-
-  if(!rows.length){
-    list.innerHTML='<div style="color:var(--muted);padding:12px 0">Nessun marchio nascosto.</div>';
-    return;
-  }
-
-  // mappa codice→nome per le filiali
-  var filNomi={};
-  (PDV||[]).forEach(function(p){ filNomi[p.codice]=p.nome; });
-
-  list.innerHTML=rows.map(function(r){
-    var nomeFil=filNomi[r.filiale]||r.filiale;
-    return '<div class="pl-list-row">'
-      +'<span>'+esc(r.marchio)+'</span>'
-      +'<span style="font-size:11px;color:var(--muted);margin:0 8px">'+esc(nomeFil)+' · '+esc(r.tipo)+'</span>'
-      +'<button class="pl-remove-btn" onclick="ripristinaMarchio(\''+esc(r.marchio).replace(/'/g,"\\'")+'\',\''+r.filiale+'\',\''+r.tipo+'\',true)">Ripristina</button>'
-      +'</div>';
-  }).join("");
-}
-
-function hidePlNascostiViews(){
-  document.querySelector(".tablewrap").style.display="";
-  document.querySelector(".legend").style.display="";
-  document.getElementById("plView").style.display="none";
-  document.getElementById("nascostiView").style.display="none";
-}
-
-// Carica PL e Nascosti all'avvio (dopo boot/load)
-var _plNascondiReady=false;
-function ensurePlNascondi(){
-  if(_plNascondiReady) return Promise.resolve();
-  _plNascondiReady=true;
-  return Promise.all([loadPL(), loadNascondi()]);
-}
-
-/* ==================== FINE PL / NASCONDI ==================== */
-
 boot();
 
 (async function(){try{const {data:{session}}=await sb.auth.getSession();const _r=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.role;var _showAgg=(_r==='admin'); if(!_showAgg && _r && _r!=='vendita'){ try{ var _ppN=await sb.from('ruoli_permessi').select('puo_accedere').eq('ruolo',_r).eq('pagina','aggiornamenti').maybeSingle(); _showAgg=!!(_ppN.data && _ppN.data.puo_accedere); }catch(_e){} } if(_showAgg){var e=document.getElementById('navRevisioni');if(e)e.style.display='';}}catch(e){}})();
