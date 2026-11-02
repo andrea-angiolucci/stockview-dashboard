@@ -195,9 +195,15 @@ function vHome(){
   const s=stats(),pc=n=>s.t.tot?Math.round(n/s.t.tot*100)+"%":"0%";
   return`${header()}
   ${R.in?`<div class="banner" style="margin-top:14px"><span><b>${R.in}</b> richiest${R.in>1?"e":"a"} di ricircolo da evadere per ${esc(DB.settings.store)}</span><button data-a="go" data-v="richieste">Apri</button></div>`:""}
-  <div class="card" style="margin-top:14px"><div class="row">
-    ${ME&&ME.filiale?`<label class="f">Filiale<b style="font-size:18px;min-height:52px;display:flex;align-items:center">${esc(ME.filiale)}</b></label>`:`<label class="f">Filiale<select id="set-store" data-f="settings.store">${STORES.map(x=>`<option${x===DB.settings.store?" selected":""}>${x}</option>`).join("")}</select></label>`}
-    ${ME&&ME.focus?`<label class="f">Venditore<b style="font-size:18px;min-height:52px;display:flex;align-items:center">${esc(ME.focus)}</b></label>`:`<label class="f">Venditore (codice FOCUS)<select id="set-seller" data-f="settings.seller"><option value="">— scegli —</option>${(SELLERS[DB.settings.store]||[]).map(x=>`<option${x===DB.settings.seller?" selected":""}>${x}</option>`).join("")}</select></label>`}</div></div>
+  <div class="card" style="margin-top:14px">
+   <div style="font-size:22px;font-weight:700">Ciao ${esc(ME?ME.name:"")}</div>
+   ${ME&&ME.filiale?`<div class="row" style="margin-top:10px;align-items:center;flex-wrap:nowrap">
+     <div style="flex:1;min-width:0"><div class="hint" style="margin:0">Punto vendita</div><div style="font-size:22px;font-weight:700">${esc(DB.settings.store)}</div>${ME.temp?`<span class="pill warn">temporaneo, solo oggi</span>`:""}</div>
+     <button class="btn" data-a="chgstore" style="flex:none">Modifica</button></div>
+    ${S.chg?`<label class="f" style="margin-top:10px">Oggi lavoro a<select id="set-store">${STORES.map(x=>`<option${x===DB.settings.store?" selected":""}>${x}</option>`).join("")}</select></label>${ME.temp?`<div style="margin-top:8px"><button class="btn" data-a="homestore">Torna a ${esc(ME.filiale)}</button></div>`:""}`:""}`
+   :`<div class="row" style="margin-top:10px"><label class="f">Filiale<select id="set-store">${STORES.map(x=>`<option${x===DB.settings.store?" selected":""}>${x}</option>`).join("")}</select></label></div>`}
+   ${ME&&ME.focus?`<p class="hint" style="margin-top:10px">Venditore: <b>${esc(ME.focus)}</b></p>`:`<div class="row" style="margin-top:10px"><label class="f">Venditore (codice FOCUS)<select id="set-seller" data-f="settings.seller"><option value="">— scegli —</option>${(SELLERS[DB.settings.store]||[]).map(x=>`<option${x===DB.settings.seller?" selected":""}>${x}</option>`).join("")}</select></label></div>`}
+  </div>
   <div style="margin:16px 0"><button class="btn primary big" data-a="start">Sole non graduato</button></div>
   <h1>Riepilogo</h1><p class="lead">Interazioni registrate su questo iPad.</p>
   <div class="grid g4">
@@ -541,6 +547,8 @@ document.addEventListener("click",e=>{
   else if(a==="ricok"){ricSend(+b.dataset.i)}
   else if(a==="ricno"){d.items[+b.dataset.i].ric=null;renderItems()}
   else if(a==="req"){reqAct(b.dataset.act,b.dataset.id)}
+  else if(a==="chgstore"){S.chg=!S.chg;render()}
+  else if(a==="homestore"){DB.settings.store=ME.filiale;setOvr(ME.filiale);save();S.chg=false;render();loadReq()}
   else if(a==="logout"){sb.auth.signOut().then(()=>location.reload())}
   else if(a==="start"){resetSearch();S.d=newDraft();S.view="flow";S.step=0;S.confirmCancel=false;render()}
   else if(a==="add"){const c=$("#code");addFromText(c.value)}
@@ -596,7 +604,7 @@ document.addEventListener("input",e=>{
 document.addEventListener("change",e=>{
   const t=e.target;
   if(t.id==="g-tipo"){G.tipo=t.value;G.forn="";G.marc="";G.fq="";G.mq="";G.forns=null;G.marcs=null;G.res=null;$("#g-fq").value="";$("#g-mq").value="";gInit();return}
-  if(t.id==="set-store"){DB.settings.store=t.value;DB.settings.seller="";save();render();return}
+  if(t.id==="set-store"){DB.settings.store=t.value;if(!(ME&&ME.focus))DB.settings.seller="";if(ME&&ME.filiale)setOvr(t.value);save();S.chg=false;render();loadReq();return}
   if(t.dataset&&t.dataset.f){set(t.dataset.f,t.value);if(t.dataset.f.startsWith("settings"))save();if(t.id==="nascita"||t.tagName==="SELECT"&&S.view==="flow"&&S.step===3){render()}else if(S.view==="flow")updateNav()}});
 document.addEventListener("focusin",e=>{const t=e.target;
   if(t.id==="g-fq"){G.fopen=true;gDraw()}else if(t.id==="g-mq"){G.mopen=true;gDraw()}});
@@ -614,6 +622,12 @@ function finish(){
 
 
 let ME=null,TIMER=null;
+const OVK="shopview_negozio_oggi";
+const oggi=()=>new Date().toLocaleDateString("sv-SE");
+function getOvr(){try{const o=JSON.parse(localStorage.getItem(OVK)||"null");if(o&&o.d===oggi()&&STORES.includes(o.s))return o.s}catch(e){}return null}
+function setOvr(st){try{if(!ME||st===ME.filiale)localStorage.removeItem(OVK);else localStorage.setItem(OVK,JSON.stringify({s:st,d:oggi()}))}catch(e){}ME.temp=!!(ME&&ME.filiale&&st!==ME.filiale)}
+function chkOvr(){if(!ME||!ME.filiale)return false;const o=getOvr(),st=o||ME.filiale;ME.temp=!!o;if(st!==DB.settings.store){DB.settings.store=st;save();return true}return false}
+function nomeDa(md,email){const n=String(md.full_name||md.name||md.nome||"").trim().split(/\s+/)[0];const t=n||String(email||"").split("@")[0].split(/[._-]/)[0];return t?t.charAt(0).toUpperCase()+t.slice(1).toLowerCase():""}
 function msgView(t,body){$("#root").innerHTML=`<div style="max-width:420px;margin:12vh auto 0"><div class="card"><div class="brand" style="margin-bottom:14px"><small>ShopView · beta</small>${t}</div>${body}</div></div>`}
 function loginView(err,info){
   msgView("Accedi",`<form id="lf" autocomplete="on"><label class="f">Email<input type="email" id="lem" autocomplete="username" inputmode="email" autocapitalize="off" required></label>
@@ -635,12 +649,12 @@ async function enter(session){
   let perm=null;
   try{const{data}=await sb.from("ruoli_permessi").select("puo_accedere,puo_modificare").eq("ruolo",role).eq("pagina","shopview").maybeSingle();perm=data}catch(e){}
   if(!perm||!perm.puo_accedere){msgView("Accesso non abilitato",`<p>Il tuo account (${esc(session.user.email)}) non è abilitato a ShopView. Chiedi alla direzione.</p><button class="btn" id="lo">Esci</button>`);$("#lo").onclick=()=>sb.auth.signOut().then(()=>location.reload());return}
-  ME={email:session.user.email,role,filiale:(role==="vendita"&&NOME[md.filiale])||"",focus:String(md.focus||"").toUpperCase().slice(0,3)};
+  ME={email:session.user.email,role,filiale:(role==="vendita"&&NOME[md.filiale])||"",focus:String(md.focus||"").toUpperCase().slice(0,3),name:nomeDa(md,session.user.email),temp:false};
   if(role==="vendita"&&!ME.filiale){msgView("Account senza negozio",`<p>Al tuo account non è associato nessun negozio. Chiedi alla direzione.</p>`);return}
-  if(ME.filiale)DB.settings.store=ME.filiale;
+  if(ME.filiale){DB.settings.store=ME.filiale;chkOvr()}
   if(ME.focus)DB.settings.seller=ME.focus;
   save();render();loadReq();
-  clearInterval(TIMER);TIMER=setInterval(()=>{if(!document.hidden&&(S.view==="home"||S.view==="richieste"))loadReq()},60000)}
+  clearInterval(TIMER);TIMER=setInterval(()=>{if(document.hidden)return;if(chkOvr()){render();loadReq();return}if(S.view==="home"||S.view==="richieste")loadReq()},60000)}
 sb.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT"&&ME)location.reload()});
 (async()=>{try{const{data:{session}}=await sb.auth.getSession();if(session)enter(session);else loginView()}catch(e){loginView("Errore di rete: riprova.")}})();
 </script>
