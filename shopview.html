@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#0B6E7F">
+<title>ShopView</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: una colonna centrale da iPad, barra superiore con navigazione, flusso a 5 passi con barra comandi fissa in basso. */
+:root{
+  --bg:#EEF2F4; --surface:#FFFFFF; --surface2:#E3EAEE; --fg:#13232D; --muted:#566874; --line:#C9D4DA;
+  --accent:#0B6E7F; --accent-fg:#FFFFFF; --accent-soft:#D6ECF0;
+  --good:#1F7A4D; --good-soft:#DDF1E6; --warn:#8F5600; --warn-soft:#FBEBCF; --bad:#B3362C; --bad-soft:#F9DEDA;
+  --font:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1A20; --surface:#16252D; --surface2:#1F3039; --fg:#E6EEF2; --muted:#94A6B1; --line:#2C414C;
+  --accent:#4FC1D3; --accent-fg:#06222A; --accent-soft:#17414A;
+  --good:#5CC48B; --good-soft:#15382A; --warn:#E3A84B; --warn-soft:#3B2D12; --bad:#F2887E; --bad-soft:#42211E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1A20; --surface:#16252D; --surface2:#1F3039; --fg:#E6EEF2; --muted:#94A6B1; --line:#2C414C;
+  --accent:#4FC1D3; --accent-fg:#06222A; --accent-soft:#17414A;
+  --good:#5CC48B; --good-soft:#15382A; --warn:#E3A84B; --warn-soft:#3B2D12; --bad:#F2887E; --bad-soft:#42211E; color-scheme:dark}
+*{box-sizing:border-box}body{margin:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.45 var(--font);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 120px}
+.wrap{max-width:980px;margin:0 auto}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 0}
+.brand{font-weight:700;letter-spacing:.01em}
+.brand small{display:block;font-weight:500;color:var(--muted);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.tabs{display:flex;gap:6px;background:var(--surface2);padding:4px;border-radius:12px}
+.tabs button{border:0;background:transparent;padding:10px 18px;border-radius:9px;font-weight:600;color:var(--muted);min-height:44px}
+.tabs button[aria-current="true"]{background:var(--surface);color:var(--fg)}
+.banner{background:var(--warn-soft);color:var(--warn);padding:10px 14px;border-radius:10px;font-size:14px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.banner button{border:1px solid currentColor;background:transparent;border-radius:8px;padding:6px 12px;min-height:36px;font-weight:600;color:inherit}
+h1{font-size:26px;line-height:1.2;margin:22px 0 6px;text-wrap:balance}
+h2{font-size:18px;margin:0 0 10px;text-wrap:balance}
+.lead{color:var(--muted);margin:0 0 18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(270px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.row>*{min-width:0}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--muted);flex:1 1 200px}
+input[type=text],input[type=tel],input[type=email],input[type=date],input[type=number],select,textarea{width:100%;min-height:52px;padding:10px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--fg);font-size:17px}
+input.bad,select.bad{border-color:var(--bad)}
+.btn{min-height:56px;padding:12px 22px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);font-weight:600;font-size:17px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.ghost{background:transparent}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.big{width:100%;min-height:120px;font-size:26px;border-radius:18px;display:flex;align-items:center;justify-content:center;gap:12px}
+.stat{padding:14px 16px}
+.stat b{display:block;font-size:32px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted)}
+.bars{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.bars li{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:14px}
+.bars .track{grid-column:1 / -1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.bars .fill{height:100%;background:var(--accent);border-radius:4px}
+.bars .n{font-variant-numeric:tabular-nums;font-weight:600}
+.empty{color:var(--muted);font-size:14px;margin:0}
+.steps{display:flex;gap:6px;margin:16px 0 4px;flex-wrap:wrap}
+.steps span,.steps button{border:0;font-family:inherit;cursor:pointer;flex:1 1 90px;text-align:center;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:8px 4px;border-radius:8px;background:var(--surface2);color:var(--muted)}
+.steps .on{background:var(--accent);color:var(--accent-fg)}
+.steps .done{background:var(--accent-soft);color:var(--fg)}
+.code{font-family:var(--mono);font-size:13px;color:var(--muted)}
+ul.items{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:12px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:10px}
+.item h3{margin:0;font-size:17px}
+.stock{display:flex;gap:8px;flex-wrap:wrap;font-size:13px}
+.pill{padding:3px 10px;border-radius:999px;background:var(--surface2);font-weight:600;font-size:12px}
+.pill.ok{background:var(--good-soft);color:var(--good)}
+.pill.no{background:var(--bad-soft);color:var(--bad)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{min-height:48px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);font-weight:600;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.chip.liked[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:#fff}
+.chip.disc[aria-pressed="true"]{background:var(--bad);border-color:var(--bad);color:#fff}
+.chip.miss[aria-pressed="true"]{background:var(--warn);border-color:var(--warn);color:#fff}
+.sugg{display:grid;gap:6px;margin-top:8px}
+.sugg button{text-align:left;min-height:48px;padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+.opts{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.opt{display:flex;gap:12px;align-items:center;min-height:56px;padding:10px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;text-align:left;width:100%}
+.opt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.opt .k{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none}
+.opt[aria-pressed="true"] .k{border-color:var(--accent);background:radial-gradient(var(--accent) 45%,transparent 50%)}
+.opt.sq .k{border-radius:6px}
+.three{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.three .btn{min-height:92px;font-size:20px}
+.three .btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.consent{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:10px}
+.consent p{margin:0;font-size:15px}
+.yn{display:flex;gap:8px}
+.yn .chip{min-width:84px}
+canvas.sig{width:100%;height:170px;border:1.5px dashed var(--line);border-radius:12px;background:var(--surface);touch-action:none;display:block}
+.nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));z-index:5}
+.nav .in{max-width:980px;margin:0 auto;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.nav .in>div{display:flex;gap:10px;flex-wrap:wrap}
+.missing{font-size:13px;color:var(--warn);margin:14px 0 0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(110px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:12px 18px;border-radius:12px;font-weight:600;z-index:9;max-width:90vw}
+dl.sum{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;margin:0}
+dl.sum dt{color:var(--muted);font-size:14px}
+dl.sum dd{margin:0;font-weight:600}
+.hist{display:grid;gap:10px;margin-top:14px}
+.hist .h{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;font-size:14px}
+textarea.out{min-height:140px;font-family:var(--mono);font-size:12px}
+.hint{font-size:13px;color:var(--muted);margin:8px 0 0}
+@media (prefers-reduced-motion:no-preference){.btn,.chip,.opt{transition:background .12s,border-color .12s}}
+</style></head><body>
+<div class="wrap" id="root"></div>
+<div id="toast" class="toast" hidden></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const KEY="registro_sole_beta_v1";
+const STORES=["Catania","Portali","Acireale","Viale Africa","Augusta","Giarre","Lentini","Paternò"];
+const CAT=[].concat([].map(a=>({b:a[0],m:a[1],mod:a[2],c:a[3],cal:a[4],st:a[5]})));
+const SB="https://exrlurfvydxrqfzjdobp.supabase.co",SBK="sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
+const sb=supabase.createClient(SB,SBK);
+let LIVE=null,LASTERR="";
+async function rpc(fn,args){const{data,error}=await sb.rpc(fn,args);if(error){LASTERR=String(error.message||error).slice(0,90);throw new Error(LASTERR)}return data||[]}
+function setLive(v){LIVE=v;const e=$("#live");if(e){e.textContent=v===null?"Verifico il collegamento all'anagrafica…":v===true?"Anagrafica collegata (dati reali di giacenza)":v===false?"Anagrafica non raggiungibile ("+LASTERR+")":"";e.className="pill "+(v===true?"ok":"warn")}}
+async function pingLive(){setLive(null);try{await rpc("ci_lookup_barcode",{p_barcode:"000000"});setLive(true)}catch(e){setLive(false)}}
+async function lookupCode(t){
+  try{const rows=await rpc("ci_lookup_barcode",{p_barcode:t});setLive(true);
+    if(!rows.length)return null;const r0=rows[0],names=STORES.concat(["Deposito"]);
+    return{b:r0.barcode,m:r0.marchio,mod:r0.modello,c:r0.colore||"",cal:r0.calibro||"",tipo:r0.tipo_lenti,st:names.map(n=>{const x=rows.find(r=>r.filiale===n);return x?x.disponibili:0})}}
+  catch(e){setLive(false);return CAT.find(x=>x.b===t)||null}}
+const SELLERS={"Acireale":["CAU","MCG","GGR","CPR","FAP","ANA","ASC"],"Augusta":["LGU","LTE","FAP","FCA","EMA"],"Catania":["ANL","VEM","FRP","GVI","ORM","FRS","ASC","VLI","ACA","DCO","ADA","SAM","MCG","SAD","FCA"],"Giarre":["VEZ","MGI","OLE","MCG"],"Lentini":["EMA","FCA","FAP"],"Paternò":["FCA","VLI","FAP"],"Portali":["SEU","CAF","YSI","GCO","ALT","FRA","ASC","FAP","OLE","MCG","FCA","GVI","LTE"],"Viale Africa":["DCO","VSC","MAA"]};
+const MOTIVI=["Prezzo troppo alto","Modello o colore desiderato non disponibile qui","Disponibile altrove o in arrivo, non ha voluto aspettare","Nessun modello gli è piaciuto","Sta solo guardando / tornerà","Cercava un marchio che non trattiamo","Vestibilità o taglia non adatta","Altro / non so"];
+const PERV=["Passaparola","Familiare già cliente","Convenzione","Oculista / medico","Google","Social","Sito / prenotazione online","Passaggio / vetrina","Evento / sponsorizzazione","Pubblicità","Non ricorda / altro"];
+const STATI=[["provato","Provato",""],["piaciuto","Piaciuto","liked"],["scartato","Scartato","disc"],["nondisp","Richiesto, non disponibile","miss"]];
+const STEPS=["Articoli","Preventivo","Esito","Assistenza","Chiusura"];
+const CONSENSI=[
+["c1","Dati di natura particolare (art. 9), comprese le abitudini visive e i disturbi che avverto"],
+["c2","Essere contattato/a per newsletter, aggiornamenti e novità (posta, e-mail, SMS, telefono, messaggistica)"],
+["c3","Profilazione e invio di offerte personalizzate"],
+["c4","Registrare i miei dati di consulenza per una consulenza personalizzata nel tempo"]];
+
+let mem=null;
+function load(){try{const r=localStorage.getItem(KEY);if(r)return JSON.parse(r)}catch(e){}return mem}
+let DB=load()||{settings:{store:"Catania",seller:""},log:[],clients:[],seeded:false};
+function save(){mem=DB;try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+const $=s=>document.querySelector(s);
+
+function seedDemo(){
+  let x=7;const r=n=>{x=(x*1103515245+12345)%2147483648;return x%n};
+  const now=Date.now();
+  for(let i=0;i<30;i++){
+    const n=1+r(3),items=[];
+    for(let k=0;k<n;k++){const it=CAT[r(CAT.length)];items.push({b:it.b,label:it.m+" "+it.mod,stato:["provato","piaciuto","scartato","provato","piaciuto","nondisp"][r(6)]})}
+    const e=["acquistato","nonacq","nonacq","torna"][r(4)];
+    DB.log.push({id:"d"+i,ts:new Date(now-r(10*86400000)).toISOString(),store:STORES[r(3)],seller:"Esempio",durata:14+r(26),items,esito:e,
+      motivo:e==="nonacq"?MOTIVI[[0,0,0,1,1,2,3,4,6,7][r(10)]]:null,assistenza:r(3)===0,demo:true});
+  }
+  DB.log.sort((a,b)=>a.ts<b.ts?1:-1);DB.seeded=true;save();
+}
+DB.seeded=true;
+
+let input_t=null;
+let S={view:"home",step:0,d:null,confirmCancel:false,sugg:[]};
+function newDraft(){return{start:Date.now(),items:[],prev:{prezzo:"",sconto:"",foto:""},esito:null,acq:[],motivo:null,nota:"",
+  ass:null,cl:{cognome:"",nome:"",nascita:"",cell:"",nocell:false,email:"",nomail:false,ind:"",citta:"",cap:"",perv:"",sesso:"",cf:"",gen:"",gencog:""},cons:{},firma:false}}
+
+function stockOf(it,store){const i=STORES.indexOf(store);return it.st[i]}
+function otherStock(it,store){
+  const out=[];STORES.forEach((s,i)=>{if(s!==store&&it.st[i]>0)out.push(s+" "+it.st[i])});
+  if(it.st[8]>0)out.push("Deposito "+it.st[8]);return out}
+
+function stats(){
+  const L=DB.log,t={tot:L.length,acq:0,non:0,tor:0};
+  const mot={},prov={},piac={},scar={};
+  L.forEach(e=>{
+    if(e.esito==="acquistato")t.acq++;else if(e.esito==="nonacq")t.non++;else t.tor++;
+    if(e.motivo)mot[e.motivo]=(mot[e.motivo]||0)+1;
+    e.items.forEach(i=>{prov[i.label]=(prov[i.label]||0)+1;if(i.stato==="piaciuto")piac[i.label]=(piac[i.label]||0)+1;if(i.stato==="scartato")scar[i.label]=(scar[i.label]||0)+1})});
+  const top=(o,n)=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,n);
+  return{t,mot:top(mot,8),prov:top(prov,5),piac:top(piac,5),scar:top(scar,5)}}
+function barList(rows,max){
+  if(!rows.length)return'<p class="empty">Ancora nessun dato.</p>';
+  const m=max||rows[0][1];
+  return'<ul class="bars">'+rows.map(([k,v])=>`<li><span>${esc(k)}</span><span class="n">${v}</span><div class="track"><div class="fill" style="width:${Math.round(v/m*100)}%"></div></div></li>`).join("")+"</ul>"}
+
+function header(){
+  const demo=DB.log.some(e=>e.demo);
+  return`<div class="top"><div class="brand"><small>ShopView · beta</small>Registro Sole non graduato</div>
+  <button class="btn ghost" data-a="logout" style="min-height:40px;padding:6px 14px;font-size:14px" aria-label="Esci dall'account">Esci</button>
+  ${S.view==="home"||S.view==="storico"||S.view==="richieste"?`<div class="tabs" role="tablist"><button data-a="go" data-v="home" aria-current="${S.view==="home"}">Avvio</button><button data-a="go" data-v="richieste" aria-current="${S.view==="richieste"}">Richieste${R.in?" ("+R.in+")":""}</button><button data-a="go" data-v="storico" aria-current="${S.view==="storico"}">Cronologia</button></div>`:""}</div>
+  ${demo&&(S.view==="home"||S.view==="storico")?`<div class="banner"><span>Dati di esempio: servono a vedere come si presenta il riepilogo. Restano solo su questo iPad.</span><button data-a="cleardemo">Svuota esempi</button></div>`:""}`}
+
+function vHome(){
+  const s=stats(),pc=n=>s.t.tot?Math.round(n/s.t.tot*100)+"%":"0%";
+  return`${header()}
+  ${R.in?`<div class="banner" style="margin-top:14px"><span><b>${R.in}</b> richiest${R.in>1?"e":"a"} di ricircolo da evadere per ${esc(DB.settings.store)}</span><button data-a="go" data-v="richieste">Apri</button></div>`:""}
+  <div class="card" style="margin-top:14px"><div class="row">
+    ${ME&&ME.filiale?`<label class="f">Filiale<b style="font-size:18px;min-height:52px;display:flex;align-items:center">${esc(ME.filiale)}</b></label>`:`<label class="f">Filiale<select id="set-store" data-f="settings.store">${STORES.map(x=>`<option${x===DB.settings.store?" selected":""}>${x}</option>`).join("")}</select></label>`}
+    ${ME&&ME.focus?`<label class="f">Venditore<b style="font-size:18px;min-height:52px;display:flex;align-items:center">${esc(ME.focus)}</b></label>`:`<label class="f">Venditore (codice FOCUS)<select id="set-seller" data-f="settings.seller"><option value="">— scegli —</option>${(SELLERS[DB.settings.store]||[]).map(x=>`<option${x===DB.settings.seller?" selected":""}>${x}</option>`).join("")}</select></label>`}</div></div>
+  <div style="margin:16px 0"><button class="btn primary big" data-a="start">Sole non graduato</button></div>
+  <h1>Riepilogo</h1><p class="lead">Interazioni registrate su questo iPad.</p>
+  <div class="grid g4">
+   <div class="card stat"><b>${s.t.tot}</b><span>interazioni</span></div>
+   <div class="card stat"><b>${pc(s.t.acq)}</b><span>acquistato (${s.t.acq})</span></div>
+   <div class="card stat"><b>${pc(s.t.non)}</b><span>non acquistato (${s.t.non})</span></div>
+   <div class="card stat"><b>${pc(s.t.tor)}</b><span>tornerà (${s.t.tor})</span></div></div>
+  <div class="grid g2" style="margin-top:14px">
+   <div class="card"><h2>Motivi di mancato acquisto</h2>${barList(s.mot)}</div>
+   <div class="card"><h2>Modelli più provati</h2>${barList(s.prov)}</div></div>
+  <div class="grid g2" style="margin-top:14px">
+   <div class="card"><h2>Più piaciuti</h2>${barList(s.piac)}</div>
+   <div class="card"><h2>Più scartati</h2>${barList(s.scar)}</div></div>
+  <p class="hint">La scansione con la fotocamera arriva nella versione collegata ai dati reali. Qui il codice si digita.</p>`}
+
+function stepsBar(){return`<div class="steps">${STEPS.map((n,i)=>`<button type="button" data-a="goto" data-i="${i}" class="${i===S.step?"on":i<S.step?"done":""}">${i+1} · ${n}</button>`).join("")}</div><p class="hint" style="margin-top:6px">Beta: puoi aprire qualsiasi pagina senza completare le precedenti.</p>`}
+
+function vArticoli(){return`${header()}${stepsBar()}
+  <h1>Articoli</h1><p class="lead">Scansiona o digita il barcode, oppure usa la ricerca guidata: scegli fornitore e marchio, poi il modello tra quelli disponibili.</p>
+  <div class="row"><label class="f" style="flex:3 1 260px">Barcode<input type="text" id="code" inputmode="numeric" autocomplete="off" autocapitalize="off" enterkeyhint="done" placeholder="es. 4053465354849"></label>
+  <button class="btn primary" data-a="add" style="flex:1 1 140px">Aggiungi</button></div>
+  <p style="margin:6px 0 0"><span id="live"></span></p>
+  <div class="card" style="margin-top:14px"><h2>Ricerca guidata</h2>
+   <div class="row">
+    <label class="f">Tipo<select id="g-tipo"><option value="sole">Sole</option><option value="vista">Vista</option></select></label>
+    </div>
+   <label class="f" style="margin-top:10px">Fornitore<input type="text" id="g-fq" autocomplete="off" autocapitalize="off" placeholder="Scrivi per filtrare — vuoto = tutti"></label>
+   <div class="sugg" id="g-fl"></div>
+   <label class="f" style="margin-top:10px">Marchio<input type="text" id="g-mq" autocomplete="off" autocapitalize="off" placeholder="Scrivi per filtrare il marchio"></label>
+   <div class="sugg" id="g-ml"></div>
+   <label class="f" style="margin-top:10px">Cerca tra i disponibili: modello, colore, calibro<input type="text" id="g-q" autocomplete="off" autocapitalize="off" placeholder="es. 3025 001/15 50 — in qualsiasi ordine"></label>
+   <p class="hint" id="g-info"></p>
+   <div class="sugg" id="g-res"></div></div>
+  <ul class="items" id="items"></ul>`}
+
+function vPreventivo(){const p=S.d.prev;return`${header()}${stepsBar()}
+  <h1>Preventivo</h1><p class="lead">Se è stato fatto un preventivo, annota prezzo e sconto e fotografa il cartellino. Altrimenti vai avanti.</p>
+  <div class="card"><div class="row">
+   <label class="f">Prezzo proposto (€)<input type="number" inputmode="decimal" min="0" step="1" data-f="d.prev.prezzo" value="${esc(p.prezzo)}"></label>
+   <label class="f">Sconto offerto (%)<input type="number" inputmode="decimal" min="0" max="100" step="1" data-f="d.prev.sconto" value="${esc(p.sconto)}"></label></div>
+   <div style="margin-top:16px"><label class="f">Foto del cartellino<input type="file" accept="image/*" capture="environment" id="foto"></label>
+   <p class="hint" id="fotoinfo">${p.foto?"Foto acquisita: "+esc(p.foto):"Nella versione collegata la foto viene cancellata dopo 3 mesi."}</p></div></div>`}
+
+function vEsito(){const d=S.d;
+  const ob=(k,t)=>`<button class="btn" aria-pressed="${d.esito===k}" data-a="esito" data-v="${k}">${t}</button>`;
+  let more="";
+  if(d.esito==="acquistato")more=`<h2 style="margin-top:20px">Quale articolo?</h2><div class="opts">${d.items.map((it,i)=>`<button class="opt sq" aria-pressed="${d.acq.includes(i)}" data-a="acq" data-i="${i}"><span class="k"></span>${esc(it.label)}</button>`).join("")}</div>
+   <p class="hint">La vendita si registra in FOCUS. Se il cliente non vuole lasciare dati, si usa il carrello non nominativo.</p>`;
+  if(d.esito==="nonacq")more=`<h2 style="margin-top:20px">Perché non ha acquistato?</h2><div class="opts">${MOTIVI.map((m,i)=>`<button class="opt" aria-pressed="${d.motivo===m}" data-a="motivo" data-i="${i}"><span class="k"></span>${esc(m)}</button>`).join("")}</div>`;
+  return`${header()}${stepsBar()}<h1>Esito</h1><p class="lead">Scegli come è finita la visita.</p>
+  <div class="three">${ob("acquistato","Acquistato")}${ob("nonacq","Non acquistato")}${ob("torna","Tornerà")}</div>${more}
+  <label class="f" style="margin-top:20px">Nota breve (facoltativa)<input type="text" maxlength="140" data-f="d.nota" value="${esc(d.nota)}"></label>`}
+
+function age(s){if(!s)return null;const b=new Date(s),n=new Date();if(isNaN(b))return null;let a=n.getFullYear()-b.getFullYear();const m=n.getMonth()-b.getMonth();if(m<0||(m===0&&n.getDate()<b.getDate()))a--;return a}
+function vAssist(){const d=S.d,c=d.cl,minor=age(c.nascita)!==null&&age(c.nascita)<18;
+  const form=d.ass==="si"?`<div class="card" style="margin-top:16px"><h2>Dati del cliente</h2>
+   <div class="row"><label class="f">Cognome<input type="text" data-f="d.cl.cognome" value="${esc(c.cognome)}" autocomplete="off"></label>
+   <label class="f">Nome<input type="text" data-f="d.cl.nome" value="${esc(c.nome)}" autocomplete="off"></label>
+   <label class="f">Data di nascita<input type="date" data-f="d.cl.nascita" id="nascita" value="${esc(c.nascita)}"></label></div>
+   <div class="row" style="margin-top:12px"><label class="f">Cellulare<input type="tel" inputmode="tel" data-f="d.cl.cell" id="cell" value="${esc(c.cell)}" ${c.nocell?"disabled":""}></label>
+   <label class="f">E-mail<input type="email" inputmode="email" data-f="d.cl.email" value="${esc(c.email)}" ${c.nomail?"disabled":""}></label></div>
+   <div class="chips" style="margin-top:8px"><button class="chip" aria-pressed="${c.nocell}" data-a="nocell">Non ho un cellulare</button><button class="chip" aria-pressed="${c.nomail}" data-a="nomail">Non ho una mail</button></div>
+   <p class="hint" id="dup"></p>
+   <div class="row" style="margin-top:12px"><label class="f" style="flex:3 1 260px">Indirizzo<input type="text" data-f="d.cl.ind" value="${esc(c.ind)}"></label>
+   <label class="f">Città<input type="text" data-f="d.cl.citta" value="${esc(c.citta)}"></label>
+   <label class="f" style="flex:0 1 120px">CAP<input type="text" inputmode="numeric" maxlength="5" data-f="d.cl.cap" value="${esc(c.cap)}"></label></div>
+   <div class="row" style="margin-top:12px"><label class="f">Pervenuto tramite<select data-f="d.cl.perv"><option value="">Scegli…</option>${PERV.map(p=>`<option${p===c.perv?" selected":""}>${esc(p)}</option>`).join("")}</select></label>
+   <label class="f">Sesso (facoltativo)<select data-f="d.cl.sesso"><option value="">—</option>${["F","M"].map(p=>`<option${p===c.sesso?" selected":""}>${p}</option>`).join("")}</select></label>
+   <label class="f">Codice fiscale (facoltativo)<input type="text" maxlength="16" data-f="d.cl.cf" value="${esc(c.cf)}" style="text-transform:uppercase"></label></div>
+   <p class="hint">Il codice fiscale serve per la detrazione fiscale sulle spese sanitarie.</p>
+   ${minor?`<div class="banner" style="margin-top:14px">Cliente minorenne: compila e firma il genitore.</div><div class="row" style="margin-top:12px"><label class="f">Nome del genitore<input type="text" data-f="d.cl.gen" value="${esc(c.gen)}"></label><label class="f">Cognome del genitore<input type="text" data-f="d.cl.gencog" value="${esc(c.gencog)}"></label></div>`:""}
+  </div>
+  <div class="card" style="margin-top:16px"><h2>Consensi</h2><p class="hint" style="margin:0 0 12px">Ogni voce richiede una risposta. Nessuna è preselezionata.</p><div class="grid">
+   ${CONSENSI.map(([k,t])=>`<div class="consent"><p>Acconsento: ${esc(t)}</p><div class="yn"><button class="chip" aria-pressed="${d.cons[k]==="si"}" data-a="cons" data-k="${k}" data-v="si">Sì</button><button class="chip" aria-pressed="${d.cons[k]==="no"}" data-a="cons" data-k="${k}" data-v="no">No</button></div></div>`).join("")}</div>
+   <h2 style="margin-top:18px">Firma${minor?" del genitore":""}</h2><canvas class="sig" id="sig"></canvas>
+   <div style="margin-top:8px"><button class="btn ghost" data-a="clearsig">Cancella firma</button></div>
+   <p class="hint">Il testo dell'informativa è in revisione: qui compare quello approvato, con data e versione salvate insieme alla firma.</p></div>`:"";
+  return`${header()}${stepsBar()}<h1>Assistenza gratuita</h1>
+  <p class="lead">Vuole attivare il servizio di assistenza e manutenzione gratuita? Servono pochi dati.</p>
+  <div class="three" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))"><button class="btn" aria-pressed="${d.ass==="si"}" data-a="ass" data-v="si">Sì, attiva</button><button class="btn" aria-pressed="${d.ass==="no"}" data-a="ass" data-v="no">No, grazie</button></div>${form}<p class="missing" id="missing"></p>`}
+
+function vChiusura(){const d=S.d,secs=Math.round((Date.now()-d.start)/1000);
+  const es={acquistato:"Acquistato",nonacq:"Non acquistato",torna:"Tornerà"}[d.esito];
+  return`${header()}${stepsBar()}<h1>Riepilogo</h1><div class="card"><dl class="sum">
+   <dt>Articoli</dt><dd>${d.items.map(i=>esc(i.label)).join(", ")}</dd>
+   <dt>Esito</dt><dd>${es}${d.esito==="nonacq"?" · "+esc(d.motivo):""}</dd>
+   <dt>Preventivo</dt><dd>${d.prev.prezzo?esc(d.prev.prezzo)+" €"+(d.prev.sconto?" · sconto "+esc(d.prev.sconto)+"%":""):"Nessuno"}</dd>
+   <dt>Assistenza</dt><dd>${d.ass==="si"?"Attivata per "+esc(d.cl.cognome+" "+d.cl.nome):"No"}</dd>
+   <dt>Tempo</dt><dd>${secs} secondi</dd></dl></div>`}
+
+function vStorico(){const L=DB.log.slice(0,60);
+  return`${header()}<h1>Cronologia</h1><p class="lead">Ultime ${L.length} interazioni di questo iPad.</p>
+  <div class="row"><button class="btn" data-a="export">Mostra dati da copiare</button><button class="btn danger" data-a="wipe">${S.confirmWipe?"Conferma: cancella tutto":"Cancella tutti i dati"}</button></div>
+  <div id="exp"></div>
+  <div class="hist">${L.map(e=>`<div class="h"><span><b>${esc(e.items.map(i=>i.label).join(", "))}</b><br><span class="code">${esc(e.store)} · ${new Date(e.ts).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · ${e.durata}s${e.demo?" · esempio":""}</span></span>
+   <span class="pill ${e.esito==="acquistato"?"ok":e.esito==="nonacq"?"no":"warn"}">${{acquistato:"Acquistato",nonacq:"Non acquistato",torna:"Tornerà"}[e.esito]}</span></div>`).join("")||'<p class="empty">Nessuna interazione.</p>'}</div>`}
+
+function nav(){
+  const d=S.d;if(!d)return"";
+  const last=S.step===4;
+  return`<div class="nav"><div class="in"><div><button class="btn ${S.confirmCancel?"danger":"ghost"}" data-a="cancel">${S.confirmCancel?"Conferma: scarta l'interazione":"Annulla"}</button></div>
+  <div>${S.step>0?'<button class="btn" data-a="back">Indietro</button>':""}<button class="btn primary" id="next" data-a="${last?"finish":"next"}">${last?"Salva e chiudi":"Avanti"}</button></div></div></div>`}
+
+function missing(){
+  const d=S.d,m=[];
+  if(S.step===0&&!d.items.length)m.push("Aggiungi almeno un articolo");
+  if(S.step===2){
+    if(!d.esito)m.push("Scegli l'esito");
+    if(d.esito==="acquistato"&&!d.acq.length)m.push("Indica l'articolo acquistato");
+    if(d.esito==="nonacq"&&!d.motivo)m.push("Scegli il motivo")}
+  if(S.step===3){
+    if(!d.ass)m.push("Scegli Sì o No");
+    if(d.ass==="si"){const c=d.cl;
+      if(!c.cognome.trim())m.push("cognome");if(!c.nome.trim())m.push("nome");
+      const a=age(c.nascita);if(a===null||a<0||a>120)m.push("data di nascita");
+      if(!c.nocell&&!/^\+?[0-9 ]{8,15}$/.test(c.cell.trim()))m.push("cellulare (o spunta «Non ho un cellulare»)");
+      if(!c.nomail&&!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(c.email.trim()))m.push("e-mail (o spunta «Non ho una mail»)");
+      if(!c.ind.trim())m.push("indirizzo");if(!c.citta.trim())m.push("città");if(!/^[0-9]{5}$/.test(c.cap))m.push("CAP");
+      if(!c.perv)m.push("pervenuto tramite");
+      if(c.cf&&!/^[A-Za-z0-9]{16}$/.test(c.cf))m.push("codice fiscale (16 caratteri, oppure lascia vuoto)");
+      if(a!==null&&a<18&&(!c.gen.trim()||!c.gencog.trim()))m.push("nome e cognome del genitore");
+      if(CONSENSI.some(([k])=>!d.cons[k]))m.push("risposta a tutti i consensi");
+      if(!d.firma)m.push("firma")}}
+  return m}
+function updateNav(){
+  const m=missing(),n=$("#next");
+  if(n)n.disabled=false;
+  const el=$("#missing");if(el)el.textContent=m.length&&S.d.ass==="si"?"Manca: "+m.join(", ")+".":""}
+
+function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>{el.hidden=true},2600)}
+
+function renderItems(){
+  const ul=$("#items");if(!ul)return;
+  const st=DB.settings.store;
+  ul.innerHTML=S.d.items.map((it,i)=>{
+    const c=it.cat;let info="";
+    if(c){const q=stockOf(c,st),o=otherStock(c,st);
+      info=`<div class="stock"><span class="pill ${q>0?"ok":"no"}">${esc(st)}: ${q}</span>${o.map(x=>`<span class="pill">${esc(x)}</span>`).join("")}</div>`}
+    else info=`<div class="stock"><span class="pill warn">${it.manual?"Inserito a mano":"Codice non trovato in anagrafica"}</span></div>`;
+    return`<li class="item"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div><h3>${esc(it.label)}</h3><span class="code">${esc(it.b||"")}${it.cat?" · "+esc(it.cat.c)+" · cal. "+esc(it.cat.cal):""}</span></div>${it.cd?`<div style="display:flex;gap:6px;flex:none"><button class="btn danger" style="min-height:44px;padding:6px 12px" data-a="delyes" data-i="${i}">Elimina</button><button class="btn" style="min-height:44px;padding:6px 12px" data-a="delno" data-i="${i}">No</button></div>`:`<button class="btn" style="min-height:44px;padding:6px 12px;flex:none" aria-label="Rimuovi articolo" data-a="del" data-i="${i}">🗑 Rimuovi</button>`}</div>${info}${ricBlock(it,i)}${it.cat?`<div style="margin-top:10px"><button class="btn" data-a="var" data-i="${i}">Varianti</button></div>`:""}
+    <div class="chips">${STATI.map(([k,t,cl])=>`<button class="chip ${cl}" aria-pressed="${it.stato===k}" data-a="stato" data-i="${i}" data-v="${k}">${t}</button>`).join("")}</div></li>`}).join("")||'<li class="empty">Nessun articolo. Il primo codice che inserisci compare qui.</li>'}
+
+function addItem(o){
+  S.d.items.push(o);S.sugg=[];renderItems();
+  const c=$("#code");if(c){c.value="";const sg=$("#sugg");if(sg)sg.innerHTML="";c.focus()}updateNav()}
+const G={tipo:"sole",forn:"",marc:"",fq:"",mq:"",fopen:false,mopen:false,q:"",forns:null,marcs:null,res:null,info:""};
+const q1=v=>String(v).replace(/\\/g,"").replace(/'/g,"''").slice(0,80);
+async function gLoadForns(){G.forns=null;G.info="Carico i fornitori…";gDraw();
+  try{G.forns=await rpc("ci_forn",{p_tipo:G.tipo});G.info=""}
+  catch(e){G.forns=[];G.info="Errore: "+String(e.message||e).slice(0,120)}gDraw()}
+async function gLoadMarcs(){G.marcs=null;G.info="Carico i marchi…";gDraw();
+  try{G.marcs=await rpc("ci_marchi",{p_tipo:G.tipo,p_forn:G.forn||null});G.info=""}
+  catch(e){G.marcs=[];G.info="Errore: "+String(e.message||e).slice(0,120)}gDraw()}
+async function gLoadRes(){G.res=null;if(!G.marc){gDraw();return}G.info="Carico gli articoli…";gDraw();
+  try{const rows=await rpc("ci_articoli",{p_tipo:G.tipo,p_marchio:G.marc,p_forn:G.forn||null});
+    const names=STORES.concat(["Deposito"]),map=new Map();
+    rows.forEach(r=>{let it=map.get(r.barcode);if(!it){it={b:r.barcode,m:G.marc,mod:r.modello,c:r.colore||"",cal:r.calibro||"",st:names.map(()=>0)};map.set(r.barcode,it)}
+      const i=names.indexOf(r.filiale);if(i>=0)it.st[i]=r.disp});
+    G.res=[...map.values()];G.info=""}
+  catch(e){G.res=[];G.info="Errore: "+String(e.message||e).slice(0,120)}gDraw()}
+const nrm=t=>String(t==null?"":t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+function gMatch(x,q){
+  const toks=nrm(q).split(" ").filter(Boolean);if(!toks.length)return true;
+  const hay=nrm(x.mod)+" "+nrm(x.c)+" "+nrm(x.cal),words=hay.split(" "),joined=hay.replace(/ /g,"");
+  return toks.every(t=>words.some(w=>w.startsWith(t))||(t.length>=3&&joined.includes(t)))}
+function gOpts(items,sel,q,open,kind){
+  if(!open||sel)return"";
+  if(items===null)return'<p class="hint">Carico l\'elenco…</p>';
+  const qq=q.trim().toLowerCase(),l=items.filter(x=>!qq||String(x.v).toLowerCase().includes(qq));
+  const head=kind==="f"&&!qq?'<button data-a="gsel" data-k="f" data-v="">Tutti i fornitori</button>':"";
+  const body=l.slice(0,10).map(x=>`<button data-a="gsel" data-k="${kind}" data-v="${esc(x.v)}">${esc(x.v)} <span class="code">(${x.n})</span></button>`).join("");
+  const more=l.length>10?`<p class="hint">Altri ${l.length-10}: continua a scrivere per restringere.</p>`:"";
+  return head+body+more||'<p class="hint">Nessuna corrispondenza.</p>'}
+function gDraw(){
+  const r=$("#g-res"),i=$("#g-info");if(!r)return;
+  $("#g-tipo").value=G.tipo;
+  $("#g-fl").innerHTML=gOpts(G.forns,G.forn,G.fq,G.fopen,"f");
+  $("#g-ml").innerHTML=gOpts(G.marcs,G.marc,G.mq,G.mopen,"m");
+  const fi=$("#g-fq"),mi=$("#g-mq");
+  if(document.activeElement!==fi)fi.value=G.forn||G.fq;
+  if(document.activeElement!==mi)mi.value=G.marc||G.mq;
+  i.textContent=G.info||(G.marc&&G.res?G.res.length+" articoli disponibili in rete. «Qui» = "+DB.settings.store+".":"Scegli un marchio per vedere i modelli disponibili.");
+  const q=G.q.trim().toLowerCase(),st=DB.settings.store,si=STORES.indexOf(st);
+  const list=(G.res||[]).filter(x=>gMatch(x,G.q)).slice(0,80);
+  r.innerHTML=list.map(x=>{const tot=x.st.reduce((a,c)=>a+c,0),qui=x.st[si]||0;
+    return`<button data-a="gpick" data-b="${esc(x.b)}"><b>${esc(x.mod)}</b> <span class="code">· ${esc(x.c)} · cal. ${esc(x.cal)}</span><br><span class="pill ${qui>0?"ok":"no"}">Qui ${qui}</span> ${STORES.concat(["Deposito"]).map((n,k)=>k!==si&&x.st[k]>0?`<span class="pill">${esc(n)} ${x.st[k]}</span>`:"").join(" ")}</button>`}).join("")||(G.res&&G.res.length?'<p class="hint">Nessun modello corrisponde.</p>':"")}
+function gInit(){gDraw();if(G.forns===null)gLoadForns();if(G.marcs===null)gLoadMarcs()}
+const COD={"Catania":"D","Portali":"I","Acireale":"C","Viale Africa":"Z","Augusta":"E","Giarre":"G","Lentini":"H","Paternò":"B","Deposito":"A"};
+const NOME=Object.fromEntries(Object.entries(COD).map(([n,c])=>[c,n]));
+const nomeF=c=>NOME[c]||c||"—";
+const uid=v=>/^[0-9a-fA-F-]{36}$/.test(String(v))?String(v):"";
+const R={list:null,err:"",in:0};
+function meCode(){return COD[DB.settings.store]}
+function hhmm(t){try{return new Date(t).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}catch(e){return""}}
+async function loadReq(){
+  try{const d7=new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+    const{data,error}=await sb.from("ricircoli_richieste").select("id,creato_il,barcode,marchio,modello,colore,calibro,filiale_da,filiale_a,stato,trovato_il,richiesta_id,tentativo,venditore,riferimento_cliente,coda,esaurita").or("stato.in.(pending,trovato),creato_il.gt."+d7).order("creato_il",{ascending:false}).order("tentativo",{ascending:false}).limit(100);
+    if(error)throw error;R.list=data||[];R.err=""}
+  catch(e){R.err=String((e&&e.message)||e).slice(0,100);if(R.list===null)R.list=[]}
+  const me=meCode();R.in=(R.list||[]).filter(r=>r.filiale_da===me&&r.stato==="pending").length;
+  if(S.view==="home"||S.view==="richieste")render()}
+async function ricQueue(it){return rpc("ci_coda",{p_barcode:it.cat.b,p_filiale:meCode()})}
+function ricBlock(it,i){
+  const c=it.cat;if(!c)return"";
+  const qui=stockOf(c,DB.settings.store),o=otherStock(c,DB.settings.store);
+  if(it.req)return`<div class="stock"><span class="pill ok">Richiesta inviata a ${esc(nomeF(it.req.a))} · in attesa di conferma</span></div>`;
+  if(qui>0)return"";
+  if(!o.length)return`<div class="stock"><span class="pill no" style="background:#3a1d22;color:#ff8f8f">Non disponibile in nessun negozio</span></div><p class="hint">Questo codice non risulta in giacenza in nessuna filiale.</p>`;
+  const r=it.ric;
+  if(!r)return`<div style="margin-top:10px"><button class="btn" data-a="ricq" data-i="${i}">Chiedi il pezzo a un altro negozio</button></div>`;
+  if(r.loading)return'<p class="hint">Calcolo a chi chiedere…</p>';
+  if(r.err)return`<p class="hint">Errore: ${esc(r.err)}</p><button class="btn" data-a="ricq" data-i="${i}">Riprova</button>`;
+  const q=r.q;if(!q.length)return'<p class="hint">Nessun altro negozio ha il pezzo disponibile.</p>';
+  return`<div class="card" style="margin-top:10px;padding:12px"><b>Verrà chiesto a ${esc(nomeF(q[0].codice))}</b>${q.length>1?`, poi: ${q.slice(1).map(x=>esc(nomeF(x.codice))).join(", ")}`:""}.
+   <p class="hint">Ordine: prima il deposito, poi chi vende meno ${esc(c.m)} negli ultimi 12 mesi, a parità chi vende meno questo modello. ${q.map(x=>esc(nomeF(x.codice))+": "+x.vm+" del marchio, "+x.vmod+" del modello").join(" · ")}</p>
+   <label class="f" style="margin-top:8px">Per chi è il pezzo? Riferimento cliente (obbligatorio)<input type="text" data-rif="${i}" value="${esc(r.rif||"")}" placeholder="es. cognome e nome del cliente" autocomplete="off"></label>
+   <div class="row" style="margin-top:8px"><button class="btn primary" data-a="ricok" data-i="${i}">Invia richiesta</button><button class="btn" data-a="ricno" data-i="${i}">Annulla</button></div></div>`}
+async function ricSend(i){
+  const it=S.d.items[i],q=it.ric.q.map(x=>x.codice),first=q[0],c=it.cat,rif=String(it.ric.rif||"").trim();
+  if(rif.length<2){toast("Scrivi il riferimento cliente: serve ai negozi per sapere per chi è il pezzo");return}
+  it.ric={loading:true};renderItems();
+  try{const{data,error}=await sb.rpc("ci_richiesta_invia",{p_barcode:c.b,p_coda:q,p_rif:rif,p_venditore:DB.settings.seller||"",p_inter:"i"+S.d.start,p_filiale_a:meCode()});
+    if(error)throw error;
+    it.req={id:data,a:first};it.ric=null;toast("Richiesta inviata a "+nomeF(first));loadReq()}
+  catch(e){it.ric={err:String((e&&e.message)||e).slice(0,100)}}
+  renderItems()}
+async function reqAct(act,id){
+  id=uid(id);if(!id)return;const r=(R.list||[]).find(x=>x.id===id);if(!r)return;
+  try{const{error}=await sb.rpc("ci_richiesta_azione",{p_id:id,p_act:act});if(error)throw error;
+    toast(act==="not"?((r.coda||[]).length?"Richiesta passata a "+nomeF(r.coda[0]):"Nessun altro negozio: richiesta esaurita"):"Aggiornato")}
+  catch(e){toast("Errore: "+String((e&&e.message)||e).slice(0,60))}
+  loadReq()}
+function badgeR(r){
+  const dd=t=>{try{return new Date(t).toLocaleDateString("it-IT",{day:"2-digit",month:"2-digit"})}catch(e){return""}};
+  if(r.stato==="trovato"){let ov=false;try{const d=new Date(r.trovato_il),n=new Date();d.setHours(0,0,0,0);n.setHours(0,0,0,0);ov=d<n}catch(e){}
+    return`<span class="pill ${ov?"no":"warn"}">In trasferimento${r.trovato_il?" dal "+dd(r.trovato_il):""}</span>`}
+  if(r.stato==="non_trovato")return`<span class="pill no">${r.esaurita?"Non trovato in nessun negozio":"Non trovato"}</span>`;
+  if(r.stato==="trasferito")return'<span class="pill ok">Trasferito</span>';
+  if(r.stato==="annullato")return'<span class="pill">Annullata</span>';
+  return'<span class="pill warn">In attesa</span>'}
+function vRichieste(){
+  const me=meCode(),L=R.list;
+  const by={};(L||[]).forEach(r=>{(by[r.richiesta_id]=by[r.richiesta_id]||[]).push(r)});
+  const chains=Object.values(by).map(a=>a.sort((x,y)=>y.tentativo-x.tentativo));
+  const card=(a,btns)=>{const r=a[0],past=a.slice(1).filter(x=>x.stato==="non_trovato");
+    return`<div class="card" style="margin-top:10px"><b>${esc(r.marchio)} ${esc(r.modello)}</b><br><span class="code">${esc(r.barcode)} · ${esc(r.colore||"")} · cal. ${esc(r.calibro||"")}</span>
+    <p style="margin:6px 0 0">Per: <b>${esc(r.riferimento_cliente||"—")}</b></p><p class="hint" style="margin:6px 0">Da <b>${esc(nomeF(r.filiale_da))}</b> a <b>${esc(nomeF(r.filiale_a))}</b>${r.venditore?" · richiesta di "+esc(r.venditore):""} · ${hhmm(a[a.length-1].creato_il)}${past.length?" · già non trovato in "+past.map(t=>esc(nomeF(t.filiale_da))).join(", "):""}</p>
+    ${badgeR(r)}<div class="row" style="margin-top:10px">${btns}</div></div>`};
+  let inc="",mine="",oth="",nInc=0;
+  chains.forEach(a=>{const r=a[0];
+    const btn=(act,t,cl)=>`<button class="btn ${cl||""}" data-a="req" data-act="${act}" data-id="${esc(r.id)}">${t}</button>`;
+    if(r.filiale_da===me&&r.stato==="pending"){nInc++;inc+=card(a,btn("conf","✓ Trovato","primary")+btn("not","✗ Non trovato"))}
+    else if(r.filiale_da===me&&r.stato==="trovato")inc+=card(a,"");
+    else if(r.filiale_a===me)mine+=card(a,(r.stato==="trovato"?btn("arr","Arrivato","primary"):"")+(["pending","trovato"].includes(r.stato)?btn("ann","Annulla richiesta"):""));
+    else if(a.some(x=>x.filiale_da===me)){}
+    else oth+=card(a,"")});
+  return`${header()}
+  <h1>Richieste di ricircolo</h1><p class="lead">Negozio selezionato: <b>${esc(DB.settings.store)}</b>. Per vedere un altro negozio cambia la filiale in Avvio.</p>
+  ${R.err?`<p class="hint">Errore di lettura: ${esc(R.err)}</p>`:""}${L===null?'<p class="hint">Carico…</p>':""}
+  <h2 style="margin-top:18px">Da evadere per ${esc(DB.settings.store)} (${nInc})</h2>${inc||'<p class="empty">Nessuna richiesta da evadere.</p>'}
+  <h2 style="margin-top:22px">Richieste fatte da ${esc(DB.settings.store)}</h2>${mine||'<p class="empty">Nessuna richiesta.</p>'}
+  ${oth?`<h2 style="margin-top:22px">Altri negozi</h2>${oth}`:""}`}
+async function addFromText(raw){
+  const t=raw.trim();if(!t)return;
+  if(/^[0-9]{6,}$/.test(t)){
+    toast("Cerco il codice…");
+    const f=await lookupCode(t);
+    if(f)addItem({b:f.b,label:f.m+" "+f.mod,cat:f,stato:"provato"});
+    else{addItem({b:t,label:"Codice "+t,nc:true,stato:"provato"});toast("Codice non trovato in anagrafica: registrato lo stesso")}
+    return}
+  toast("Inserisci un barcode oppure usa la ricerca guidata");$("#code")&&$("#code").focus()}
+function search(t){const q=t.toLowerCase();return CAT.filter(x=>(x.m+" "+x.mod+" "+x.c).toLowerCase().includes(q)).slice(0,5)}
+
+function set(path,val){const p=path.split(".");let o=p[0]==="settings"?DB:S;
+  for(let i=0;i<p.length-1;i++)o=o[p[i]];o[p[p.length-1]]=val}
+
+const VAR={base:null,res:null,err:"",fc:[],fk:[]};
+function resetSearch(){Object.assign(G,{tipo:"sole",forn:"",marc:"",fq:"",mq:"",fopen:false,mopen:false,q:"",forns:null,marcs:null,res:null,info:""});Object.assign(VAR,{base:null,res:null,err:"",fc:[],fk:[]});S.sugg=[]}
+async function varLoad(){
+  const b=VAR.base;VAR.res=null;VAR.err="";
+  try{const rows=await rpc("ci_varianti",{p_barcode:b.b});
+    const names=STORES.concat(["Deposito"]),map=new Map();
+    rows.forEach(r=>{let it=map.get(r.barcode);if(!it){it={b:r.barcode,m:b.m,mod:b.mod,c:r.colore||"",cal:r.calibro||"",tipo:b.tipo,st:names.map(()=>0)};map.set(r.barcode,it)}
+      const i=names.indexOf(r.filiale);if(i>=0)it.st[i]=r.disp});
+    VAR.res=[...map.values()]}
+  catch(e){VAR.res=[];VAR.err=String((e&&e.message)||e).slice(0,120)}
+  if(S.view==="varianti")render()}
+function vVarianti(){
+  const b=VAR.base,st=DB.settings.store,si=STORES.indexOf(st),names=STORES.concat(["Deposito"]);
+  const top=`${header()}<div class="row" style="margin-top:14px"><button class="btn" data-a="vback">‹ Indietro</button></div>
+   <h1>Varianti</h1><p class="lead"><b>${esc(b.m)} ${esc(b.mod)}</b><br><span class="code">Articolo scelto: ${esc(b.c)} · cal. ${esc(b.cal)}</span></p>`;
+  if(VAR.res===null)return top+'<p class="hint">Carico le varianti…</p>';
+  if(VAR.err)return top+`<p class="hint">Errore: ${esc(VAR.err)}</p><button class="btn" data-a="var" data-i="-1">Riprova</button>`;
+  const uniq=k=>{const m=new Map();VAR.res.forEach(x=>m.set(x[k],(m.get(x[k])||0)+1));return[...m.entries()].sort((a,z)=>String(a[0]).localeCompare(String(z[0]),"it",{numeric:true}))};
+  const chips=(k,fk,arr)=>arr.map(([v,n])=>`<button class="chip" aria-pressed="${arr_has(fk,v)}" data-a="vtog" data-k="${k}" data-v="${esc(v)}">${esc(v||"—")} <span class="code">${n}</span></button>`).join(" ");
+  const arr_has=(a,v)=>a.includes(v);
+  const fl=VAR.res.filter(x=>(!VAR.fc.length||VAR.fc.includes(x.c))&&(!VAR.fk.length||VAR.fk.includes(x.cal)));
+  const tot=x=>x.st.reduce((a,c)=>a+c,0);
+  fl.sort((a,z)=>((z.st[si]>0)-(a.st[si]>0))||(tot(z)-tot(a))||String(a.c).localeCompare(String(z.c),"it",{numeric:true})||String(a.cal).localeCompare(String(z.cal),"it",{numeric:true}));
+  const row=x=>`<button data-a="vadd" data-b="${esc(x.b)}"><b>${esc(x.c)}</b> <span class="code">· cal. ${esc(x.cal)}</span><br><span class="pill ${x.st[si]>0?"ok":"no"}">${esc(st)} ${x.st[si]||0}</span> ${names.map((n,k)=>k!==si&&x.st[k]>0?`<span class="pill">${esc(n)} ${x.st[k]}</span>`:"").join(" ")}</button>`;
+  const qui=fl.filter(x=>x.st[si]>0),altri=fl.filter(x=>!(x.st[si]>0));
+  const sec=(t,l)=>l.length?`<h2 style="margin-top:16px">${t} (${l.length})</h2><div class="sugg">${l.slice(0,100).map(row).join("")}</div>`:"";
+  return top+(VAR.res.length?`<div class="card"><h2>Colore</h2><div class="chips">${chips("c",VAR.fc,uniq("c"))}</div>
+   <h2 style="margin-top:14px">Calibro</h2><div class="chips">${chips("k",VAR.fk,uniq("cal"))}</div>
+   ${VAR.fc.length||VAR.fk.length?'<div style="margin-top:12px"><button class="btn" data-a="vclr">Azzera filtri</button></div>':""}</div>
+   ${sec("Disponibili in "+esc(st),qui)}${sec("Solo in altri negozi",altri)}${fl.length?"":'<p class="hint">Nessuna variante con questi filtri.</p>'}
+   <p class="hint">Tocca una variante per aggiungerla agli articoli.</p>`:'<p class="hint">Nessun\'altra variante di questo modello in giacenza.</p>')}
+const VIEWS={home:vHome,storico:vStorico,richieste:vRichieste,varianti:vVarianti};
+function render(){
+  let h;
+  if(S.view==="flow")h=[vArticoli,vPreventivo,vEsito,vAssist,vChiusura][S.step]()+nav();
+  else h=VIEWS[S.view]();
+  const y=window.scrollY,sig=S.view+":"+S.step,same=S.last===sig;S.last=sig;
+  $("#root").innerHTML=h;
+  after();window.scrollTo(0,same?y:0)}
+function after(){
+  if(S.view==="flow"){
+    if(S.step===0){renderItems();const c=$("#code");c&&c.focus();if(LIVE===null)pingLive();else setLive(LIVE);gInit()}
+    if(S.step===1){const f=$("#foto");f&&f.addEventListener("change",()=>{const fl=f.files[0];S.d.prev.foto=fl?fl.name:"";$("#fotoinfo").textContent=fl?"Foto acquisita: "+fl.name:""})}
+    if(S.step===3&&S.d.ass==="si")initSig();
+    updateNav()}}
+
+function initSig(){
+  const cv=$("#sig");if(!cv)return;
+  const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;
+  cv.width=w*dpr;cv.height=h*dpr;const g=cv.getContext("2d");g.scale(dpr,dpr);
+  g.lineWidth=2.4;g.lineCap="round";g.strokeStyle=getComputedStyle(document.body).color;
+  let down=false,lx=0,ly=0;
+  const pos=e=>{const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
+  cv.addEventListener("pointerdown",e=>{down=true;[lx,ly]=pos(e);cv.setPointerCapture(e.pointerId)});
+  cv.addEventListener("pointermove",e=>{if(!down)return;const[x,y]=pos(e);g.beginPath();g.moveTo(lx,ly);g.lineTo(x,y);g.stroke();lx=x;ly=y;if(!S.d.firma){S.d.firma=true;updateNav()}});
+  if(S.d.sigData){const img=new Image();img.onload=()=>g.drawImage(img,0,0,w,h);img.src=S.d.sigData}
+  const up=()=>{if(down){try{S.d.sigData=cv.toDataURL()}catch(er){}}down=false};
+  cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up)}
+
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-a]");if(!b)return;
+  const a=b.dataset.a,v=b.dataset.v,d=S.d;
+  if(a==="go"){S.view=v;S.confirmWipe=false;render();if(v==="richieste"||v==="home")loadReq()}
+  else if(a==="ricq"){const it=d.items[+b.dataset.i];it.ric={loading:true};renderItems();ricQueue(it).then(q=>{it.ric={q};renderItems()}).catch(e=>{it.ric={err:String((e&&e.message)||e).slice(0,100)};renderItems()})}
+  else if(a==="ricok"){ricSend(+b.dataset.i)}
+  else if(a==="ricno"){d.items[+b.dataset.i].ric=null;renderItems()}
+  else if(a==="req"){reqAct(b.dataset.act,b.dataset.id)}
+  else if(a==="logout"){sb.auth.signOut().then(()=>location.reload())}
+  else if(a==="start"){resetSearch();S.d=newDraft();S.view="flow";S.step=0;S.confirmCancel=false;render()}
+  else if(a==="add"){const c=$("#code");addFromText(c.value)}
+  else if(a==="gsel"){
+    if(b.dataset.k==="f"){G.forn=v;G.fq="";G.fopen=false;G.marc="";G.mq="";G.marcs=null;G.res=null;$("#g-fq").value=v;$("#g-mq").value="";$("#g-fq").blur();gLoadMarcs()}
+    else{G.marc=v;G.mq="";G.mopen=false;$("#g-mq").value=v;$("#g-mq").blur();gLoadRes()}}
+  else if(a==="gpick"){const x=(G.res||[]).find(y=>y.b===b.dataset.b);if(x)addItem({b:x.b,label:x.m+" "+x.mod,cat:x,stato:"provato"})}
+  else if(a==="pick"){const bc=b.dataset.b;lookupCode(bc).then(x=>{if(x)addItem({b:x.b,label:x.m+" "+x.mod,cat:x,stato:"provato"});else toast("Articolo non trovato")})}
+  else if(a==="var"){if(+b.dataset.i>=0){const c=d.items[+b.dataset.i].cat;VAR.base=c;VAR.fc=[];VAR.fk=[]}S.view="varianti";varLoad();render()}
+  else if(a==="vtog"){const k=b.dataset.k=="c"?"fc":"fk",l=VAR[k],j=l.indexOf(v);if(j>=0)l.splice(j,1);else l.push(v);render()}
+  else if(a==="vclr"){VAR.fc=[];VAR.fk=[];render()}
+  else if(a==="vback"){S.view="flow";render()}
+  else if(a==="vadd"){const x=(VAR.res||[]).find(y=>y.b===b.dataset.b);if(x){d.items.push({b:x.b,label:x.m+" "+x.mod,cat:x,stato:"provato"});S.view="flow";S.sugg=[];render();toast("Aggiunto: "+x.c+" cal. "+x.cal)}}
+  else if(a==="del"){const it=d.items[+b.dataset.i];if(it.req)toast("Richiesta già inviata: non si può rimuovere");else{it.cd=true;renderItems()}}
+  else if(a==="delno"){d.items[+b.dataset.i].cd=false;renderItems()}
+  else if(a==="delyes"){const i=+b.dataset.i;d.items.splice(i,1);d.acq=d.acq.filter(x=>x!==i).map(x=>x>i?x-1:x);renderItems();updateNav();toast("Articolo rimosso")}
+  else if(a==="stato"){d.items[+b.dataset.i].stato=v;renderItems()}
+  else if(a==="esito"){d.esito=v;render()}
+  else if(a==="acq"){const i=+b.dataset.i;d.acq=d.acq.includes(i)?d.acq.filter(x=>x!==i):d.acq.concat(i);render()}
+  else if(a==="motivo"){d.motivo=MOTIVI[+b.dataset.i];render()}
+  else if(a==="ass"){d.ass=v;render()}
+  else if(a==="nocell"){d.cl.nocell=!d.cl.nocell;if(d.cl.nocell)d.cl.cell="";render()}
+  else if(a==="nomail"){d.cl.nomail=!d.cl.nomail;if(d.cl.nomail)d.cl.email="";render()}
+  else if(a==="cons"){d.cons[b.dataset.k]=v;render()}
+  else if(a==="clearsig"){d.firma=false;d.sigData=null;render()}
+  else if(a==="goto"){S.step=+b.dataset.i;S.confirmCancel=false;render()}
+  else if(a==="next"){S.step++;S.confirmCancel=false;render()}
+  else if(a==="back"){S.step--;S.confirmCancel=false;render()}
+  else if(a==="cancel"){if(S.confirmCancel){resetSearch();S.view="home";S.d=null;S.confirmCancel=false;render()}else{S.confirmCancel=true;render()}}
+  else if(a==="finish")finish();
+  else if(a==="cleardemo"){DB.log=DB.log.filter(x=>!x.demo);save();render()}
+  else if(a==="export"){$("#exp").innerHTML='<textarea class="out" id="expt" readonly style="margin-top:12px"></textarea><div style="margin-top:8px"><button class="btn" data-a="copy">Copia</button></div>';$("#expt").value=JSON.stringify(DB.log.filter(x=>!x.demo),null,1)}
+  else if(a==="copy"){const t=$("#expt");t.select();try{navigator.clipboard.writeText(t.value).then(()=>toast("Copiato"),()=>toast("Seleziona e copia a mano"))}catch(er){toast("Seleziona e copia a mano")}}
+  else if(a==="wipe"){if(S.confirmWipe){DB.log=[];DB.clients=[];save();S.confirmWipe=false;render()}else{S.confirmWipe=true;render()}}
+  if(S.view==="flow"&&S.step!==undefined&&["stato","pick"].includes(a))updateNav()});
+function initSigReset(){render()}
+
+document.addEventListener("input",e=>{
+  const t=e.target;
+  if(t.dataset&&t.dataset.rif!==undefined){const x=S.d&&S.d.items[+t.dataset.rif];if(x&&x.ric)x.ric.rif=t.value;return}
+  if(t.id==="g-q"){G.q=t.value;gDraw();return}
+  if(t.id==="g-fq"){G.fq=t.value;G.fopen=true;if(G.forn){G.forn="";G.marc="";G.mq="";$("#g-mq").value="";G.marcs=null;G.res=null;gLoadMarcs()}else gDraw();return}
+  if(t.id==="g-mq"){G.mq=t.value;G.mopen=true;if(G.marc){G.marc="";G.res=null}gDraw();return}
+  if(t.id==="code"){const v=t.value.trim();
+    return}
+  if(t.dataset&&t.dataset.f){
+    let val=t.value;if(t.dataset.f==="d.cl.cf")val=val.toUpperCase();
+    set(t.dataset.f,val);if(t.dataset.f.startsWith("settings"))save();
+    if(t.id==="cell"){const n=val.replace(/\s/g,""),el=$("#dup");
+      const dup=n.length>=8&&DB.clients.some(c=>c.cell===n);
+      if(el)el.textContent=dup?"Esiste già un cliente con questo cellulare: controlla prima di creare una nuova scheda.":""}
+    if(S.view==="flow")updateNav()}});
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.id==="g-tipo"){G.tipo=t.value;G.forn="";G.marc="";G.fq="";G.mq="";G.forns=null;G.marcs=null;G.res=null;$("#g-fq").value="";$("#g-mq").value="";gInit();return}
+  if(t.id==="set-store"){DB.settings.store=t.value;DB.settings.seller="";save();render();return}
+  if(t.dataset&&t.dataset.f){set(t.dataset.f,t.value);if(t.dataset.f.startsWith("settings"))save();if(t.id==="nascita"||t.tagName==="SELECT"&&S.view==="flow"&&S.step===3){render()}else if(S.view==="flow")updateNav()}});
+document.addEventListener("focusin",e=>{const t=e.target;
+  if(t.id==="g-fq"){G.fopen=true;gDraw()}else if(t.id==="g-mq"){G.mopen=true;gDraw()}});
+document.addEventListener("keydown",e=>{
+  if(e.target.id==="code"&&e.key==="Enter"){e.preventDefault();addFromText(e.target.value)}});
+
+function finish(){
+  const d=S.d,secs=Math.round((Date.now()-d.start)/1000);
+  const rec={id:"i"+d.start,ts:new Date().toISOString(),store:DB.settings.store,seller:DB.settings.seller||"—",durata:secs,
+    items:d.items.map((i,ix)=>({b:i.b,label:i.label,stato:i.stato,nc:!!i.nc,acq:d.acq.includes(ix)})),esito:d.esito,motivo:d.motivo,
+    nota:d.nota,prev:{prezzo:d.prev.prezzo,sconto:d.prev.sconto,foto:!!d.prev.foto},assistenza:d.ass==="si"};
+  if(d.ass==="si"){DB.clients.push({cell:d.cl.cell.replace(/\s/g,""),cognome:d.cl.cognome,nome:d.cl.nome,perv:d.cl.perv,cons:d.cons,ts:rec.ts})}
+  DB.log.unshift(rec);save();
+  resetSearch();S.view="home";S.d=null;render();toast("Interazione registrata in "+secs+" secondi")}
+
+
+let ME=null,TIMER=null;
+function msgView(t,body){$("#root").innerHTML=`<div style="max-width:420px;margin:12vh auto 0"><div class="card"><div class="brand" style="margin-bottom:14px"><small>ShopView · beta</small>${t}</div>${body}</div></div>`}
+function loginView(err,info){
+  msgView("Accedi",`<form id="lf" autocomplete="on"><label class="f">Email<input type="email" id="lem" autocomplete="username" inputmode="email" autocapitalize="off" required></label>
+   <label class="f" style="margin-top:10px">Password<input type="password" id="lpw" autocomplete="current-password" required style="width:100%;min-height:52px;padding:10px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--fg);font:inherit"></label>
+   <p class="hint" id="lerr" style="color:var(--bad)">${esc(err||"")}</p><p class="hint" id="linfo">${esc(info||"")}</p>
+   <div style="margin-top:12px"><button class="btn primary" type="submit" style="width:100%">Entra</button></div>
+   <p style="margin:14px 0 0"><a href="#" id="lfg" class="hint">Password dimenticata?</a></p></form>`);
+  $("#lf").addEventListener("submit",async e=>{e.preventDefault();
+    const b=$("#lf button");b.disabled=true;b.textContent="Accesso…";
+    const{data,error}=await sb.auth.signInWithPassword({email:$("#lem").value.trim(),password:$("#lpw").value});
+    if(error){loginView(/invalid/i.test(error.message)?"Email o password non corretti.":error.message);return}
+    enter(data.session)});
+  $("#lfg").addEventListener("click",async e=>{e.preventDefault();const em=$("#lem").value.trim();
+    if(!em){$("#lerr").textContent="Scrivi prima la tua email.";return}
+    await sb.auth.resetPasswordForEmail(em,{redirectTo:"https://andrea-angiolucci.github.io/stockview-dashboard/reset-password.html"});
+    $("#lerr").textContent="";$("#linfo").textContent="Se l'email è registrata, riceverai il link per scegliere una nuova password."})}
+async function enter(session){
+  const md=(session.user&&session.user.user_metadata)||{},role=md.role||"";
+  let perm=null;
+  try{const{data}=await sb.from("ruoli_permessi").select("puo_accedere,puo_modificare").eq("ruolo",role).eq("pagina","shopview").maybeSingle();perm=data}catch(e){}
+  if(!perm||!perm.puo_accedere){msgView("Accesso non abilitato",`<p>Il tuo account (${esc(session.user.email)}) non è abilitato a ShopView. Chiedi alla direzione.</p><button class="btn" id="lo">Esci</button>`);$("#lo").onclick=()=>sb.auth.signOut().then(()=>location.reload());return}
+  ME={email:session.user.email,role,filiale:(role==="vendita"&&NOME[md.filiale])||"",focus:String(md.focus||"").toUpperCase().slice(0,3)};
+  if(role==="vendita"&&!ME.filiale){msgView("Account senza negozio",`<p>Al tuo account non è associato nessun negozio. Chiedi alla direzione.</p>`);return}
+  if(ME.filiale)DB.settings.store=ME.filiale;
+  if(ME.focus)DB.settings.seller=ME.focus;
+  save();render();loadReq();
+  clearInterval(TIMER);TIMER=setInterval(()=>{if(!document.hidden&&(S.view==="home"||S.view==="richieste"))loadReq()},60000)}
+sb.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT"&&ME)location.reload()});
+(async()=>{try{const{data:{session}}=await sb.auth.getSession();if(session)enter(session);else loginView()}catch(e){loginView("Errore di rete: riprova.")}})();
+</script>
+</body></html>
