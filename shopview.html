@@ -62,7 +62,7 @@ input.bad,select.bad{border-color:var(--bad)}
 .bars .n{font-variant-numeric:tabular-nums;font-weight:600}
 .empty{color:var(--muted);font-size:14px;margin:0}
 .steps{display:flex;gap:6px;margin:16px 0 4px;flex-wrap:wrap}
-.steps span,.steps button{border:0;font-family:inherit;cursor:pointer;flex:1 1 90px;text-align:center;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:8px 4px;border-radius:8px;background:var(--surface2);color:var(--muted)}
+.steps>span,.steps>button{border:0;font-family:inherit;cursor:pointer;flex:1 1 90px;text-align:center;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:8px 4px;border-radius:8px;background:var(--surface2);color:var(--muted)}
 .steps .on{background:var(--accent);color:var(--accent-fg)}
 .steps .done{background:var(--accent-soft);color:var(--fg)}
 .code{font-family:var(--mono);font-size:13px;color:var(--muted)}
@@ -108,10 +108,50 @@ dl.sum dd{margin:0;font-weight:600}
 .hist .h{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;font-size:14px}
 textarea.out{min-height:140px;font-family:var(--mono);font-size:12px}
 .hint{font-size:13px;color:var(--muted);margin:8px 0 0}
+
+.top{flex-wrap:nowrap;padding:max(10px,env(safe-area-inset-top,0px)) 0 8px}
+.brand{font-size:20px;display:flex;align-items:center;gap:8px}
+.brand small{display:inline;font-size:11px;background:var(--accent-soft);color:var(--fg);padding:2px 8px;border-radius:999px;letter-spacing:.06em}
+.uchip{display:flex;align-items:center;gap:8px;min-height:44px;max-width:62%;padding:6px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);font-size:15px;cursor:pointer}
+.uchip span.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uchip.static{cursor:default;border-color:transparent;background:transparent}
+.panel{margin:4px 0 12px;display:grid;gap:10px}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);display:flex;padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+.tabbar button{flex:1;border:0;background:transparent;min-height:56px;border-radius:12px;font-weight:600;font-size:13px;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+.tabbar button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabbar button[aria-current="true"]{color:var(--accent);background:var(--accent-soft)}
+.tabbar .bd{background:var(--bad);color:#fff;border-radius:999px;font-size:11px;padding:0 6px;margin-left:4px}
+.cta{width:100%;min-height:96px;font-size:24px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:14px}
+.cta small{font-size:14px;font-weight:500;opacity:.85}
+.scan{width:100%;min-height:84px;font-size:21px;border-radius:18px;display:flex;align-items:center;justify-content:center;gap:12px}
+.scan svg{width:30px;height:30px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.g4s{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
+@media (max-width:699px){.steps{flex-wrap:nowrap}.steps button{flex:1 1 0;min-width:0;padding:10px 2px;font-size:13px}.steps button.on{flex:3 1 0}.steps button:not(.on) .nm{display:none}}
+@media (min-width:700px){.g4s{grid-template-columns:repeat(4,1fr)}.cta{min-height:110px;font-size:28px}}
+details.gs>summary{list-style:none;cursor:pointer;min-height:52px;display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:17px}
+details.gs>summary::-webkit-details-marker{display:none}
+details.gs>summary::after{content:"▾";color:var(--muted)}
+details.gs[open]>summary::after{content:"▴"}
+#scanner{position:fixed;inset:0;z-index:50;background:#000;color:#fff;display:flex;flex-direction:column}
+#scanner[hidden]{display:none}
+#scanner video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#scanner .bar{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:max(14px,env(safe-area-inset-top,0px)) 16px 14px;background:linear-gradient(#000a,#0000)}
+#scanner .bar button,#scanner .foot button{min-height:48px;padding:8px 18px;border-radius:12px;border:1.5px solid #fff8;background:#0008;color:#fff;font-weight:600;font-size:16px}
+#scanner .frame{position:relative;z-index:1;flex:1;display:flex;align-items:center;justify-content:center;pointer-events:none}
+#scanner .box{width:min(86vw,520px);height:min(34vw,200px);min-height:130px;border:3px solid #fff;border-radius:16px;box-shadow:0 0 0 100vmax #0006}
+#scanner .foot{position:relative;z-index:2;padding:14px 16px calc(18px + env(safe-area-inset-bottom,0px));text-align:center;background:linear-gradient(#0000,#000b)}
+#scanner .msg{margin:0 0 12px;font-size:16px}
+#scanner .man{display:flex;gap:8px;justify-content:center}
+#scanner .man input{min-height:48px;border-radius:12px;border:1.5px solid #fff8;background:#000a;color:#fff;padding:8px 12px;width:min(60vw,280px);font-size:17px}
 @media (prefers-reduced-motion:no-preference){.btn,.chip,.opt{transition:background .12s,border-color .12s}}
 </style></head><body>
 <div class="wrap" id="root"></div>
 <div id="toast" class="toast" hidden></div>
+<div id="scanner" hidden role="dialog" aria-label="Scansione codice a barre"><video id="sv" playsinline muted autoplay></video>
+ <div class="bar"><button type="button" data-a="scanx">Annulla</button><button type="button" data-a="torch" id="torch" hidden>Luce</button></div>
+ <div class="frame"><div class="box"></div></div>
+ <div class="foot"><p class="msg" id="smsg">Inquadra il codice a barre dell'occhiale</p>
+  <div class="man"><input type="text" id="sman" inputmode="numeric" autocomplete="off" placeholder="oppure scrivi il codice"><button type="button" data-a="sok">OK</button></div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const KEY="registro_sole_beta_v1";
@@ -201,29 +241,32 @@ function barList(rows,max){
   return'<ul class="bars">'+rows.map(([k,v])=>`<li><span>${esc(k)}</span><span class="n">${v}</span><div class="track"><div class="fill" style="width:${Math.round(v/m*100)}%"></div></div></li>`).join("")+"</ul>"}
 
 function header(){
-  const demo=DB.log.some(e=>e.demo);
-  return`<div class="top"><div class="brand"><small>ShopView · beta</small>Registro Sole non graduato</div>
-  <button class="btn ghost" data-a="logout" style="min-height:40px;padding:6px 14px;font-size:14px" aria-label="Esci dall'account">Esci</button>
-  ${S.view==="home"||S.view==="storico"||S.view==="richieste"?`<div class="tabs" role="tablist"><button data-a="go" data-v="home" aria-current="${S.view==="home"}">Avvio</button><button data-a="go" data-v="richieste" aria-current="${S.view==="richieste"}">Richieste${R.in?" ("+R.in+")":""}</button><button data-a="go" data-v="storico" aria-current="${S.view==="storico"}">Cronologia</button></div>`:""}</div>
-  ${demo&&(S.view==="home"||S.view==="storico")?`<div class="banner"><span>Dati di esempio: servono a vedere come si presenta il riepilogo. Restano solo su questo iPad.</span><button data-a="cleardemo">Svuota esempi</button></div>`:""}`}
+  const demo=DB.log.some(e=>e.demo),inflow=S.view==="flow";
+  const who=ME&&ME.name&&ME.name!==DB.settings.store?ME.name.split(" ")[0]:"";
+  const chip=`<${inflow?"span":"button"} class="uchip${inflow?" static":""}"${inflow?"":` data-a="chgstore" aria-expanded="${!!S.chg}" aria-label="Utente e punto vendita"`}><span class="t">${who?esc(who)+" · ":""}<b>${esc(DB.settings.store)}</b>${ME&&ME.temp?" (oggi)":""}</span>${inflow?"":'<span aria-hidden="true">✎</span>'}</${inflow?"span":"button"}>`;
+  return`<div class="top"><div class="brand">ShopView<small>beta</small></div>${chip}</div>
+  ${S.chg&&!inflow?panel():""}
+  ${demo&&(S.view==="home"||S.view==="storico")?`<div class="banner"><span>Dati di esempio. Restano solo su questo dispositivo.</span><button data-a="cleardemo">Svuota esempi</button></div>`:""}`}
+function panel(){
+  const sel=`<label class="f">Oggi lavoro a<select id="set-store">${STORES.map(x=>`<option${x===DB.settings.store?" selected":""}>${x}</option>`).join("")}</select></label>`;
+  const back=ME&&ME.temp&&ME.filiale?`<button class="btn" data-a="homestore">Torna a ${esc(ME.filiale)}</button>`:"";
+  const sel2=ME&&ME.focus?`<p class="hint" style="margin:0">Venditore: <b>${esc(ME.focus)}</b></p>`:`<label class="f">Venditore (codice FOCUS)<select id="set-seller" data-f="settings.seller"><option value="">— scegli —</option>${(SELLERS[DB.settings.store]||[]).map(x=>`<option${x===DB.settings.seller?" selected":""}>${x}</option>`).join("")}</select></label>`;
+  return`<div class="card panel">${sel}${back}${sel2}<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" data-a="chgstore">Chiudi</button><button class="btn ghost" data-a="logout">Esci dall'account</button></div></div>`}
+function tabbar(){
+  const t=(v,l,ic,b)=>`<button data-a="go" data-v="${v}" aria-current="${S.view===v}">${ic}<span>${l}${b||""}</span></button>`;
+  return`<nav class="tabbar" aria-label="Sezioni">${t("home","Avvio",'<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>')}${t("richieste","Richieste",'<svg viewBox="0 0 24 24"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg>',R.in?`<span class="bd">${R.in}</span>`:"")}${t("storico","Cronologia",'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>')}</nav>`}
 
 function vHome(){
   const s=stats(),pc=n=>s.t.tot?Math.round(n/s.t.tot*100)+"%":"0%";
+  const needSeller=!(ME&&ME.focus)&&!DB.settings.seller&&!S.chg;
   return`${header()}
-  ${outN()?`<div class="banner" style="margin-top:14px"><span><b>${outN()}</b> interazion${outN()>1?"i":"e"} in attesa di invio: si inviano appena torna la connessione. Non chiudere e non cancellare i dati del browser.</span><button data-a="flush">Invia ora</button></div>`:""}
-  ${R.in?`<div class="banner" style="margin-top:14px"><span><b>${R.in}</b> richiest${R.in>1?"e":"a"} di ricircolo da evadere per ${esc(DB.settings.store)}</span><button data-a="go" data-v="richieste">Apri</button></div>`:""}
-  <div class="card" style="margin-top:14px">
-   <div style="font-size:22px;font-weight:700">Ciao ${esc(ME?ME.name:"")}</div>
-   ${ME&&ME.filiale?`<div class="row" style="margin-top:10px;align-items:center;flex-wrap:nowrap">
-     <div style="flex:1;min-width:0"><div class="hint" style="margin:0">Punto vendita</div><div style="font-size:22px;font-weight:700">${esc(DB.settings.store)}</div>${ME.temp?`<span class="pill warn">temporaneo, solo oggi</span>`:""}</div>
-     <button class="btn" data-a="chgstore" style="flex:none">Modifica</button></div>
-    ${S.chg?`<label class="f" style="margin-top:10px">Oggi lavoro a<select id="set-store">${STORES.map(x=>`<option${x===DB.settings.store?" selected":""}>${x}</option>`).join("")}</select></label>${ME.temp?`<div style="margin-top:8px"><button class="btn" data-a="homestore">Torna a ${esc(ME.filiale)}</button></div>`:""}`:""}`
-   :`<div class="row" style="margin-top:10px"><label class="f">Filiale<select id="set-store">${STORES.map(x=>`<option${x===DB.settings.store?" selected":""}>${x}</option>`).join("")}</select></label></div>`}
-   ${ME&&ME.focus?`<p class="hint" style="margin-top:10px">Venditore: <b>${esc(ME.focus)}</b></p>`:`<div class="row" style="margin-top:10px"><label class="f">Venditore (codice FOCUS)<select id="set-seller" data-f="settings.seller"><option value="">— scegli —</option>${(SELLERS[DB.settings.store]||[]).map(x=>`<option${x===DB.settings.seller?" selected":""}>${x}</option>`).join("")}</select></label></div>`}
-  </div>
-  <div style="margin:16px 0"><button class="btn primary big" data-a="start">Sole non graduato</button></div>
-  <h1>Riepilogo</h1><p class="lead">${DB.settings.seller?"I tuoi contatti":"Contatti di "+esc(DB.settings.store)}, ultimi 30 giorni. Modelli provati, piaciuti e scartati: di tutta l'azienda.</p>${SUM.err?`<p class="hint" style="color:var(--bad)">Dati non aggiornati: ${esc(SUM.err)}</p>`:""}
-  <div class="grid g4">
+  ${outN()?`<div class="banner" style="margin-top:10px"><span><b>${outN()}</b> interazion${outN()>1?"i":"e"} in attesa di invio. Non chiudere e non cancellare i dati del browser.</span><button data-a="flush">Invia ora</button></div>`:""}
+  ${R.in?`<div class="banner" style="margin-top:10px"><span><b>${R.in}</b> richiest${R.in>1?"e":"a"} da evadere per ${esc(DB.settings.store)}</span><button data-a="go" data-v="richieste">Apri</button></div>`:""}
+  ${needSeller?`<div class="card" style="margin-top:10px"><label class="f">Chi sei? Scegli il tuo codice venditore<select id="set-seller" data-f="settings.seller"><option value="">— scegli —</option>${(SELLERS[DB.settings.store]||[]).map(x=>`<option${x===DB.settings.seller?" selected":""}>${x}</option>`).join("")}</select></label></div>`:""}
+  <div style="margin:14px 0 18px"><button class="btn primary cta" data-a="start">Nuova interazione<small>Tocca quando un cliente prova un occhiale</small></button></div>
+  <h2>Riepilogo · ultimi 30 giorni</h2>${SUM.err?`<p class="hint" style="color:var(--bad)">Dati non aggiornati: ${esc(SUM.err)}</p>`:""}
+  <p class="hint" style="margin:-4px 0 10px">${DB.settings.seller?"Contatti: i tuoi.":"Contatti di "+esc(DB.settings.store)+"."} Modelli: di tutta l'azienda.</p>
+  <div class="g4s">
    <div class="card stat"><b>${s.t.tot}</b><span>interazioni</span></div>
    <div class="card stat"><b>${pc(s.t.acq)}</b><span>acquistato (${s.t.acq})</span></div>
    <div class="card stat"><b>${pc(s.t.non)}</b><span>non acquistato (${s.t.non})</span></div>
@@ -234,17 +277,20 @@ function vHome(){
   <div class="grid g2" style="margin-top:14px">
    <div class="card"><h2>Più piaciuti <span class="code">(azienda)</span></h2>${barList(s.piac)}</div>
    <div class="card"><h2>Più scartati <span class="code">(azienda)</span></h2>${barList(s.scar)}</div></div>
-  <p class="hint">La scansione con la fotocamera arriva nella versione collegata ai dati reali. Qui il codice si digita.</p>`}
+  ${tabbar()}`}
 
-function stepsBar(){return`<div class="steps">${STEPS.map((n,i)=>`<button type="button" data-a="goto" data-i="${i}" class="${i===S.step?"on":i<S.step?"done":""}">${i+1} · ${n}</button>`).join("")}</div><p class="hint" style="margin-top:6px">Beta: puoi aprire qualsiasi pagina senza completare le precedenti.</p>`}
+function stepsBar(){return`<div class="steps">${STEPS.map((n,i)=>`<button type="button" data-a="goto" data-i="${i}" class="${i===S.step?"on":i<S.step?"done":""}">${i+1}<span class="nm"> · ${n}</span></button>`).join("")}</div>`}
 
 function vArticoli(){return`${header()}${stepsBar()}
-  <h1>Articoli</h1><p class="lead">Scansiona o digita il barcode, oppure usa la ricerca guidata: scegli fornitore e marchio, poi il modello tra quelli disponibili.</p>
-  <div class="row"><label class="f" style="flex:3 1 260px">Barcode<input type="text" id="code" inputmode="numeric" autocomplete="off" autocapitalize="off" enterkeyhint="done" placeholder="es. 4053465354849"></label>
-  <button class="btn primary" data-a="add" style="flex:1 1 140px">Aggiungi</button></div>
+  <h1 style="margin-top:14px">Aggiungi gli occhiali provati</h1>
+  <button class="btn primary scan" data-a="scan"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M7 9v6M11 9v6M14 9v6M17 9v6"/></svg>Scansiona il codice a barre</button>
+  <p class="hint" style="text-align:center;margin:10px 0">oppure scrivi il codice</p>
+  <div class="row" style="flex-wrap:nowrap;align-items:stretch"><input type="text" id="code" inputmode="numeric" autocomplete="off" autocapitalize="off" enterkeyhint="done" placeholder="es. 4053465354849" aria-label="Barcode" style="flex:1 1 auto">
+  <button class="btn primary" data-a="add" style="flex:none;min-height:52px">Aggiungi</button></div>
   <p style="margin:6px 0 0"><span id="live"></span></p>
-  <div class="card" style="margin-top:14px"><h2>Ricerca guidata</h2>
-   <div class="row">
+  <ul class="items" id="items"></ul>
+  <details class="gs card" style="margin-top:14px"><summary>Non hai il codice? Cerca per marchio</summary>
+   <div class="row" style="margin-top:8px">
     <label class="f">Tipo<select id="g-tipo"><option value="sole">Sole</option><option value="vista">Vista</option></select></label>
     </div>
    <label class="f" style="margin-top:10px">Fornitore<input type="text" id="g-fq" autocomplete="off" autocapitalize="off" placeholder="Scrivi per filtrare — vuoto = tutti"></label>
@@ -253,8 +299,7 @@ function vArticoli(){return`${header()}${stepsBar()}
    <div class="sugg" id="g-ml"></div>
    <label class="f" style="margin-top:10px">Cerca tra i disponibili: modello, colore, calibro<input type="text" id="g-q" autocomplete="off" autocapitalize="off" placeholder="es. 3025 001/15 50 — in qualsiasi ordine"></label>
    <p class="hint" id="g-info"></p>
-   <div class="sugg" id="g-res"></div></div>
-  <ul class="items" id="items"></ul>`}
+   <div class="sugg" id="g-res"></div></details>`}
 
 function vPreventivo(){const p=S.d.prev;return`${header()}${stepsBar()}
   <h1>Preventivo</h1><p class="lead">Se è stato fatto un preventivo, annota prezzo e sconto e fotografa il cartellino. Altrimenti vai avanti.</p>
@@ -320,7 +365,7 @@ function vStorico(){const L=CRON.list;
   const body=L===null?'<p class="hint">Carico…</p>':L.map(e=>`<div class="h"><span><b>${esc((e.items||[]).join(", "))}</b><br><span class="code">${esc(nomeF(e.filiale))} · ${esc(e.venditore||"—")} · ${new Date(e.ts).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · ${e.durata||0}s</span></span>
    <span class="pill ${e.esito==="acquistato"?"ok":e.esito==="nonacq"?"no":"warn"}">${{acquistato:"Acquistato",nonacq:"Non acquistato",torna:"Tornerà"}[e.esito]||"—"}</span></div>`).join("")||'<p class="empty">Nessuna interazione.</p>';
   return`${header()}<h1>Cronologia</h1><p class="lead">${DB.settings.seller?"Le tue ultime interazioni":"Ultime interazioni di "+esc(DB.settings.store)} (massimo 60).</p>${CRON.err?`<p class="hint" style="color:var(--bad)">${esc(CRON.err)}</p>`:""}
-  <div class="hist">${body}</div>`}
+  <div class="hist">${body}</div>${tabbar()}`}
 
 function nav(){
   const d=S.d;if(!d)return"";
@@ -369,7 +414,7 @@ function renderItems(){
 
 function addItem(o){
   S.d.items.push(o);S.sugg=[];renderItems();
-  const c=$("#code");if(c){c.value="";const sg=$("#sugg");if(sg)sg.innerHTML="";c.focus()}updateNav()}
+  const c=$("#code");if(c){c.value="";const sg=$("#sugg");if(sg)sg.innerHTML="";if(!matchMedia("(pointer:coarse)").matches)c.focus()}updateNav()}
 const G={tipo:"sole",forn:"",marc:"",fq:"",mq:"",fopen:false,mopen:false,q:"",forns:null,marcs:null,res:null,info:""};
 const q1=v=>String(v).replace(/\\/g,"").replace(/'/g,"''").slice(0,80);
 async function gLoadForns(){G.forns=null;G.info="Carico i fornitori…";gDraw();
@@ -482,14 +527,14 @@ function vRichieste(){
     else if(a.some(x=>x.filiale_da===me)){}
     else oth+=card(a,"")});
   return`${header()}
-  <h1>Richieste di ricircolo</h1><p class="lead">Negozio selezionato: <b>${esc(DB.settings.store)}</b>. Per vedere un altro negozio cambia la filiale in Avvio.</p>
+  <h1>Richieste di ricircolo</h1><p class="lead">Negozio selezionato: <b>${esc(DB.settings.store)}</b>. Per vedere un altro negozio tocca il nome in alto.</p>
   ${R.err?`<p class="hint">Errore di lettura: ${esc(R.err)}</p>`:""}${L===null?'<p class="hint">Carico…</p>':""}
   <h2 style="margin-top:18px">Da evadere per ${esc(DB.settings.store)} (${nInc})</h2>${inc||'<p class="empty">Nessuna richiesta da evadere.</p>'}
   <h2 style="margin-top:22px">Richieste fatte da ${esc(DB.settings.store)}</h2>${mine||'<p class="empty">Nessuna richiesta.</p>'}
-  ${oth?`<h2 style="margin-top:22px">Altri negozi</h2>${oth}`:""}`}
+  ${oth?`<h2 style="margin-top:22px">Altri negozi</h2>${oth}`:""}${tabbar()}`}
 async function addFromText(raw){
   const t=raw.trim();if(!t)return;
-  if(/^[0-9]{6,}$/.test(t)){
+  if(/^[0-9A-Za-z\-]{6,}$/.test(t)){
     toast("Cerco il codice…");
     const f=await lookupCode(t);
     if(f)addItem({b:f.b,label:f.m+" "+f.mod,cat:f,stato:"provato"});
@@ -542,7 +587,7 @@ function render(){
   after();window.scrollTo(0,same?y:0)}
 function after(){
   if(S.view==="flow"){
-    if(S.step===0){renderItems();const c=$("#code");c&&c.focus();if(LIVE===null)pingLive();else setLive(LIVE);gInit()}
+    if(S.step===0){renderItems();if(LIVE===null)pingLive();else setLive(LIVE);gInit()}
     if(S.step===1){const f=$("#foto");f&&f.addEventListener("change",async()=>{const fl=f.files[0];S.d.prev.foto=fl?fl.name:"";S.d.prev.fotoData="";const inf=$("#fotoinfo");if(!fl){inf.textContent="";return}inf.textContent="Preparo la foto…";try{S.d.prev.fotoData=await shrinkFoto(fl);inf.textContent="Foto acquisita: "+fl.name+" (si cancella dopo 3 mesi)"}catch(e){S.d.prev.foto="";inf.textContent="Foto non leggibile: riprova o salta"}})}
     if(S.step===3&&S.d.ass==="si")initSig();
     updateNav()}}
@@ -560,6 +605,48 @@ function initSig(){
   const up=()=>{if(down){try{S.d.sigData=cv.toDataURL()}catch(er){}}down=false};
   cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up)}
 
+
+/* Scansione barcode con fotocamera: BarcodeDetector nativo se c'è, altrimenti ZXing (caricato solo al primo uso). */
+const SC={stream:null,raf:0,zx:null,on:false,track:null};
+function loadZX(){return new Promise((ok,ko)=>{if(window.ZXing)return ok();const e=document.createElement("script");e.src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";e.onload=()=>ok();e.onerror=()=>ko(new Error("zxing"));document.head.appendChild(e)})}
+function scanMsg(t,bad){const m=$("#smsg");if(m){m.textContent=t;m.style.color=bad?"#ffb4ab":"#fff"}}
+function scanDone(code){if(!SC.on)return;scanStop();try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}addFromText(code)}
+function scanStop(){SC.on=false;cancelAnimationFrame(SC.raf);clearTimeout(SC.raf);
+  if(SC.zx){try{SC.zx.reset()}catch(e){}SC.zx=null}
+  if(SC.stream){SC.stream.getTracks().forEach(t=>t.stop());SC.stream=null}SC.track=null;
+  const v=$("#sv");if(v)v.srcObject=null;const o=$("#scanner");if(o)o.hidden=true;document.body.style.overflow=""}
+async function scanStart(){
+  const o=$("#scanner");o.hidden=false;document.body.style.overflow="hidden";SC.on=true;
+  $("#sman").value="";$("#torch").hidden=true;scanMsg("Avvio la fotocamera…");
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){scanMsg("Fotocamera non disponibile qui: scrivi il codice.",true);return}
+  try{
+    SC.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});
+    if(!SC.on){scanStop();return}
+    const v=$("#sv");v.srcObject=SC.stream;await v.play().catch(()=>{});
+    SC.track=SC.stream.getVideoTracks()[0];
+    try{const c=SC.track.getCapabilities&&SC.track.getCapabilities();if(c&&c.torch)$("#torch").hidden=false;
+      if(c&&c.focusMode&&c.focusMode.includes("continuous"))SC.track.applyConstraints({advanced:[{focusMode:"continuous"}]}).catch(()=>{})}catch(e){}
+    scanMsg("Inquadra il codice a barre dell'occhiale");
+    if("BarcodeDetector" in window){
+      let det;try{det=new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39","itf"]})}catch(e){det=null}
+      if(det){const tick=async()=>{if(!SC.on)return;try{const r=await det.detect(v);if(r&&r.length){scanDone(r[0].rawValue);return}}catch(e){}SC.raf=requestAnimationFrame(tick)};tick();return}}
+    await loadZX();if(!SC.on)return;
+    const Z=window.ZXing,h=new Map();
+    h.set(Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.EAN_8,Z.BarcodeFormat.UPC_A,Z.BarcodeFormat.UPC_E,Z.BarcodeFormat.CODE_128,Z.BarcodeFormat.CODE_39,Z.BarcodeFormat.ITF]);
+    h.set(Z.DecodeHintType.TRY_HARDER,true);
+    const rd=new Z.MultiFormatReader();rd.setHints(h);SC.zx={reset(){}};
+    const cv=document.createElement("canvas"),cx=cv.getContext("2d",{willReadFrequently:true});
+    const tick=()=>{if(!SC.on)return;
+      try{const w=v.videoWidth,hh=v.videoHeight;
+        if(w){const sc=Math.min(1,1280/w);cv.width=Math.round(w*sc);cv.height=Math.round(hh*sc);cx.drawImage(v,0,0,cv.width,cv.height);
+          const bm=new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(cv)));
+          try{const r=rd.decode(bm);if(r){scanDone(r.getText());return}}catch(e){}}
+      }catch(e){}
+      SC.raf=setTimeout(tick,110)};
+    tick();
+  }catch(e){
+    const n=e&&e.name;
+    scanMsg(n==="NotAllowedError"||n==="SecurityError"?"Fotocamera non autorizzata. Consentila nelle impostazioni del browser, oppure scrivi il codice.":"Impossibile usare la fotocamera: scrivi il codice.",true)}}
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-a]");if(!b)return;
   const a=b.dataset.a,v=b.dataset.v,d=S.d;
@@ -569,6 +656,10 @@ document.addEventListener("click",e=>{
   else if(a==="ricno"){d.items[+b.dataset.i].ric=null;renderItems()}
   else if(a==="req"){reqAct(b.dataset.act,b.dataset.id)}
   else if(a==="chgstore"){S.chg=!S.chg;render()}
+  else if(a==="scan"){scanStart()}
+  else if(a==="scanx"){scanStop()}
+  else if(a==="sok"){const v2=$("#sman").value.trim();if(v2)scanDone(v2)}
+  else if(a==="torch"){try{const on=!SC.torchOn;SC.track.applyConstraints({advanced:[{torch:on}]}).then(()=>{SC.torchOn=on})}catch(e){}}
   else if(a==="homestore"){DB.settings.store=ME.filiale;setOvr(ME.filiale);save();S.chg=false;render();loadReq();loadSummary()}
   else if(a==="flush"){flushOutbox()}
   else if(a==="logout"){sb.auth.signOut().then(()=>location.reload())}
@@ -630,7 +721,9 @@ document.addEventListener("change",e=>{
 document.addEventListener("focusin",e=>{const t=e.target;
   if(t.id==="g-fq"){G.fopen=true;gDraw()}else if(t.id==="g-mq"){G.mopen=true;gDraw()}});
 document.addEventListener("keydown",e=>{
-  if(e.target.id==="code"&&e.key==="Enter"){e.preventDefault();addFromText(e.target.value)}});
+  if(e.target.id==="code"&&e.key==="Enter"){e.preventDefault();addFromText(e.target.value)}
+  if(e.target.id==="sman"&&e.key==="Enter"){e.preventDefault();const v2=e.target.value.trim();if(v2)scanDone(v2)}
+  if(e.key==="Escape"&&SC.on)scanStop()});
 
 function finish(){
   const d=S.d,secs=Math.round((Date.now()-d.start)/1000);
