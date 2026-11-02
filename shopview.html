@@ -162,7 +162,7 @@ DB.seeded=true;
 
 let input_t=null;
 let S={view:"home",step:0,d:null,confirmCancel:false,sugg:[]};
-function newDraft(){return{start:Date.now(),items:[],prev:{prezzo:"",sconto:"",foto:""},esito:null,acq:[],motivo:null,nota:"",
+function newDraft(){return{id:"i"+Date.now()+"-"+Math.random().toString(36).slice(2,6),start:Date.now(),items:[],prev:{prezzo:"",sconto:"",foto:""},esito:null,acq:[],motivo:null,nota:"",
   ass:null,cl:{cognome:"",nome:"",nascita:"",cell:"",nocell:false,email:"",nomail:false,ind:"",citta:"",cap:"",perv:"",sesso:"",cf:"",gen:"",gencog:""},cons:{},firma:false}}
 
 function stockOf(it,store){const i=STORES.indexOf(store);return it.st[i]}
@@ -170,15 +170,31 @@ function otherStock(it,store){
   const out=[];STORES.forEach((s,i)=>{if(s!==store&&it.st[i]>0)out.push(s+" "+it.st[i])});
   if(it.st[8]>0)out.push("Deposito "+it.st[8]);return out}
 
-function stats(){
-  const L=DB.log,t={tot:L.length,acq:0,non:0,tor:0};
-  const mot={},prov={},piac={},scar={};
-  L.forEach(e=>{
-    if(e.esito==="acquistato")t.acq++;else if(e.esito==="nonacq")t.non++;else t.tor++;
-    if(e.motivo)mot[e.motivo]=(mot[e.motivo]||0)+1;
-    e.items.forEach(i=>{prov[i.label]=(prov[i.label]||0)+1;if(i.stato==="piaciuto")piac[i.label]=(piac[i.label]||0)+1;if(i.stato==="scartato")scar[i.label]=(scar[i.label]||0)+1})});
-  const top=(o,n)=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,n);
-  return{t,mot:top(mot,8),prov:top(prov,5),piac:top(piac,5),scar:top(scar,5)}}
+const SUM={data:null,err:""};
+function stats(){const d=SUM.data||{};return{t:{tot:d.tot||0,acq:d.acq||0,non:d.non||0,tor:d.tor||0},mot:d.mot||[],prov:d.prov||[],piac:d.piac||[],scar:d.scar||[]}}
+async function loadSummary(){
+  if(!ME)return;
+  try{SUM.data=await sb.rpc("ci_riepilogo",{p_filiale:meCode()||null,p_giorni:30,p_venditore:DB.settings.seller||null}).then(r=>{if(r.error)throw r.error;return r.data});SUM.err=""}
+  catch(e){SUM.err=String((e&&e.message)||e).slice(0,80)}
+  if(S.view==="home")render()}
+const CRON={list:null,err:""};
+async function loadCron(){
+  try{const r=await sb.rpc("ci_cronologia",{p_filiale:meCode()||null,p_limit:60,p_venditore:DB.settings.seller||null});if(r.error)throw r.error;CRON.list=r.data||[];CRON.err=""}
+  catch(e){CRON.err=String((e&&e.message)||e).slice(0,80);if(CRON.list===null)CRON.list=[]}
+  if(S.view==="storico")render()}
+// coda di invio: l'interazione resta sul dispositivo finché il server non conferma
+let FLUSH=false;
+function outN(){return(DB.outbox||[]).length}
+async function flushOutbox(){
+  if(FLUSH||!ME||!outN())return;FLUSH=true;let sent=0;
+  try{for(const pl of [...DB.outbox]){
+      const{error}=await sb.rpc("ci_interazione_salva",{p:pl});
+      if(error){pl.err=String(error.message||error).slice(0,80);save();break}
+      DB.outbox=DB.outbox.filter(x=>x.id!==pl.id);sent++;save()}}
+  catch(e){}
+  FLUSH=false;
+  if(sent){loadSummary();if(S.view==="storico")loadCron()}
+  if(S.view==="home"||S.view==="storico")render()}
 function barList(rows,max){
   if(!rows.length)return'<p class="empty">Ancora nessun dato.</p>';
   const m=max||rows[0][1];
@@ -194,6 +210,7 @@ function header(){
 function vHome(){
   const s=stats(),pc=n=>s.t.tot?Math.round(n/s.t.tot*100)+"%":"0%";
   return`${header()}
+  ${outN()?`<div class="banner" style="margin-top:14px"><span><b>${outN()}</b> interazion${outN()>1?"i":"e"} in attesa di invio: si inviano appena torna la connessione. Non chiudere e non cancellare i dati del browser.</span><button data-a="flush">Invia ora</button></div>`:""}
   ${R.in?`<div class="banner" style="margin-top:14px"><span><b>${R.in}</b> richiest${R.in>1?"e":"a"} di ricircolo da evadere per ${esc(DB.settings.store)}</span><button data-a="go" data-v="richieste">Apri</button></div>`:""}
   <div class="card" style="margin-top:14px">
    <div style="font-size:22px;font-weight:700">Ciao ${esc(ME?ME.name:"")}</div>
@@ -205,18 +222,18 @@ function vHome(){
    ${ME&&ME.focus?`<p class="hint" style="margin-top:10px">Venditore: <b>${esc(ME.focus)}</b></p>`:`<div class="row" style="margin-top:10px"><label class="f">Venditore (codice FOCUS)<select id="set-seller" data-f="settings.seller"><option value="">— scegli —</option>${(SELLERS[DB.settings.store]||[]).map(x=>`<option${x===DB.settings.seller?" selected":""}>${x}</option>`).join("")}</select></label></div>`}
   </div>
   <div style="margin:16px 0"><button class="btn primary big" data-a="start">Sole non graduato</button></div>
-  <h1>Riepilogo</h1><p class="lead">Interazioni registrate su questo iPad.</p>
+  <h1>Riepilogo</h1><p class="lead">${DB.settings.seller?"I tuoi contatti":"Contatti di "+esc(DB.settings.store)}, ultimi 30 giorni. Modelli provati, piaciuti e scartati: di tutta l'azienda.</p>${SUM.err?`<p class="hint" style="color:var(--bad)">Dati non aggiornati: ${esc(SUM.err)}</p>`:""}
   <div class="grid g4">
    <div class="card stat"><b>${s.t.tot}</b><span>interazioni</span></div>
    <div class="card stat"><b>${pc(s.t.acq)}</b><span>acquistato (${s.t.acq})</span></div>
    <div class="card stat"><b>${pc(s.t.non)}</b><span>non acquistato (${s.t.non})</span></div>
    <div class="card stat"><b>${pc(s.t.tor)}</b><span>tornerà (${s.t.tor})</span></div></div>
   <div class="grid g2" style="margin-top:14px">
-   <div class="card"><h2>Motivi di mancato acquisto</h2>${barList(s.mot)}</div>
-   <div class="card"><h2>Modelli più provati</h2>${barList(s.prov)}</div></div>
+   <div class="card"><h2>Motivi di mancato acquisto <span class="code">(tuoi)</span></h2>${barList(s.mot)}</div>
+   <div class="card"><h2>Modelli più provati <span class="code">(azienda)</span></h2>${barList(s.prov)}</div></div>
   <div class="grid g2" style="margin-top:14px">
-   <div class="card"><h2>Più piaciuti</h2>${barList(s.piac)}</div>
-   <div class="card"><h2>Più scartati</h2>${barList(s.scar)}</div></div>
+   <div class="card"><h2>Più piaciuti <span class="code">(azienda)</span></h2>${barList(s.piac)}</div>
+   <div class="card"><h2>Più scartati <span class="code">(azienda)</span></h2>${barList(s.scar)}</div></div>
   <p class="hint">La scansione con la fotocamera arriva nella versione collegata ai dati reali. Qui il codice si digita.</p>`}
 
 function stepsBar(){return`<div class="steps">${STEPS.map((n,i)=>`<button type="button" data-a="goto" data-i="${i}" class="${i===S.step?"on":i<S.step?"done":""}">${i+1} · ${n}</button>`).join("")}</div><p class="hint" style="margin-top:6px">Beta: puoi aprire qualsiasi pagina senza completare le precedenti.</p>`}
@@ -257,6 +274,11 @@ function vEsito(){const d=S.d;
   <div class="three">${ob("acquistato","Acquistato")}${ob("nonacq","Non acquistato")}${ob("torna","Tornerà")}</div>${more}
   <label class="f" style="margin-top:20px">Nota breve (facoltativa)<input type="text" maxlength="140" data-f="d.nota" value="${esc(d.nota)}"></label>`}
 
+async function shrinkFoto(file){
+  const bmp=await createImageBitmap(file),k=Math.min(1,1280/Math.max(bmp.width,bmp.height)),cv=document.createElement("canvas");
+  cv.width=Math.round(bmp.width*k);cv.height=Math.round(bmp.height*k);cv.getContext("2d").drawImage(bmp,0,0,cv.width,cv.height);
+  let q=.6,u=cv.toDataURL("image/jpeg",q);while(u.length>800000&&q>.3){q-=.1;u=cv.toDataURL("image/jpeg",q)}
+  if(u.length>800000)throw new Error("troppo grande");return u}
 function age(s){if(!s)return null;const b=new Date(s),n=new Date();if(isNaN(b))return null;let a=n.getFullYear()-b.getFullYear();const m=n.getMonth()-b.getMonth();if(m<0||(m===0&&n.getDate()<b.getDate()))a--;return a}
 function vAssist(){const d=S.d,c=d.cl,minor=age(c.nascita)!==null&&age(c.nascita)<18;
   const form=d.ass==="si"?`<div class="card" style="margin-top:16px"><h2>Dati del cliente</h2>
@@ -294,12 +316,11 @@ function vChiusura(){const d=S.d,secs=Math.round((Date.now()-d.start)/1000);
    <dt>Assistenza</dt><dd>${d.ass==="si"?"Attivata per "+esc(d.cl.cognome+" "+d.cl.nome):"No"}</dd>
    <dt>Tempo</dt><dd>${secs} secondi</dd></dl></div>`}
 
-function vStorico(){const L=DB.log.slice(0,60);
-  return`${header()}<h1>Cronologia</h1><p class="lead">Ultime ${L.length} interazioni di questo iPad.</p>
-  <div class="row"><button class="btn" data-a="export">Mostra dati da copiare</button><button class="btn danger" data-a="wipe">${S.confirmWipe?"Conferma: cancella tutto":"Cancella tutti i dati"}</button></div>
-  <div id="exp"></div>
-  <div class="hist">${L.map(e=>`<div class="h"><span><b>${esc(e.items.map(i=>i.label).join(", "))}</b><br><span class="code">${esc(e.store)} · ${new Date(e.ts).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · ${e.durata}s${e.demo?" · esempio":""}</span></span>
-   <span class="pill ${e.esito==="acquistato"?"ok":e.esito==="nonacq"?"no":"warn"}">${{acquistato:"Acquistato",nonacq:"Non acquistato",torna:"Tornerà"}[e.esito]}</span></div>`).join("")||'<p class="empty">Nessuna interazione.</p>'}</div>`}
+function vStorico(){const L=CRON.list;
+  const body=L===null?'<p class="hint">Carico…</p>':L.map(e=>`<div class="h"><span><b>${esc((e.items||[]).join(", "))}</b><br><span class="code">${esc(nomeF(e.filiale))} · ${esc(e.venditore||"—")} · ${new Date(e.ts).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · ${e.durata||0}s</span></span>
+   <span class="pill ${e.esito==="acquistato"?"ok":e.esito==="nonacq"?"no":"warn"}">${{acquistato:"Acquistato",nonacq:"Non acquistato",torna:"Tornerà"}[e.esito]||"—"}</span></div>`).join("")||'<p class="empty">Nessuna interazione.</p>';
+  return`${header()}<h1>Cronologia</h1><p class="lead">${DB.settings.seller?"Le tue ultime interazioni":"Ultime interazioni di "+esc(DB.settings.store)} (massimo 60).</p>${CRON.err?`<p class="hint" style="color:var(--bad)">${esc(CRON.err)}</p>`:""}
+  <div class="hist">${body}</div>`}
 
 function nav(){
   const d=S.d;if(!d)return"";
@@ -425,7 +446,7 @@ async function ricSend(i){
   const it=S.d.items[i],q=it.ric.q.map(x=>x.codice),first=q[0],c=it.cat,rif=String(it.ric.rif||"").trim();
   if(rif.length<2){toast("Scrivi il riferimento cliente: serve ai negozi per sapere per chi è il pezzo");return}
   it.ric={loading:true};renderItems();
-  try{const{data,error}=await sb.rpc("ci_richiesta_invia",{p_barcode:c.b,p_coda:q,p_rif:rif,p_venditore:DB.settings.seller||"",p_inter:"i"+S.d.start,p_filiale_a:meCode()});
+  try{const{data,error}=await sb.rpc("ci_richiesta_invia",{p_barcode:c.b,p_coda:q,p_rif:rif,p_venditore:DB.settings.seller||"",p_inter:S.d.id,p_filiale_a:meCode()});
     if(error)throw error;
     it.req={id:data,a:first};it.ric=null;toast("Richiesta inviata a "+nomeF(first));loadReq()}
   catch(e){it.ric={err:String((e&&e.message)||e).slice(0,100)}}
@@ -522,7 +543,7 @@ function render(){
 function after(){
   if(S.view==="flow"){
     if(S.step===0){renderItems();const c=$("#code");c&&c.focus();if(LIVE===null)pingLive();else setLive(LIVE);gInit()}
-    if(S.step===1){const f=$("#foto");f&&f.addEventListener("change",()=>{const fl=f.files[0];S.d.prev.foto=fl?fl.name:"";$("#fotoinfo").textContent=fl?"Foto acquisita: "+fl.name:""})}
+    if(S.step===1){const f=$("#foto");f&&f.addEventListener("change",async()=>{const fl=f.files[0];S.d.prev.foto=fl?fl.name:"";S.d.prev.fotoData="";const inf=$("#fotoinfo");if(!fl){inf.textContent="";return}inf.textContent="Preparo la foto…";try{S.d.prev.fotoData=await shrinkFoto(fl);inf.textContent="Foto acquisita: "+fl.name+" (si cancella dopo 3 mesi)"}catch(e){S.d.prev.foto="";inf.textContent="Foto non leggibile: riprova o salta"}})}
     if(S.step===3&&S.d.ass==="si")initSig();
     updateNav()}}
 
@@ -542,13 +563,14 @@ function initSig(){
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-a]");if(!b)return;
   const a=b.dataset.a,v=b.dataset.v,d=S.d;
-  if(a==="go"){S.view=v;S.confirmWipe=false;render();if(v==="richieste"||v==="home")loadReq()}
+  if(a==="go"){S.view=v;S.confirmWipe=false;render();if(v==="richieste"||v==="home")loadReq();if(v==="home")loadSummary();if(v==="storico"){CRON.list=null;loadCron()}}
   else if(a==="ricq"){const it=d.items[+b.dataset.i];it.ric={loading:true};renderItems();ricQueue(it).then(q=>{it.ric={q};renderItems()}).catch(e=>{it.ric={err:String((e&&e.message)||e).slice(0,100)};renderItems()})}
   else if(a==="ricok"){ricSend(+b.dataset.i)}
   else if(a==="ricno"){d.items[+b.dataset.i].ric=null;renderItems()}
   else if(a==="req"){reqAct(b.dataset.act,b.dataset.id)}
   else if(a==="chgstore"){S.chg=!S.chg;render()}
-  else if(a==="homestore"){DB.settings.store=ME.filiale;setOvr(ME.filiale);save();S.chg=false;render();loadReq()}
+  else if(a==="homestore"){DB.settings.store=ME.filiale;setOvr(ME.filiale);save();S.chg=false;render();loadReq();loadSummary()}
+  else if(a==="flush"){flushOutbox()}
   else if(a==="logout"){sb.auth.signOut().then(()=>location.reload())}
   else if(a==="start"){resetSearch();S.d=newDraft();S.view="flow";S.step=0;S.confirmCancel=false;render()}
   else if(a==="add"){const c=$("#code");addFromText(c.value)}
@@ -598,14 +620,13 @@ document.addEventListener("input",e=>{
     let val=t.value;if(t.dataset.f==="d.cl.cf")val=val.toUpperCase();
     set(t.dataset.f,val);if(t.dataset.f.startsWith("settings"))save();
     if(t.id==="cell"){const n=val.replace(/\s/g,""),el=$("#dup");
-      const dup=n.length>=8&&DB.clients.some(c=>c.cell===n);
-      if(el)el.textContent=dup?"Esiste già un cliente con questo cellulare: controlla prima di creare una nuova scheda.":""}
+      if(el){el.textContent="";if(n.length>=8){clearTimeout(window.__dupT);window.__dupT=setTimeout(async()=>{try{const r=await sb.rpc("ci_cliente_esiste",{p_cell:n});const e2=$("#dup");if(e2&&!r.error&&r.data===true)e2.textContent="Esiste già un cliente con questo cellulare: controlla prima di creare una nuova scheda."}catch(e){}},400)}}}
     if(S.view==="flow")updateNav()}});
 document.addEventListener("change",e=>{
   const t=e.target;
   if(t.id==="g-tipo"){G.tipo=t.value;G.forn="";G.marc="";G.fq="";G.mq="";G.forns=null;G.marcs=null;G.res=null;$("#g-fq").value="";$("#g-mq").value="";gInit();return}
-  if(t.id==="set-store"){DB.settings.store=t.value;if(!(ME&&ME.focus))DB.settings.seller="";if(ME&&ME.filiale)setOvr(t.value);save();S.chg=false;render();loadReq();return}
-  if(t.dataset&&t.dataset.f){set(t.dataset.f,t.value);if(t.dataset.f.startsWith("settings"))save();if(t.id==="nascita"||t.tagName==="SELECT"&&S.view==="flow"&&S.step===3){render()}else if(S.view==="flow")updateNav()}});
+  if(t.id==="set-store"){DB.settings.store=t.value;if(!(ME&&ME.focus))DB.settings.seller="";if(ME&&ME.filiale)setOvr(t.value);save();S.chg=false;render();loadReq();loadSummary();return}
+  if(t.dataset&&t.dataset.f){set(t.dataset.f,t.value);if(t.dataset.f.startsWith("settings"))save();if(t.dataset.f==="settings.seller")loadSummary();if(t.id==="nascita"||t.tagName==="SELECT"&&S.view==="flow"&&S.step===3){render()}else if(S.view==="flow")updateNav()}});
 document.addEventListener("focusin",e=>{const t=e.target;
   if(t.id==="g-fq"){G.fopen=true;gDraw()}else if(t.id==="g-mq"){G.mopen=true;gDraw()}});
 document.addEventListener("keydown",e=>{
@@ -613,12 +634,14 @@ document.addEventListener("keydown",e=>{
 
 function finish(){
   const d=S.d,secs=Math.round((Date.now()-d.start)/1000);
-  const rec={id:"i"+d.start,ts:new Date().toISOString(),store:DB.settings.store,seller:DB.settings.seller||"—",durata:secs,
-    items:d.items.map((i,ix)=>({b:i.b,label:i.label,stato:i.stato,nc:!!i.nc,acq:d.acq.includes(ix)})),esito:d.esito,motivo:d.motivo,
-    nota:d.nota,prev:{prezzo:d.prev.prezzo,sconto:d.prev.sconto,foto:!!d.prev.foto},assistenza:d.ass==="si"};
-  if(d.ass==="si"){DB.clients.push({cell:d.cl.cell.replace(/\s/g,""),cognome:d.cl.cognome,nome:d.cl.nome,perv:d.cl.perv,cons:d.cons,ts:rec.ts})}
-  DB.log.unshift(rec);save();
-  resetSearch();S.view="home";S.d=null;render();toast("Interazione registrata in "+secs+" secondi")}
+  const pl={id:d.id,inizio:new Date(d.start).toISOString(),filiale:meCode(),venditore:DB.settings.seller||"",durata:secs,esito:d.esito,motivo:d.motivo,nota:d.nota,
+    prezzo:d.prev.prezzo,sconto:d.prev.sconto,assistenza:d.ass==="si",informativa:"bozza-beta",
+    items:d.items.map((i,ix)=>({b:i.b,label:i.label,stato:i.stato,nc:!!i.nc||!i.cat,acq:d.acq.includes(ix),req:(i.req&&i.req.id)||null})),
+    foto:d.prev.fotoData||null};
+  if(d.ass==="si"){pl.cliente=Object.assign({},d.cl);pl.consensi=d.cons;pl.firma=d.sigData||null}
+  DB.outbox=(DB.outbox||[]).concat([pl]);save();
+  resetSearch();S.view="home";S.d=null;render();toast("Interazione registrata in "+secs+" secondi");
+  flushOutbox()}
 
 
 let ME=null,TIMER=null;
@@ -646,16 +669,16 @@ function loginView(err,info){
     $("#lerr").textContent="";$("#linfo").textContent="Se l'email è registrata, riceverai il link per scegliere una nuova password."})}
 async function enter(session){
   const md=(session.user&&session.user.user_metadata)||{},role=md.role||"";
-  const hasFlag=!!(md.apps&&md.apps.shopview);
   let perm=null;
   try{const{data}=await sb.from("ruoli_permessi").select("puo_accedere,puo_modificare").eq("ruolo",role).eq("pagina","shopview").maybeSingle();perm=data}catch(e){}
-  if(!hasFlag&&(!perm||!perm.puo_accedere)){msgView("Accesso non abilitato",`<p>Il tuo account (${esc(session.user.email)}) non è abilitato a ShopView. Chiedi alla direzione.</p><button class="btn" id="lo">Esci</button>`);$("#lo").onclick=()=>sb.auth.signOut().then(()=>location.reload());return}
+  if(!perm||!perm.puo_accedere){msgView("Accesso non abilitato",`<p>Il tuo account (${esc(session.user.email)}) non è abilitato a ShopView. Chiedi alla direzione.</p><button class="btn" id="lo">Esci</button>`);$("#lo").onclick=()=>sb.auth.signOut().then(()=>location.reload());return}
   ME={email:session.user.email,role,filiale:NOME[md.filiale]||"",focus:String(md.focus||"").toUpperCase().slice(0,3),name:nomeDa(md,session.user.email),temp:false};
-  if((role==="vendita"||hasFlag)&&!ME.filiale){msgView("Account senza negozio",`<p>Al tuo account non è associato nessun negozio. Chiedi alla direzione.</p>`);return}
+  if(role==="vendita"&&!ME.filiale){msgView("Account senza negozio",`<p>Al tuo account non è associato nessun negozio. Chiedi alla direzione.</p>`);return}
   if(ME.filiale){DB.settings.store=ME.filiale;chkOvr()}
   if(ME.focus)DB.settings.seller=ME.focus;
-  save();render();loadReq();
-  clearInterval(TIMER);TIMER=setInterval(()=>{if(document.hidden)return;if(chkOvr()){render();loadReq();return}if(S.view==="home"||S.view==="richieste")loadReq()},60000)}
+  save();render();loadReq();loadSummary();flushOutbox();
+  clearInterval(TIMER);TIMER=setInterval(()=>{if(document.hidden)return;if(chkOvr()){render();loadReq();loadSummary();return}flushOutbox();if(S.view==="home"||S.view==="richieste")loadReq()},60000)}
+window.addEventListener("online",()=>flushOutbox());
 sb.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT"&&ME)location.reload()});
 (async()=>{try{const{data:{session}}=await sb.auth.getSession();if(session)enter(session);else loginView()}catch(e){loginView("Errore di rete: riprova.")}})();
 </script>
