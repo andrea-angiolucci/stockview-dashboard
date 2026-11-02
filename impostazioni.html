@@ -437,14 +437,24 @@ async function delUser(id, email){
   catch(e){ toast(String((e&&e.message)||e), true); }
 }
 function openInvite(){
-  openModal('<h3 style="margin:0 0 12px">Invita nuovo utente</h3><label>Email</label><input type="email" id="invEmail" placeholder="nome@dominio.it" style="width:100%"><label style="margin-top:10px;display:block">Ruolo</label><select id="invRole" class="urole" style="width:100%"><option value="gestore" selected>gestore</option><option value="vendita">vendita</option><option value="admin">admin</option><option value="nessuno">nessuno (solo altre app)</option></select><div id="invFilRow" style="display:none;margin-top:10px"><label>Filiale</label><select id="invFiliale" class="urole" style="width:100%"><option value="">— seleziona —</option>'+RC_FILIALI.map(function(f){return '<option value="'+f[0]+'">'+esc(f[1])+'</option>';}).join("")+'</select></div><div class="err" id="invErr" style="min-height:16px;margin-top:8px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button class="ghost" id="invCancel">Annulla</button><button class="ubtn" id="invSend">Invia invito</button></div>');
-  $("#invCancel").onclick=closeModal; if($("#invRole"))$("#invRole").onchange=function(){ var fr=$("#invFilRow"); if(fr)fr.style.display=($("#invRole").value==="vendita")?"block":"none"; };
+  openModal('<h3 style="margin:0 0 12px">Invita nuovo utente</h3>'
+    +'<label>Email</label><input type="email" id="invEmail" placeholder="nome@dominio.it" style="width:100%">'
+    +'<label style="margin-top:10px;display:block">Ruolo</label><select id="invRole" class="urole" style="width:100%"><option value="gestore" selected>gestore</option><option value="vendita">vendita</option><option value="admin">admin</option><option value="nessuno">nessuno (solo altre app)</option></select>'
+    +'<label style="margin-top:10px;display:block">Filiale (negozio di default)</label><select id="invFiliale" class="urole" style="width:100%"><option value="">\u2014 nessuna \u2014</option>'+RC_FILIALI.map(function(f){return '<option value="'+f[0]+'">'+esc(f[1])+'</option>';}).join("")+'</select>'
+    +'<label style="margin-top:10px;display:block">Codice FOCUS</label><input id="invFocus" maxlength="6" placeholder="es. CPR" style="width:100%;text-transform:uppercase">'
+    +'<label style="margin-top:12px;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="invShop"> Accesso ShopView</label>'
+    +'<div class="err" id="invErr" style="min-height:16px;margin-top:8px"></div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button class="ghost" id="invCancel">Annulla</button><button class="ubtn" id="invSend">Invia invito</button></div>');
+  $("#invCancel").onclick=closeModal;
   $("#invSend").onclick=async function(){
-    const email=($("#invEmail").value||"").trim(); const role=$("#invRole").value; const err=$("#invErr");
+    const email=($("#invEmail").value||"").trim(); const role=$("#invRole").value; const shop=$("#invShop").checked; const fil=$("#invFiliale").value; const err=$("#invErr");
     if(!email || email.indexOf("@")<1 || email.lastIndexOf(".")<email.indexOf("@")){ err.textContent="Inserisci un'email valida."; return; }
+    if((role==="vendita"||shop) && !fil){ err.textContent="Filiale obbligatoria per ruolo vendita o accesso ShopView."; return; }
     $("#invSend").disabled=true;
-    try{ if(role==="vendita" && !$("#invFiliale").value){ $("#invSend").disabled=false; err.textContent="Filiale obbligatoria per il ruolo vendita."; return; } await efCall("POST","/invite",{email:email, role:role, filiale:(role==="vendita"?$("#invFiliale").value:null), redirectTo:"https://andrea-angiolucci.github.io/stockview-dashboard/reset-password.html"}); closeModal(); toast("Invito inviato a "+email); await loadUtenti(); }
-    catch(e){ err.textContent=String((e&&e.message)||e); $("#invSend").disabled=false; }
+    try{
+      await efCall("POST","/invite",{email:email, role:role, filiale:fil||null, focus:$("#invFocus").value, shopview:shop, redirectTo:"https://andrea-angiolucci.github.io/stockview-dashboard/reset-password.html"});
+      closeModal(); toast("Invito inviato a "+email); await loadUtenti();
+    }catch(e){ err.textContent=String((e&&e.message)||e); $("#invSend").disabled=false; }
   };
 }
 
