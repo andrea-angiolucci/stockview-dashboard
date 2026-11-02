@@ -646,11 +646,12 @@ function loginView(err,info){
     $("#lerr").textContent="";$("#linfo").textContent="Se l'email è registrata, riceverai il link per scegliere una nuova password."})}
 async function enter(session){
   const md=(session.user&&session.user.user_metadata)||{},role=md.role||"";
+  const hasFlag=!!(md.apps&&md.apps.shopview);
   let perm=null;
   try{const{data}=await sb.from("ruoli_permessi").select("puo_accedere,puo_modificare").eq("ruolo",role).eq("pagina","shopview").maybeSingle();perm=data}catch(e){}
-  if(!perm||!perm.puo_accedere){msgView("Accesso non abilitato",`<p>Il tuo account (${esc(session.user.email)}) non è abilitato a ShopView. Chiedi alla direzione.</p><button class="btn" id="lo">Esci</button>`);$("#lo").onclick=()=>sb.auth.signOut().then(()=>location.reload());return}
+  if(!hasFlag&&(!perm||!perm.puo_accedere)){msgView("Accesso non abilitato",`<p>Il tuo account (${esc(session.user.email)}) non è abilitato a ShopView. Chiedi alla direzione.</p><button class="btn" id="lo">Esci</button>`);$("#lo").onclick=()=>sb.auth.signOut().then(()=>location.reload());return}
   ME={email:session.user.email,role,filiale:NOME[md.filiale]||"",focus:String(md.focus||"").toUpperCase().slice(0,3),name:nomeDa(md,session.user.email),temp:false};
-  if(role==="vendita"&&!ME.filiale){msgView("Account senza negozio",`<p>Al tuo account non è associato nessun negozio. Chiedi alla direzione.</p>`);return}
+  if((role==="vendita"||hasFlag)&&!ME.filiale){msgView("Account senza negozio",`<p>Al tuo account non è associato nessun negozio. Chiedi alla direzione.</p>`);return}
   if(ME.filiale){DB.settings.store=ME.filiale;chkOvr()}
   if(ME.focus)DB.settings.seller=ME.focus;
   save();render();loadReq();
