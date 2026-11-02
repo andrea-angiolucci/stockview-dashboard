@@ -649,7 +649,7 @@ async function enter(session){
   let perm=null;
   try{const{data}=await sb.from("ruoli_permessi").select("puo_accedere,puo_modificare").eq("ruolo",role).eq("pagina","shopview").maybeSingle();perm=data}catch(e){}
   if(!perm||!perm.puo_accedere){msgView("Accesso non abilitato",`<p>Il tuo account (${esc(session.user.email)}) non è abilitato a ShopView. Chiedi alla direzione.</p><button class="btn" id="lo">Esci</button>`);$("#lo").onclick=()=>sb.auth.signOut().then(()=>location.reload());return}
-  ME={email:session.user.email,role,filiale:(role==="vendita"&&NOME[md.filiale])||"",focus:String(md.focus||"").toUpperCase().slice(0,3),name:nomeDa(md,session.user.email),temp:false};
+  ME={email:session.user.email,role,filiale:NOME[md.filiale]||"",focus:String(md.focus||"").toUpperCase().slice(0,3),name:nomeDa(md,session.user.email),temp:false};
   if(role==="vendita"&&!ME.filiale){msgView("Account senza negozio",`<p>Al tuo account non è associato nessun negozio. Chiedi alla direzione.</p>`);return}
   if(ME.filiale){DB.settings.store=ME.filiale;chkOvr()}
   if(ME.focus)DB.settings.seller=ME.focus;
