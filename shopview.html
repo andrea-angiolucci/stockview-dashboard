@@ -410,7 +410,7 @@ function renderItems(){
     if(c){const q=stockOf(c,st),o=otherStock(c,st);
       info=`<div class="stock"><span class="pill ${q>0?"ok":"no"}">${esc(st)}: ${q}</span>${o.map(x=>`<span class="pill">${esc(x)}</span>`).join("")}</div>`}
     else info=`<div class="stock"><span class="pill warn">${it.manual?"Inserito a mano":"Codice non trovato in anagrafica"}</span></div>`;
-    return`<li class="item"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div><h3>${esc(it.label)}</h3><span class="code">${esc(it.b||"")}${it.cat?" · "+colLink(it.cat.c,it.cat.m,it.cat.mod,it.cat.c)+" · cal. "+esc(it.cat.cal):""}</span></div>${it.cd?`<div style="display:flex;gap:6px;flex:none"><button class="btn danger" style="min-height:44px;padding:6px 12px" data-a="delyes" data-i="${i}">Elimina</button><button class="btn" style="min-height:44px;padding:6px 12px" data-a="delno" data-i="${i}">No</button></div>`:`<button class="btn" style="min-height:44px;padding:6px 12px;flex:none" aria-label="Rimuovi articolo" data-a="del" data-i="${i}">🗑 Rimuovi</button>`}</div>${info}${ricBlock(it,i)}${it.cat?`<div style="margin-top:10px"><button class="btn" data-a="var" data-i="${i}">Varianti</button></div>`:""}
+    return`<li class="item"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div><h3>${esc(it.label)}</h3><span class="code">${esc(it.b||"")}${it.cat?" · "+colLink(it.cat.c,it.cat.m,it.cat.mod,it.cat.c,it.cat.b)+" · cal. "+esc(it.cat.cal):""}</span></div>${it.cd?`<div style="display:flex;gap:6px;flex:none"><button class="btn danger" style="min-height:44px;padding:6px 12px" data-a="delyes" data-i="${i}">Elimina</button><button class="btn" style="min-height:44px;padding:6px 12px" data-a="delno" data-i="${i}">No</button></div>`:`<button class="btn" style="min-height:44px;padding:6px 12px;flex:none" aria-label="Rimuovi articolo" data-a="del" data-i="${i}">🗑 Rimuovi</button>`}</div>${info}${ricBlock(it,i)}${it.cat?`<div style="margin-top:10px"><button class="btn" data-a="var" data-i="${i}">Varianti</button></div>`:""}
     <div class="chips">${STATI.map(([k,t,cl])=>`<button class="chip ${cl}" aria-pressed="${it.stato===k}" data-a="stato" data-i="${i}" data-v="${k}">${t}</button>`).join("")}</div></li>`}).join("")||'<li class="empty">Nessun articolo. Il primo codice che inserisci compare qui.</li>'}
 
 function addItem(o){
@@ -558,11 +558,11 @@ async function varLoad(){
     VAR.res=[...map.values()]}
   catch(e){VAR.res=[];VAR.err=String((e&&e.message)||e).slice(0,120)}
   if(S.view==="varianti")render()}
-function colLink(c,m,mod,col){return`<span class="colk" role="link" tabindex="0" data-a="img" data-q="${esc([m,mod,col].filter(Boolean).join(" "))}" title="Vedi il colore su Google Immagini">${esc(col||"—")}</span>`}
+function colLink(c,m,mod,col,bc){return`<span class="colk" role="link" tabindex="0" data-a="img" data-q="${esc([m,mod,col,bc].filter(Boolean).join(" "))}" title="Vedi il colore su Google Immagini">${esc(col||"—")}</span>`}
 function vVarianti(){
   const b=VAR.base,st=DB.settings.store,si=STORES.indexOf(st),names=STORES.concat(["Deposito"]);
   const top=`${header()}<div class="row" style="margin-top:14px"><button class="btn" data-a="vback">‹ Indietro</button></div>
-   <h1>Varianti</h1><p class="lead"><b>${esc(b.m)} ${esc(b.mod)}</b><br><span class="code">Articolo scelto: ${colLink(b.c,b.m,b.mod,b.c)} · cal. ${esc(b.cal)}</span></p>`;
+   <h1>Varianti</h1><p class="lead"><b>${esc(b.m)} ${esc(b.mod)}</b><br><span class="code">Articolo scelto: ${colLink(b.c,b.m,b.mod,b.c,b.b)} · cal. ${esc(b.cal)}</span></p>`;
   if(VAR.res===null)return top+'<p class="hint">Carico le varianti…</p>';
   if(VAR.err)return top+`<p class="hint">Errore: ${esc(VAR.err)}</p><button class="btn" data-a="var" data-i="-1">Riprova</button>`;
   const uniq=k=>{const m=new Map();VAR.res.forEach(x=>m.set(x[k],(m.get(x[k])||0)+1));return[...m.entries()].sort((a,z)=>String(a[0]).localeCompare(String(z[0]),"it",{numeric:true}))};
@@ -571,7 +571,7 @@ function vVarianti(){
   const fl=VAR.res.filter(x=>(!VAR.fc.length||VAR.fc.includes(x.c))&&(!VAR.fk.length||VAR.fk.includes(x.cal)));
   const tot=x=>x.st.reduce((a,c)=>a+c,0);
   fl.sort((a,z)=>((z.st[si]>0)-(a.st[si]>0))||(tot(z)-tot(a))||String(a.c).localeCompare(String(z.c),"it",{numeric:true})||String(a.cal).localeCompare(String(z.cal),"it",{numeric:true}));
-  const row=x=>`<button data-a="vadd" data-b="${esc(x.b)}"><b>${colLink(x.c,x.m,x.mod,x.c)}</b> <span class="code">· cal. ${esc(x.cal)}</span><br><span class="pill ${x.st[si]>0?"ok":"no"}">${esc(st)} ${x.st[si]||0}</span> ${names.map((n,k)=>k!==si&&x.st[k]>0?`<span class="pill">${esc(n)} ${x.st[k]}</span>`:"").join(" ")}</button>`;
+  const row=x=>`<button data-a="vadd" data-b="${esc(x.b)}"><b>${colLink(x.c,x.m,x.mod,x.c,x.b)}</b> <span class="code">· cal. ${esc(x.cal)}</span><br><span class="pill ${x.st[si]>0?"ok":"no"}">${esc(st)} ${x.st[si]||0}</span> ${names.map((n,k)=>k!==si&&x.st[k]>0?`<span class="pill">${esc(n)} ${x.st[k]}</span>`:"").join(" ")}</button>`;
   const qui=fl.filter(x=>x.st[si]>0),altri=fl.filter(x=>!(x.st[si]>0));
   const sec=(t,l)=>l.length?`<h2 style="margin-top:16px">${t} (${l.length})</h2><div class="sugg">${l.slice(0,100).map(row).join("")}</div>`:"";
   return top+(VAR.res.length?`<div class="card"><h2>Colore</h2><div class="chips">${chips("c",VAR.fc,uniq("c"))}</div>
