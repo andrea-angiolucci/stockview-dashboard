@@ -126,6 +126,8 @@ textarea.out{min-height:140px;font-family:var(--mono);font-size:12px}
 .scan{width:100%;min-height:84px;font-size:21px;border-radius:18px;display:flex;align-items:center;justify-content:center;gap:12px}
 .scan svg{width:30px;height:30px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .colk{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;color:var(--accent);padding:6px 4px;margin:-6px -4px;cursor:pointer}
+.tipi{display:grid;gap:10px;grid-template-columns:1fr}.tipi .cta{min-height:76px}
+@media (min-width:700px){.tipi{grid-template-columns:repeat(3,1fr)}}
 .g4s{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
 @media (max-width:699px){.steps{flex-wrap:nowrap}.steps button{flex:1 1 0;min-width:0;padding:10px 2px;font-size:13px}.steps button.on{flex:3 1 0}.steps button:not(.on) .nm{display:none}}
 @media (min-width:700px){.g4s{grid-template-columns:repeat(4,1fr)}.cta{min-height:110px;font-size:28px}}
@@ -174,6 +176,10 @@ const MOTIVI=["Prezzo troppo alto","Modello o colore desiderato non disponibile 
 const PERV=["Passaparola","Familiare già cliente","Convenzione","Oculista / medico","Google","Social","Sito / prenotazione online","Passaggio / vetrina","Evento / sponsorizzazione","Pubblicità","Non ricorda / altro"];
 const STATI=[["provato","Provato",""],["piaciuto","Piaciuto","liked"],["scartato","Scartato","disc"],["nondisp","Richiesto, non disponibile","miss"]];
 const STEPS=["Articoli","Preventivo","Esito","Assistenza","Chiusura"];
+const TIPI={sole:"Sole",solegrad:"Sole graduato",vista:"Vista"};
+const skipPrev=()=>!!(S.d&&S.d.tipo==="sole");
+const stepVis=()=>STEPS.map((n,i)=>i).filter(i=>!(i===1&&skipPrev()));
+const stepMove=dir=>{let i=S.step+dir;if(i===1&&skipPrev())i+=dir;return Math.max(0,Math.min(4,i))};
 const CONSENSI=[
 ["c1","Dati di natura particolare (art. 9), comprese le abitudini visive e i disturbi che avverto"],
 ["c2","Essere contattato/a per newsletter, aggiornamenti e novità (posta, e-mail, SMS, telefono, messaggistica)"],
@@ -203,7 +209,7 @@ DB.seeded=true;
 
 let input_t=null;
 let S={view:"home",step:0,d:null,confirmCancel:false,sugg:[]};
-function newDraft(){return{id:"i"+Date.now()+"-"+Math.random().toString(36).slice(2,6),start:Date.now(),items:[],prev:{prezzo:"",sconto:"",foto:""},esito:null,acq:[],motivo:null,nota:"",
+function newDraft(tipo){return{tipo:tipo||"sole",pagato:"",id:"i"+Date.now()+"-"+Math.random().toString(36).slice(2,6),start:Date.now(),items:[],prev:{prezzo:"",sconto:"",foto:""},esito:null,acq:[],motivo:null,nota:"",
   ass:null,cl:{cognome:"",nome:"",nascita:"",cell:"",nocell:false,email:"",nomail:false,ind:"",citta:"",cap:"",perv:"",sesso:"",cf:"",gen:"",gencog:""},cons:{},firma:false}}
 
 function stockOf(it,store){const i=STORES.indexOf(store);return it.st[i]}
@@ -264,7 +270,8 @@ function vHome(){
   ${outN()?`<div class="banner" style="margin-top:10px"><span><b>${outN()}</b> interazion${outN()>1?"i":"e"} in attesa di invio. Non chiudere e non cancellare i dati del browser.</span><button data-a="flush">Invia ora</button></div>`:""}
   ${R.in?`<div class="banner" style="margin-top:10px"><span><b>${R.in}</b> richiest${R.in>1?"e":"a"} da evadere per ${esc(DB.settings.store)}</span><button data-a="go" data-v="richieste">Apri</button></div>`:""}
   ${needSeller?`<div class="card" style="margin-top:10px"><label class="f">Chi sei? Scegli il tuo codice venditore<select id="set-seller" data-f="settings.seller"><option value="">— scegli —</option>${(SELLERS[DB.settings.store]||[]).map(x=>`<option${x===DB.settings.seller?" selected":""}>${x}</option>`).join("")}</select></label></div>`:""}
-  <div style="margin:14px 0 18px"><button class="btn primary cta" data-a="start">Nuova interazione<small>Tocca quando un cliente prova un occhiale</small></button></div>
+  <h2 style="margin:14px 0 8px">Nuova interazione</h2><p class="hint" style="margin:0 0 10px">Tocca quando un cliente prova un occhiale: che tipo è?</p>
+  <div class="tipi"><button class="btn primary cta" data-a="start" data-v="sole">Sole</button><button class="btn primary cta" data-a="start" data-v="solegrad">Sole graduato</button><button class="btn primary cta" data-a="start" data-v="vista">Vista</button></div><div style="height:12px"></div>
   <h2>Riepilogo · ultimi 30 giorni</h2>${SUM.err?`<p class="hint" style="color:var(--bad)">Dati non aggiornati: ${esc(SUM.err)}</p>`:""}
   <p class="hint" style="margin:-4px 0 10px">${DB.settings.seller?"Contatti: i tuoi.":"Contatti di "+esc(DB.settings.store)+"."} Modelli: di tutta l'azienda.</p>
   <div class="g4s">
@@ -280,7 +287,7 @@ function vHome(){
    <div class="card"><h2>Più scartati <span class="code">(azienda)</span></h2>${barList(s.scar)}</div></div>
   ${tabbar()}`}
 
-function stepsBar(){return`<div class="steps">${STEPS.map((n,i)=>`<button type="button" data-a="goto" data-i="${i}" class="${i===S.step?"on":i<S.step?"done":""}">${i+1}<span class="nm"> · ${n}</span></button>`).join("")}</div>`}
+function stepsBar(){return`<div class="steps">${stepVis().map((i,k)=>`<button type="button" data-a="goto" data-i="${i}" class="${i===S.step?"on":i<S.step?"done":""}">${k+1}<span class="nm"> · ${STEPS[i]}</span></button>`).join("")}</div>`}
 
 function vArticoli(){return`${header()}${stepsBar()}
   <h1 style="margin-top:14px">Aggiungi gli occhiali provati</h1>
@@ -292,7 +299,7 @@ function vArticoli(){return`${header()}${stepsBar()}
   <ul class="items" id="items"></ul>
   <details class="gs card" style="margin-top:14px"><summary>Non hai il codice? Cerca per marchio</summary>
    <div class="row" style="margin-top:8px">
-    <label class="f">Tipo<select id="g-tipo"><option value="sole">Sole</option><option value="vista">Vista</option></select></label>
+    <label class="f">Tipo<select id="g-tipo"><option value="sole"${G.tipo==="sole"?" selected":""}>Sole</option><option value="vista"${G.tipo==="vista"?" selected":""}>Vista</option></select></label>
     </div>
    <label class="f" style="margin-top:10px">Fornitore<input type="text" id="g-fq" autocomplete="off" autocapitalize="off" placeholder="Scrivi per filtrare — vuoto = tutti"></label>
    <div class="sugg" id="g-fl"></div>
@@ -314,6 +321,7 @@ function vEsito(){const d=S.d;
   const ob=(k,t)=>`<button class="btn" aria-pressed="${d.esito===k}" data-a="esito" data-v="${k}">${t}</button>`;
   let more="";
   if(d.esito==="acquistato")more=`<h2 style="margin-top:20px">Quale articolo?</h2><div class="opts">${d.items.map((it,i)=>`<button class="opt sq" aria-pressed="${d.acq.includes(i)}" data-a="acq" data-i="${i}"><span class="k"></span>${esc(it.label)}</button>`).join("")}</div>
+   <label class="f" style="margin-top:14px">Prezzo pagato (€)<input type="number" inputmode="decimal" min="0" step="1" data-f="d.pagato" value="${esc(d.pagato)}" placeholder="quanto ha pagato il cliente"></label>
    <p class="hint">La vendita si registra in FOCUS. Se il cliente non vuole lasciare dati, si usa il carrello non nominativo.</p>`;
   if(d.esito==="nonacq")more=`<h2 style="margin-top:20px">Perché non ha acquistato?</h2><div class="opts">${MOTIVI.map((m,i)=>`<button class="opt" aria-pressed="${d.motivo===m}" data-a="motivo" data-i="${i}"><span class="k"></span>${esc(m)}</button>`).join("")}</div>`;
   return`${header()}${stepsBar()}<h1>Esito</h1><p class="lead">Scegli come è finita la visita.</p>
@@ -358,7 +366,9 @@ function vChiusura(){const d=S.d,secs=Math.round((Date.now()-d.start)/1000);
   return`${header()}${stepsBar()}<h1>Riepilogo</h1><div class="card"><dl class="sum">
    <dt>Articoli</dt><dd>${d.items.map(i=>esc(i.label)).join(", ")}</dd>
    <dt>Esito</dt><dd>${es}${d.esito==="nonacq"?" · "+esc(d.motivo):""}</dd>
-   <dt>Preventivo</dt><dd>${d.prev.prezzo?esc(d.prev.prezzo)+" €"+(d.prev.sconto?" · sconto "+esc(d.prev.sconto)+"%":""):"Nessuno"}</dd>
+   <dt>Tipo</dt><dd>${esc(TIPI[d.tipo]||"")}</dd>
+   ${d.esito==="acquistato"&&d.pagato?`<dt>Prezzo pagato</dt><dd>${esc(d.pagato)} €</dd>`:""}
+   ${skipPrev()?"":`<dt>Preventivo</dt><dd>${d.prev.prezzo?esc(d.prev.prezzo)+" €"+(d.prev.sconto?" · sconto "+esc(d.prev.sconto)+"%":""):"Nessuno"}</dd>`}
    <dt>Assistenza</dt><dd>${d.ass==="si"?"Attivata per "+esc(d.cl.cognome+" "+d.cl.nome):"No"}</dd>
    <dt>Tempo</dt><dd>${secs} secondi</dd></dl></div>`}
 
@@ -370,9 +380,9 @@ function vStorico(){const L=CRON.list;
 
 function nav(){
   const d=S.d;if(!d)return"";
-  const last=S.step===4;
+  const last=S.step===4;const first=S.step===0;
   return`<div class="nav"><div class="in"><div><button class="btn ${S.confirmCancel?"danger":"ghost"}" data-a="cancel">${S.confirmCancel?"Conferma: scarta l'interazione":"Annulla"}</button></div>
-  <div>${S.step>0?'<button class="btn" data-a="back">Indietro</button>':""}<button class="btn primary" id="next" data-a="${last?"finish":"next"}">${last?"Salva e chiudi":"Avanti"}</button></div></div></div>`}
+  <div>${!first?'<button class="btn" data-a="back">Indietro</button>':""}<button class="btn primary" id="next" data-a="${last?"finish":"next"}">${last?"Salva e chiudi":"Avanti"}</button></div></div></div>`}
 
 function missing(){
   const d=S.d,m=[];
@@ -666,7 +676,7 @@ document.addEventListener("click",e=>{
   else if(a==="homestore"){DB.settings.store=ME.filiale;setOvr(ME.filiale);save();S.chg=false;render();loadReq();loadSummary()}
   else if(a==="flush"){flushOutbox()}
   else if(a==="logout"){sb.auth.signOut().then(()=>location.reload())}
-  else if(a==="start"){resetSearch();S.d=newDraft();S.view="flow";S.step=0;S.confirmCancel=false;render()}
+  else if(a==="start"){resetSearch();S.d=newDraft(v);G.tipo=v==="vista"?"vista":"sole";S.view="flow";S.step=0;S.confirmCancel=false;render()}
   else if(a==="add"){const c=$("#code");addFromText(c.value)}
   else if(a==="gsel"){
     if(b.dataset.k==="f"){G.forn=v;G.fq="";G.fopen=false;G.marc="";G.mq="";G.marcs=null;G.res=null;$("#g-fq").value=v;$("#g-mq").value="";$("#g-fq").blur();gLoadMarcs()}
@@ -691,8 +701,8 @@ document.addEventListener("click",e=>{
   else if(a==="cons"){d.cons[b.dataset.k]=v;render()}
   else if(a==="clearsig"){d.firma=false;d.sigData=null;render()}
   else if(a==="goto"){S.step=+b.dataset.i;S.confirmCancel=false;render()}
-  else if(a==="next"){S.step++;S.confirmCancel=false;render()}
-  else if(a==="back"){S.step--;S.confirmCancel=false;render()}
+  else if(a==="next"){S.step=stepMove(1);S.confirmCancel=false;render()}
+  else if(a==="back"){S.step=stepMove(-1);S.confirmCancel=false;render()}
   else if(a==="cancel"){if(S.confirmCancel){resetSearch();S.view="home";S.d=null;S.confirmCancel=false;render()}else{S.confirmCancel=true;render()}}
   else if(a==="finish")finish();
   else if(a==="cleardemo"){DB.log=DB.log.filter(x=>!x.demo);save();render()}
@@ -731,7 +741,7 @@ document.addEventListener("keydown",e=>{
 function finish(){
   const d=S.d,secs=Math.round((Date.now()-d.start)/1000);
   const pl={id:d.id,inizio:new Date(d.start).toISOString(),filiale:meCode(),venditore:DB.settings.seller||"",durata:secs,esito:d.esito,motivo:d.motivo,nota:d.nota,
-    prezzo:d.prev.prezzo,sconto:d.prev.sconto,assistenza:d.ass==="si",informativa:"bozza-beta",
+    tipo:d.tipo,pagato:d.esito==="acquistato"?d.pagato:"",prezzo:d.prev.prezzo,sconto:d.prev.sconto,assistenza:d.ass==="si",informativa:"bozza-beta",
     items:d.items.map((i,ix)=>({b:i.b,label:i.label,stato:i.stato,nc:!!i.nc||!i.cat,acq:d.acq.includes(ix),req:(i.req&&i.req.id)||null})),
     foto:d.prev.fotoData||null};
   if(d.ass==="si"){pl.cliente=Object.assign({},d.cl);pl.consensi=d.cons;pl.firma=d.sigData||null}
