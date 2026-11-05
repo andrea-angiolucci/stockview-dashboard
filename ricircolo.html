@@ -590,5 +590,74 @@ document.addEventListener("click",function(e){
  var mo=new MutationObserver(function(){injectBadge();});mo.observe(document.documentElement,{childList:true,subtree:true});
 })();
 </script>
+
+<script>
+/* ===== Ricircolo: annullamento multiplo (solo admin) ===== */
+(function(){
+  var SEL=new Set(), multi=false, injecting=false;
+  function isAdmin(){ return window.__SV_REAL_ROLE==='admin'; }
+  var st=document.createElement('style');
+  st.textContent='#rcMultiBar{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:9999;display:none;gap:10px;align-items:center;background:var(--panel,#0d1b2a);border:1px solid var(--line,#24405c);border-radius:10px;padding:8px 12px;box-shadow:0 6px 24px rgba(0,0,0,.45);font-size:13px;color:var(--fg,#e6eef7)}'
+   +'#rcMultiBar.show{display:flex}#rcMultiBar button{padding:6px 12px;border-radius:7px;cursor:pointer}'
+   +'#body tr.rcmsel>td{background:rgba(61,169,252,.14)!important}'
+   +'.rcmchk{margin-right:7px;vertical-align:middle;cursor:pointer}';
+  document.head.appendChild(st);
+  var btn=document.createElement('button'); btn.id='rcMultiBtn'; btn.className='ghost';
+  btn.textContent='\u2611 Seleziona per annullare'; btn.style.cssText='display:none;margin:0 0 8px;padding:6px 12px;cursor:pointer';
+  var bar=document.createElement('div'); bar.id='rcMultiBar';
+  bar.innerHTML='<span id="rcMultiN">0 selezionati</span>'
+   +'<button id="rcMultiDo" style="background:var(--bad,#ff6b6b);color:#fff;border:none">Annulla selezionati</button>'
+   +'<button class="ghost" id="rcMultiClr">Deseleziona</button>'
+   +'<button class="ghost" id="rcMultiX">Chiudi</button>';
+  document.body.appendChild(bar);
+  function count(){ var n=document.getElementById('rcMultiN'); if(n)n.textContent=SEL.size+' selezionati'; }
+  function inject(){
+    if(!multi||injecting)return; injecting=true;
+    document.querySelectorAll('#body tr[data-ricid]').forEach(function(tr){
+      var id=tr.getAttribute('data-ricid'); var td=tr.querySelector('td'); if(!td)return;
+      if(!td.querySelector('.rcmchk')){
+        var cb=document.createElement('input'); cb.type='checkbox'; cb.className='rcmchk'; cb.checked=SEL.has(id);
+        cb.onclick=function(ev){ ev.stopPropagation(); if(cb.checked)SEL.add(id); else SEL.delete(id); tr.classList.toggle('rcmsel',cb.checked); count(); };
+        td.insertBefore(cb, td.firstChild);
+      }
+      tr.classList.toggle('rcmsel', SEL.has(id));
+    });
+    injecting=false;
+  }
+  var obs=new MutationObserver(function(){ if(multi) inject(); });
+  function clearMarks(){ document.querySelectorAll('#body .rcmchk').forEach(function(c){c.remove();}); document.querySelectorAll('#body tr.rcmsel').forEach(function(t){t.classList.remove('rcmsel');}); }
+  function setMulti(on){
+    multi=!!on; btn.style.background=multi?'var(--accent)':''; btn.style.color=multi?'#04121f':'';
+    var b=document.getElementById('rcMultiBar'); if(b)b.classList.toggle('show',multi);
+    if(multi){ inject(); try{obs.observe(document.getElementById('body'),{childList:true,subtree:true});}catch(e){} }
+    else { try{obs.disconnect();}catch(e){} SEL.clear(); clearMarks(); count(); }
+  }
+  btn.onclick=function(){ if(!isAdmin())return; setMulti(!multi); };
+  document.getElementById('rcMultiClr').onclick=function(){ SEL.clear(); clearMarks(); inject(); count(); };
+  document.getElementById('rcMultiX').onclick=function(){ setMulti(false); };
+  document.getElementById('rcMultiDo').onclick=function(){
+    if(!isAdmin())return; var ids=Array.from(SEL); if(!ids.length)return;
+    var back=document.createElement('div');
+    back.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:120';
+    back.innerHTML='<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;width:340px;max-width:92%"><h3 style="margin:0 0 12px;font-size:16px">Annulla '+ids.length+' ricircoli</h3><p class="muted" style="margin:0 0 12px;font-size:13px">Per quanto tempo non riproporli?</p><div style="display:flex;flex-direction:column;gap:8px"><button class="btn" data-s="next" style="background:var(--accent);color:#fff">\u23ED Prossimo aggiornamento \u2014 ricompaiono domani</button><button class="btn" data-s="7g">7 giorni</button><button class="btn" data-s="30g">30 giorni</button><button class="btn" data-s="definitivo" style="background:var(--bad);color:#fff">Definitivo</button><button class="ghost" data-s="">Chiudi</button></div></div>';
+    document.body.appendChild(back);
+    back.addEventListener('click',function(e){ if(e.target===back) document.body.removeChild(back); });
+    back.querySelectorAll('button[data-s]').forEach(function(bt){ bt.onclick=async function(){ var sc=bt.dataset.s; if(!sc){ document.body.removeChild(back); return; }
+      var fino=null, dd=new Date();
+      if(sc==='next'){dd.setDate(dd.getDate()+1);fino=dd.toISOString().slice(0,10);}
+      else if(sc==='7g'){dd.setDate(dd.getDate()+7);fino=dd.toISOString().slice(0,10);}
+      else if(sc==='30g'){dd.setDate(dd.getDate()+30);fino=dd.toISOString().slice(0,10);}
+      back.querySelectorAll('button').forEach(function(x){x.disabled=true;});
+      try{ var r=await sb.from('ricircoli').update({stato:'annullato',snooze_tipo:sc,snooze_fino_al:fino,aggiornato_il:new Date().toISOString()}).in('id',ids); if(r.error)throw r.error; document.body.removeChild(back); setMulti(false); run(); }
+      catch(e){ alert('Errore: '+String((e&&e.message)||e)); back.querySelectorAll('button').forEach(function(x){x.disabled=false;}); }
+    }; });
+  };
+  function place(){ var b=document.getElementById('body'); if(b&&b.parentNode&&!btn.parentNode){ b.parentNode.insertBefore(btn,b); } }
+  place();
+  var tries=0, iv=setInterval(function(){ tries++; place(); if(isAdmin())btn.style.display=''; if(isAdmin()||tries>20)clearInterval(iv); },500);
+  count();
+})();
+</script>
+
 </body>
 </html>
