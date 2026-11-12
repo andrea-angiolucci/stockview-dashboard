@@ -2145,5 +2145,15 @@ window.__SVCACHE_CFG={key:'sv_cache_presenza_v4',container:'#tablewrap',statusSe
 })();
 </script>
 
+
+<script>/*SV-DIAG-TEMP*/(function(){
+function panel(){var p=document.getElementById('svDiag');if(!p){p=document.createElement('div');p.id='svDiag';p.style.cssText='position:fixed;left:8px;bottom:8px;z-index:2147483647;max-width:70vw;max-height:45vh;overflow:auto;background:#0f1a24;color:#cfe3f0;border:2px solid #39d98a;border-radius:8px;padding:8px 10px;font:11px/1.35 ui-monospace,monospace;white-space:pre-wrap;box-shadow:0 8px 24px rgba(0,0,0,.6)';var h=document.createElement('div');h.textContent='DIAGNOSTICA RUN (temporanea) - fai lo screenshot e mandamelo';h.style.cssText='font-weight:bold;color:#7fe3b0;margin-bottom:4px';p.appendChild(h);var b=document.createElement('button');b.textContent='chiudi';b.style.cssText='position:absolute;top:4px;right:6px;background:#1b2b3a;border:1px solid #2b4;color:#9fb;border-radius:4px;cursor:pointer;font-size:10px';b.onclick=function(){p.remove();};p.appendChild(b);(document.body||document.documentElement).appendChild(p);}return p;}
+function log(m){try{var p=panel();var d=document.createElement('div');d.textContent=m;p.appendChild(d);}catch(e){}}
+function mar(){try{return (window.FILTERS&&FILTERS.msMarchio&&FILTERS.msMarchio.selected)?Array.from(FILTERS.msMarchio.selected).join(',')||'(tutti)':'(n/d)';}catch(e){return '(n/d)';}}
+function rows(){try{return document.querySelectorAll('#tbl tbody tr').length;}catch(e){return '?';}}
+var n=0;
+function wrap(name){var f=window[name];if(typeof f!=='function'||f.__svd)return false;var w=function(){n++;if(n<=10){var st='';try{st=(new Error().stack||'').split('\n').slice(2,7).map(function(s){return s.trim();}).join('  <-  ');}catch(e){}log(name.toUpperCase()+' #'+n+'  '+new Date().toLocaleTimeString()+'   righe='+rows()+'  marchio='+mar());log('   da: '+st);}return f.apply(this,arguments);};w.__svd=1;window[name]=w;return true;}
+var done={};var t=setInterval(function(){if(!done.run)done.run=wrap('run');if(!done.sched)done.sched=wrap('scheduleRun');if(done.run){log('pronto. righe ora='+rows()+'  marchio='+mar());clearInterval(t);}},25);setTimeout(function(){clearInterval(t);},9000);
+})();</script>
 </body>
 </html>
