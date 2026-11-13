@@ -121,6 +121,9 @@
     <div class="section-h" id="lblMag" style="margin-top:16px">Correzioni magazzino</div>
     <p style="color:var(--muted);margin:-6px 0 12px;font-size:13px">Articoli non trovati durante il ricircolo — da correggere nel gestionale</p>
     <div id="nonTrovati"></div>
+    <div class="section-h" id="lblCorrGiac" style="margin-top:16px">Errori movimenti magazzino</div>
+    <p style="color:var(--muted);margin:-6px 0 12px;font-size:13px">Giacenze con disponibile negativo (prenotazioni orfane / errori movimenti) — da correggere nel gestionale Focus</p>
+    <div id="corrGiac"></div>
     <h2 class="pagetitle" id="hCompletati" style="margin-top:28px">Completati <span class="cnt" id="cntCompletati"></span></h2>
     <div id="secComp"></div>
     <h2 class="pagetitle" id="hNoteQ" style="margin-top:28px">Note qualità <span class="cnt" id="cntNoteQ"></span></h2>
@@ -290,6 +293,28 @@ function renderNT(){
   host.querySelectorAll(".ntRip").forEach(function(bt){ bt.onclick=function(){ rcRipristina(bt,host); }; });
 }
 
+var CG_ROWS=[]; var CG_SORT={key:"data",dir:"desc"};
+function cgVal(r,k){ if(k==="data")return r.generato_il?new Date(r.generato_il).getTime():0; if(k==="barcode")return r.barcode||""; if(k==="marchio")return r.marchio||""; if(k==="modello")return r.modello||""; if(k==="fil")return ntFn(r.filiale); if(k==="mag")return r.quantita_magazzino||0; if(k==="pren")return r.quantita_prenotata||0; if(k==="disp")return r.quantita_disponibile||0; return ""; }
+async function loadCorrGiac(){ var host=document.getElementById("corrGiac"); if(!host)return; host.innerHTML='<div style="color:var(--muted)">Caricamento…</div>';
+  try{ var r=await sb.from("correzioni_giacenza").select("*").order("filiale",{ascending:true}).order("barcode",{ascending:true}); if(r.error)throw r.error; CG_ROWS=r.data||[]; renderCG(); }catch(e){ host.innerHTML='<div style="color:var(--bad)">Errore: '+esc(String((e&&e.message)||e))+'</div>'; } }
+async function cgEseguito(bt){ if(bt.disabled)return; bt.disabled=true; var id=bt.dataset.id, o=bt.textContent; bt.textContent="…"; var email=await myEmail();
+  try{ var r=await sb.from("correzioni_giacenza").update({stato_operatore:"eseguito",eseguito_da:email,eseguito_il:new Date().toISOString()}).eq("id",id); if(r.error)throw r.error; for(var i=0;i<CG_ROWS.length;i++){ if(String(CG_ROWS[i].id)===String(id)){ CG_ROWS[i].stato_operatore="eseguito"; CG_ROWS[i].eseguito_da=email; CG_ROWS[i].eseguito_il=new Date().toISOString(); break; } } renderCG(); toast("Segnato come eseguito"); }catch(e){ bt.disabled=false; bt.textContent=o; toast("Errore: "+String((e&&e.message)||e),true); } }
+async function cgUndo(bt){ if(bt.disabled)return; bt.disabled=true; var id=bt.dataset.id;
+  try{ var r=await sb.from("correzioni_giacenza").update({stato_operatore:"da_correggere",eseguito_da:null,eseguito_il:null}).eq("id",id); if(r.error)throw r.error; for(var i=0;i<CG_ROWS.length;i++){ if(String(CG_ROWS[i].id)===String(id)){ CG_ROWS[i].stato_operatore="da_correggere"; break; } } renderCG(); toast("Annullato"); }catch(e){ bt.disabled=false; toast("Errore: "+String((e&&e.message)||e),true); } }
+function renderCG(){ var host=document.getElementById("corrGiac"); if(!host)return; var canEseg=(ROLE==="admin"||ROLE==="gestore");
+  if(!CG_ROWS.length){ host.innerHTML='<div style="color:var(--muted);padding:8px 0">Nessun errore movimenti. ✅</div>'; return; }
+  var rows=CG_ROWS.slice(); sApply(rows,CG_SORT,cgVal);
+  var head='<tr>'+sTh(CG_SORT,"data","Rilevato il")+sTh(CG_SORT,"barcode","Barcode")+sTh(CG_SORT,"marchio","Marchio")+sTh(CG_SORT,"modello","Modello")+sTh(CG_SORT,"fil","Filiale")+sTh(CG_SORT,"mag","Magazz.")+sTh(CG_SORT,"pren","Prenot.")+sTh(CG_SORT,"disp","Dispon.")+'<th></th></tr>';
+  var b=rows.map(function(x){ var eseg=x.stato_operatore==="eseguito"; var act;
+    if(eseg){ act='<span class="badge-wait">⏳ Attesa conferma</span>'+(x.eseguito_il?'<span style="font-size:11px;color:var(--muted);margin:0 6px">da '+_ggDa(x.eseguito_il)+'g</span>':'')+'<button class="btn-undo cgUndo" data-id="'+esc(x.id)+'">↩ Annulla</button>'; }
+    else{ act=(canEseg?'<button class="pill-eseg cgEseg" data-id="'+esc(x.id)+'">✓ Eseguito</button>':''); }
+    return '<tr class="'+(eseg?"eseg":"")+'">'+'<td style="white-space:nowrap">'+esc(fmtDate(x.generato_il))+'</td>'+'<td>'+esc(x.barcode||"")+'</td>'+'<td><b>'+esc(x.marchio||"—")+'</b></td>'+'<td>'+esc(x.modello||"—")+subline(x)+'</td>'+'<td>'+esc(ntFn(x.filiale))+'</td>'+'<td>'+(x.quantita_magazzino==null?"":x.quantita_magazzino)+'</td>'+'<td>'+(x.quantita_prenotata==null?"":x.quantita_prenotata)+'</td>'+'<td style="color:var(--bad);font-weight:700">'+(x.quantita_disponibile==null?"":x.quantita_disponibile)+'</td>'+'<td style="white-space:nowrap">'+act+'</td></tr>';
+  }).join("");
+  host.innerHTML='<div class="tablewrap" id="cgWrap"><table><thead>'+head+'</thead><tbody>'+b+'</tbody></table></div>';
+  sWire(document.getElementById("cgWrap"),CG_SORT,renderCG);
+  host.querySelectorAll(".cgEseg").forEach(function(bt){ bt.onclick=function(){ cgEseguito(bt); }; });
+  host.querySelectorAll(".cgUndo").forEach(function(bt){ bt.onclick=function(){ cgUndo(bt); }; });
+}
 async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session); else $("#login").style.display="flex"; }
 async function loadNonTrovati(){
   var host=document.getElementById("nonTrovati"); if(!host)return;
@@ -324,6 +349,7 @@ async function showApp(session){
   $("#who").innerHTML=esc(session.user.email)+' <span class="rolechip '+ROLE+'">'+ROLE+'</span>';
   await loadAll();
   loadNonTrovati();
+  loadCorrGiac();
 }
 $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault(); const b=$("#loginBtn"),er=$("#loginErr"); er.textContent=""; b.disabled=true; b.textContent="Accesso…";
   const {data,error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pwd").value});
