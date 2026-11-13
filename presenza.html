@@ -575,7 +575,7 @@ function renderOrd(){
   ov.onclick=e=>{if(e.target===ov)ov.remove();};
   { const _ocb=document.getElementById("ordcart"); if(_ocb)_ocb.onclick=()=>addToCart(ORDROWS); }
   const xbtn=document.getElementById("ordxls");
-  if(xbtn)xbtn.onclick=()=>{ const ws=XLSX.utils.json_to_sheet(ORDROWS.map(r=>({Fornitore:r.fornitore,Marchio:r.marchio,Modello:r.modello,Colore:r.colore,Calibro:r.calibro,Categoria:r.categoria,Tipo:r.tipo_lenti,Barcode:r.barcode,Negozio:r.negozio,Giacenza:(r.disp||0),Qta:r.qta,Manuale:(r.manuale||0),BuchiCodice:r.buchi,InArrivoCodice:r.inarrivo,InDeposito:(r.deposito||0)}))); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Ordine"); XLSX.writeFile(wb,"lista_ordine_"+new Date().toISOString().slice(0,10)+".xlsx"); };
+  if(xbtn)xbtn.onclick=()=>{ const ws=XLSX.utils.json_to_sheet(ORDROWS.map(r=>({Fornitore:r.fornitore,Marchio:r.marchio,Modello:r.modello,Colore:r.colore,Calibro:r.calibro,Categoria:r.categoria,Tipo:r.tipo_lenti,Barcode:r.barcode,Negozio:r.negozio,Qta:r.qta}))); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Ordine"); XLSX.writeFile(wb,"lista_ordine_"+new Date().toISOString().slice(0,10)+".xlsx"); };
   [...box.querySelectorAll('th[data-si]')].forEach(th=>{ th.onclick=()=>{ const i=+th.getAttribute('data-si'); ORDSORT.dir=(ORDSORT.k===i)?-ORDSORT.dir:1; ORDSORT.k=i; const f=fields[i]; ORDROWS.sort((a,b)=>{ if(numF[f])return (((a[f]||0)-(b[f]||0)))*ORDSORT.dir; return String(a[f]==null?"":a[f]).localeCompare(String(b[f]==null?"":b[f]))*ORDSORT.dir; }); renderOrd(); }; });
   [...box.querySelectorAll('span[data-rm]')].forEach(sp=>{ sp.onclick=()=>{ const idx=+sp.getAttribute('data-rm'); ORDROWS.splice(idx,1); renderOrd(); }; });
 }
