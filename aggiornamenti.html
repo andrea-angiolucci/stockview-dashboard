@@ -172,6 +172,16 @@
       <div id="secRM"><div class="notice">Caricamento…</div></div>
     </div>
 
+    <div class="family" id="famCGpend" style="display:none">
+      <div class="family-header">
+        <span class="fam-icon">🔧</span>
+        <h3>Errori movimenti magazzino</h3>
+        <span class="cnt" id="cntCG">…</span>
+      </div>
+      <p style="color:var(--muted);margin:-4px 0 10px;font-size:13px">Referenze con disponibile negativo (prenotazioni orfane) — da correggere al Focus. Si aggiorna ogni notte.</p>
+      <div id="secCG"><div class="notice">Caricamento…</div></div>
+    </div>
+
     <!-- COMPLETATI -->
     <div class="block-title" style="margin-top:40px">
       Completati <span class="cnt-total" id="cntComp">…</span>
@@ -490,11 +500,56 @@ function renderRM(){
   updateTotals();
 }
 
+/* ===================== ERRORI MOVIMENTI MAGAZZINO ===================== */
+var CG_ROWS=[];
+var CG_SORT={key:"filiale",dir:"asc",stack:[{key:"filiale",dir:"asc"},{key:"barcode",dir:"asc"}]};
+function cgVal(r,k){if(k==="data")return r.generato_il?new Date(r.generato_il).getTime():0;if(k==="giorni")return r.generato_il?_ggDa(r.generato_il):-1;if(k==="barcode")return r.barcode||"";if(k==="marchio")return r.marchio||"";if(k==="modello")return r.modello||"";if(k==="tipo")return r.tipo_lenti||"";if(k==="filiale")return filName(r.filiale);if(k==="disp")return (r.quantita_disponibile==null?0:r.quantita_disponibile);return "";}
+async function cgEseguito(bt){if(bt.disabled)return;bt.disabled=true;var id=bt.dataset.id,o=bt.textContent;bt.textContent="…";var email=await myEmail();
+  try{var upd={stato_operatore:"eseguito",eseguito_da:email||null,eseguito_il:new Date().toISOString()};var r=await sb.from("correzioni_giacenza").update(upd).eq("id",id);if(r.error)throw r.error;for(var i=0;i<CG_ROWS.length;i++){if(String(CG_ROWS[i].id)===String(id)){Object.assign(CG_ROWS[i],upd);break;}}renderCG();toast("Segnato come eseguito");}catch(e){bt.disabled=false;bt.textContent=o;toast("Errore: "+String((e&&e.message)||e),true);}
+}
+async function cgUndo(bt){if(bt.disabled)return;bt.disabled=true;var id=bt.dataset.id;
+  try{var upd={stato_operatore:"da_correggere",eseguito_da:null,eseguito_il:null};var r=await sb.from("correzioni_giacenza").update(upd).eq("id",id);if(r.error)throw r.error;for(var i=0;i<CG_ROWS.length;i++){if(String(CG_ROWS[i].id)===String(id)){Object.assign(CG_ROWS[i],upd);break;}}renderCG();toast("Annullato");}catch(e){bt.disabled=false;toast("Errore: "+String((e&&e.message)||e),true);}
+}
+function renderCG(){
+  var fam=document.getElementById("famCGpend");
+  var canSee=(ROLE==="admin"||ROLE==="gestore");
+  if(fam) fam.style.display=canSee?"":"none";
+  if(!canSee){updateTotals();return;}
+  var host=document.getElementById("secCG"); if(!host)return;
+  var cntEl=document.getElementById("cntCG"); if(cntEl) cntEl.textContent=CG_ROWS.length;
+  if(!CG_ROWS.length){host.innerHTML='<div class="notice">Nessun errore da correggere. ✅</div>';updateTotals();return;}
+  var rows=CG_ROWS.slice(); sApply(rows,CG_SORT,cgVal);
+  var head='<tr>'+sTh(CG_SORT,"data","Data")+sTh(CG_SORT,"giorni","Giorni")+sTh(CG_SORT,"barcode","Barcode")+sTh(CG_SORT,"marchio","Marchio")+sTh(CG_SORT,"modello","Modello")+sTh(CG_SORT,"tipo","Tipo")+sTh(CG_SORT,"filiale","Filiale")+sTh(CG_SORT,"disp","Magazzino")+'<th></th></tr>';
+  host.innerHTML='<div class="tablewrap" id="cgWrap"><table><thead>'+head+'</thead><tbody>'+rows.map(function(r){
+    var eseg=r.stato_operatore==="eseguito";
+    var act;
+    if(eseg){act='<span class="badge-wait">⏳ Attesa conferma'+(r.eseguito_il?'<br><span style="font-size:10px;opacity:.85">dal '+esc(fmtDate(r.eseguito_il))+'</span>':'')+'</span><button class="btn-undo cgUndo" data-id="'+esc(r.id)+'">↩ Annulla</button>';}
+    else{act='<button class="pill-eseg cgEseg" data-id="'+esc(r.id)+'">✓ Eseguito</button>';}
+    var mag=(r.quantita_magazzino==null?"—":r.quantita_magazzino);
+    var pren=(r.quantita_prenotata==null?"—":r.quantita_prenotata);
+    var disp=(r.quantita_disponibile==null?"—":r.quantita_disponibile);
+    return '<tr class="'+(eseg?"eseg":"")+'">'+
+      '<td class="muted">'+esc(fmtDate(r.generato_il))+'</td>'+'<td class="muted">'+(r.generato_il?_ggDa(r.generato_il)+"g":"—")+'</td>'+
+      '<td class="muted">'+esc(r.barcode||"")+'</td>'+
+      '<td><b>'+esc(r.marchio||"—")+'</b></td>'+
+      '<td>'+esc(r.modello||"—")+subline(r)+'</td>'+
+      '<td>'+esc(r.tipo_lenti||"—")+'</td>'+
+      '<td class="filiale-dest">'+esc(filName(r.filiale))+'</td>'+
+      '<td style="white-space:nowrap">mag '+mag+' · pren '+pren+' · <b style="color:#ef4444">disp '+disp+'</b></td>'+
+      '<td style="white-space:nowrap">'+act+'</td></tr>';
+  }).join("")+'</tbody></table></div>';
+  sWire(document.getElementById("cgWrap"),CG_SORT,renderCG);
+  host.querySelectorAll(".cgEseg").forEach(function(bt){bt.onclick=function(){cgEseguito(bt);};});
+  host.querySelectorAll(".cgUndo").forEach(function(bt){bt.onclick=function(){cgUndo(bt);};});
+  updateTotals();
+}
+
 /* ===================== TOTALI ===================== */
 function updateTotals(){
   var df=(CC_PEND.filter(function(r){return r.stato_operatore!=="eseguito";}).length)+
          (NT_ROWS.filter(function(x){return !isEseg(x.note);}).length)+
-         (RM_ROWS.filter(function(r){return r.stato==="da_fare"||r.stato==="attesa_conferma";}).length);
+         (RM_ROWS.filter(function(r){return r.stato==="da_fare"||r.stato==="attesa_conferma";}).length)+
+         ((ROLE==="admin"||ROLE==="gestore")?CG_ROWS.length:0);
   var comp=(CC_COMP.length)+
             (NT_ROWS.filter(function(x){return isEseg(x.note);}).length)+
             0;
@@ -519,6 +574,11 @@ async function loadAll(){
   var rm=await sb.from("rimpiazzi_deposito").select("*").in("stato",["da_fare","attesa_conferma"]).not("cassetto","is",null).neq("cassetto","").order("vendite_barcode",{ascending:false}).order("vendite_marchio",{ascending:false}).order("id",{ascending:true});
   RM_ROWS=rm.data||[];
   renderRM();
+
+  /* errori movimenti magazzino */
+  var cg=await sb.from("correzioni_giacenza").select("*").order("filiale",{ascending:true}).order("barcode",{ascending:true});
+  CG_ROWS=cg.data||[];
+  renderCG();
 }
 
 /* ===================== AUTH ===================== */
