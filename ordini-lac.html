@@ -38,6 +38,10 @@ button:disabled{opacity:.5}
 table{width:100%;border-collapse:collapse;font-size:14px}
 td,th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 .hide{display:none}
+input.free{background:var(--card);border:2px solid var(--warn)}
+input.free::placeholder{color:var(--mut);opacity:.7}
+.vf{background:color-mix(in srgb,var(--warn) 22%,transparent)}
+.vf td{border-bottom-color:var(--warn)}
 .eyes{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
 .gr{display:grid;gap:8px}
 .g1{grid-template-columns:1fr}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
@@ -230,11 +234,11 @@ function disegnaOcchio(o){
     const tor=(p.geometria||"").includes("torica");
     const mf=(p.geometria||"").includes("multifocale");
     if(e.libero){
-      h+=`<div class="msg warn">${rr.length?"Parametro non presente nell'elenco.":"Per questa lente l'elenco dei parametri non è ancora disponibile."} Scrivi i valori e <b>descrivi nella nota</b> cosa manca: l'ordine parte con la tua descrizione e noi veniamo avvisati per sistemare l'elenco.</div>
-      <div class="gr g4">${F("Sfera *",`<input id="ls${o}" inputmode="decimal" value="${e.sfera}" placeholder="-2.25">`)}
-      ${tor?F("Cilindro *",`<input id="lc${o}" inputmode="decimal" value="${e.cil}" placeholder="-1.25">`)+F("Asse *",`<input id="la${o}" inputmode="numeric" value="${e.asse}" placeholder="180">`):""}
-      ${F("Addizione"+(mf?" *":""),`<input id="ld${o}" value="${e.add}" placeholder="+1.50">`)}</div>
-      <div class="gr g3">${F("Curva base *",`<input id="lb${o}" inputmode="decimal" value="${e.curva}" placeholder="8.6">`)}${F("Diametro *",`<input id="lm${o}" inputmode="decimal" value="${e.diam}" placeholder="14.2">`)}${F("Confezioni *",`<input id="q${o}" type="number" min="1" value="${e.qta}">`)}</div>
+      h+=`<div class="msg warn">${rr.length?"Parametro non presente nell'elenco.":"Per questa lente l'elenco dei parametri non è ancora disponibile."} Scrivi tu i valori nei campi evidenziati e <b>descrivi nella nota</b> cosa manca: l'ordine parte con la tua descrizione e noi veniamo avvisati per sistemare l'elenco.</div>
+      <div class="gr g4">${F("Sfera *",`<input id="ls${o}" inputmode="decimal" value="${e.sfera}" placeholder="es. -2.25" class="free">`)}
+      ${tor?F("Cilindro *",`<input id="lc${o}" inputmode="decimal" value="${e.cil}" placeholder="es. -1.25" class="free">`)+F("Asse *",`<input id="la${o}" inputmode="numeric" value="${e.asse}" placeholder="es. 180" class="free">`):""}
+      ${F("Addizione"+(mf?" *":""),`<input id="ld${o}" value="${e.add}" placeholder="es. +1.50" class="free">`)}</div>
+      <div class="gr g3">${F("Curva base *",`<input id="lb${o}" inputmode="decimal" value="${e.curva}" placeholder="es. 8.6" class="free">`)}${F("Diametro *",`<input id="lm${o}" inputmode="decimal" value="${e.diam}" placeholder="es. 14.2" class="free">`)}${F("Confezioni *",`<input id="q${o}" type="number" min="1" value="${e.qta}">`)}</div>
       ${rr.length?`<button class="sec small" id="lib${o}">Torna ai menu</button>`:""}`;
     } else {
       const A=rr.filter(x=>(e.sfera===""||x.sfere.includes(parseFloat(e.sfera))));
@@ -362,7 +366,7 @@ async function listaOrdini(){
   const box=$("#lista");
   if(error){box.innerHTML=`<div class="msg err">${error.message}</div>`;return}
   if(!data.length){box.innerHTML="Nessun ordine.";return}
-  box.innerHTML=`<table><tr><th>Rif.</th><th>Cliente</th><th>Lenti</th><th>Stato</th></tr>`+data.map(o=>`<tr>
+  box.innerHTML=`<table><tr><th>Rif.</th><th>Cliente</th><th>Lenti</th><th>Stato</th></tr>`+data.map(o=>`<tr class="${S.profilo.ruolo!=="negozio"&&(o.righe_ordine||[]).some(r=>r.fuori_catalogo)?"vf":""}">
    <td>${o.riferimento}<div class="mut">${(S.negozi.find(n=>n.id===o.negozio_id)||{}).nome||""} · ${new Date(o.creato_il).toLocaleDateString("it-IT")}</div></td>
    <td>${o.cliente_rif||""}<div class="mut">${o.codice_cliente_focus?"cod. "+o.codice_cliente_focus:""}${o.numero_fornitura?" · forn. "+o.numero_fornitura:""}</div></td>
    <td>${(o.righe_ordine||[]).map(r=>`${r.occhio} ${r.prodotti?r.prodotti.modello:""} ×${r.quantita}`).join("<br>")}</td>
@@ -388,7 +392,7 @@ async function vistaCentrale(){
   }));
   let h="";
   const nfc=S.cen.reduce((s,o)=>s+(o.righe_ordine||[]).filter(r=>r.fuori_catalogo).length,0);
-  if(nfc)h+=`<div class="msg warn"><b>${nfc} righe fuori elenco da sistemare</b>: il negozio ha descritto cosa manca nella nota dell'ordine. Dopo l'ordine, aggiornare le regole del catalogo.</div>`;
+  if(nfc)h+=`<div class="msg warn"><b>${nfc} righe con parametri da verificare</b> (evidenziate in giallo): non sono stati presi dal catalogo ma scritti dal negozio. Controlla la nota dell'ordine; poi aggiorna le regole del catalogo.</div>`;
   Object.keys(gruppi).sort().forEach(fn=>{
     const f=S.fornitori.find(x=>x.nome===fn)||{};
     const conf=gruppi[fn].reduce((s,x)=>s+(x.r.quantita||0),0);
@@ -396,15 +400,16 @@ async function vistaCentrale(){
     h+=`<div class="card"><h2>${fn} <span class="pill">${conf} confezioni</span> <span class="pill">${f.destinazione==="negozio"?"spedisce al negozio":"spedisce al Deposito"}</span></h2>
     ${f.minimo_confezioni?`<div class="msg ${sotto?"warn":"ok"}">Minimo ${f.minimo_confezioni} confezioni: ${sotto?"ancora sotto, conviene aspettare":"raggiunto"}${f.verificato?"":" (dato da verificare)"}</div>`:""}
     <table><tr><th>Ordine</th><th>Lente</th><th>Parametri</th></tr>`+
-    gruppi[fn].map(({o,r})=>`<tr><td>${o.riferimento}<div class="mut">${(S.negozi.find(n=>n.id===o.negozio_id)||{}).nome||""}<br>${o.cliente_rif||""} ${o.codice_cliente_focus?"· cod. "+o.codice_cliente_focus:""}${o.numero_fornitura?" · forn. "+o.numero_fornitura:""}</div></td>
-      <td>${r.occhio} · ${r.prodotti?r.prodotti.modello:""}${r.fuori_catalogo?' <span class="pill" style="color:var(--warn)">fuori catalogo</span>':""}</td>
+    gruppi[fn].map(({o,r})=>`<tr class="${r.fuori_catalogo?"vf":""}"><td>${o.riferimento}<div class="mut">${(S.negozi.find(n=>n.id===o.negozio_id)||{}).nome||""}<br>${o.cliente_rif||""} ${o.codice_cliente_focus?"· cod. "+o.codice_cliente_focus:""}${o.numero_fornitura?" · forn. "+o.numero_fornitura:""}</div></td>
+      <td>${r.occhio} · ${r.prodotti?r.prodotti.modello:""}${r.fuori_catalogo?' <br><span class="pill" style="color:var(--warn);border-color:var(--warn)">parametri da verificare</span>':""}</td>
       <td>Sf ${fmtS(r.sfera)}${r.cilindro!==null?` Cil ${fmtS(r.cilindro)} Ax ${r.asse}°`:""}${r.addizione?` Add ${r.addizione}`:""}<br>BC ${r.curva_base||"—"} · Ø ${r.diametro||"—"} · ×${r.quantita}</td></tr>`).join("")+`</table></div>`;
   });
   h+=`<div class="card"><h2>Ordini (${S.cen.length})</h2>`+S.cen.map(o=>{
     const neg=(S.negozi.find(n=>n.id===o.negozio_id)||{}).nome||"";
     const fl=FLUSSO.includes(o.stato)?FLUSSO:FLUSSO.concat([o.stato]);
     const ev=(o.eventi_ordine||[]).sort((a,b)=>new Date(a.quando)-new Date(b.quando)).map(e=>`${STATI[e.stato]||e.stato} ${new Date(e.quando).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`).join(" → ");
-    return `<div style="border-top:1px solid var(--line);padding:10px 0"><b>${o.riferimento}</b> · ${neg} · ${o.cliente_rif||""} ${o.codice_cliente_focus?"· cod. "+o.codice_cliente_focus:""}${o.numero_fornitura?" · forn. "+o.numero_fornitura:""} <span class="pill">${o.tipo}</span>
+    const daVer=(o.righe_ordine||[]).some(r=>r.fuori_catalogo);
+    return `<div class="${daVer?"vf":""}" style="border-top:1px solid var(--line);padding:10px 6px"><b>${o.riferimento}</b>${daVer?' <span class="pill" style="color:var(--warn);border-color:var(--warn)">parametri da verificare</span>':""} · ${neg} · ${o.cliente_rif||""} ${o.codice_cliente_focus?"· cod. "+o.codice_cliente_focus:""}${o.numero_fornitura?" · forn. "+o.numero_fornitura:""} <span class="pill">${o.tipo}</span>
       <div class="mut">${ev}</div>
       ${o.note?`<div class="mut">Note: ${o.note}</div>`:""}
       <div class="row" style="margin-top:6px"><select id="st${o.id}">${[...FLUSSO,"evaso_da_deposito","annullato"].map(s=>`<option value="${s}" ${s===o.stato?"selected":""}>${STATI[s]}</option>`).join("")}</select>
