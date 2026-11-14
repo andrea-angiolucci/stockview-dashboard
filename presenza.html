@@ -937,6 +937,8 @@ function clusterDepthMap(){
   return dep;
 }
 function clusterColor(li){ if(li===undefined||li<0)return null; if(li===0)return "#36c98d"; if(li===1)return "#f5d327"; if(li===2)return "#f5a524"; return "#3da9fc"; }
+function svVisRefCount(cells){ try{ var bcs={}; (cells||[]).forEach(function(c){ if(!c||!c.barcode)return; var b=String(c.barcode); var o=bcs[b]||(bcs[b]={d:0,v:0}); o.d+=(+c.disponibile||0); o.v+=(+c.venduto||0); }); var keys=Object.keys(bcs); if(typeof deadOn==="undefined"||!deadOn) return keys.length; var n=0; for(var i=0;i<keys.length;i++){ var b=keys[i]; var dm=(window.__deadMap&&window.__deadMap[b])||{pren:0,arr:0}; if(!(bcs[b].d===0&&bcs[b].v===0&&(+dm.pren||0)===0&&(+dm.arr||0)===0)) n++; } return n; }catch(e){ return (cells?new Set(cells.map(function(c){return c.barcode;})).size:0); } }
+function svSyncRefCounts(){ try{ var n=svVisRefCount(typeof lastCells!=="undefined"?lastCells:[]); var st=document.getElementById("status"); if(st){var b=st.querySelector("b"); if(b)b.textContent=n;} var tr=document.querySelector("#tbl .svtotrow"); if(tr){var td=tr.querySelector("td"); if(td&&/referenze/.test(td.textContent))td.textContent="Totale: "+n+" referenze";} }catch(e){} }
 function decorate(){
   var tbl=$("#tbl"); if(!tbl||!tbl.tHead) return;
   var negFil={}; lastCells.forEach(function(c){ negFil[c.negozio]=c.filiale; });
@@ -971,7 +973,7 @@ function wireDati(){
   seg("#segMarchi","data-dm",async function(v){ dataMarchi=v; saveDati(); var selNow=(FILTERS.msMarchio&&FILTERS.msMarchio.selected)?[...FILTERS.msMarchio.selected]:[]; if(v==="tutti"){ await ensureNoIdealCache(); mkFilter("msMarchio","Marchio",allMarchiList(),selNow); } else { var ff=(FILTERS.msFornitore&&FILTERS.msFornitore.selected)?[...FILTERS.msFornitore.selected]:[]; mkFilter("msMarchio","Marchio",optsFor("marchio",ff,[],[]),selNow); } scheduleRun(); });
   seg("#segAge","data-da",async function(v){ ageOn=(v==="on"); saveDati(); await loadAgePrev(); draw(); });
   seg("#segPrev","data-dp",async function(v){ prevOn=(v==="on"); saveDati(); await loadAgePrev(); draw(); });
-  seg("#segDead","data-dd",function(v){ deadOn=(v==="on"); saveDati(); decorate(); });
+  seg("#segDead","data-dd",function(v){ deadOn=(v==="on"); saveDati(); decorate(); svSyncRefCounts(); });
   function setSeg(id,attr,val){ var el=$(id); if(!el)return; [].slice.call(el.children).forEach(function(x){ x.classList.toggle("on",x.getAttribute(attr)===val); }); }
   setSeg("#segMarchi","data-dm",dataMarchi); setSeg("#segAge","data-da",ageOn?"on":"off"); setSeg("#segPrev","data-dp",prevOn?"on":"off"); setSeg("#segDead","data-dd",deadOn?"on":"off");
 }
@@ -1078,7 +1080,7 @@ function draw(){
   const arrivi=cells.filter(c=>c.in_arrivo>0); let arriviN=arrivi.length; window.__ARRIVI=arrivi; try{ if(typeof extraStock!=='undefined'&&extraStock){ for(var _bc in extraStock){ var _fm=extraStock[_bc]; for(var _f in _fm){ if(_fm[_f]&&_fm[_f].a>0)arriviN++; } } } }catch(_e){}
   try{var _bIn=buchi.filter(function(c){return c.in_arrivo>0;}).length;var _bNo=buchi.length-_bIn;var _lb=document.getElementById('legBuco');if(_lb)_lb.innerHTML='<span class="pill bad">'+_bNo+'</span> '+_bNo+' da riordinare (buco)';var _la=document.getElementById('legArr');if(_la)_la.innerHTML='<span class="cellordered" style="padding:1px 7px;border-radius:5px">'+_bIn+'</span> '+_bIn+' ma già ordinato (in arrivo)';}catch(_e){}
   const negozi=negList(cells);
-  const nRef=new Set(cells.map(c=>c.barcode)).size;
+  const nRef=svVisRefCount(cells);
   $("#status").innerHTML=`<b>${nRef}</b> referenze · <b>${negozi.length}</b> negozi · <b id="svBuchiLink" style="color:var(--bad);cursor:pointer;text-decoration:underline" title="Vedi lista buchi">${buchi.length}</b> buchi · <b id="svArriviLink" style="color:var(--truck);cursor:pointer;text-decoration:underline dotted" title="Clicca per l'elenco referenze in arrivo">${arriviN}</b> celle con arrivi`;
   if(window.__rpcN>=50000)$("#status").innerHTML+=' · <b style="color:var(--truck)">⚠ risultati troncati a 50.000 righe: restringi i filtri per una lista completa</b>';
   view==="lista"?drawList(cells):drawMatrix(cells,negozi); decorate();
@@ -1945,7 +1947,7 @@ function _svPaintDepoCov(){
   var cols=[];for(var c2=firstFil;c2<ncol;c2++){var sc=cells[c2];cols.push({idx:c2,base:colBase(sc),cv:!!(sc.querySelector&&sc.querySelector(".cv")),cv2:!!(sc.querySelector&&sc.querySelector(".cv2"))});}
   var d=[],v=[],w=[];for(var k=0;k<cols.length;k++){d[k]=0;v[k]=0;w[k]=0;}
   for(var b=0;b<bodyRows.length;b++){var rc=bodyRows[b].children;for(var k2=0;k2<cols.length;k2++){var td=rc[cols[k2].idx];if(!td)continue;d[k2]+=tN(td.querySelector&&td.querySelector(".cg"));if(cols[k2].cv)v[k2]+=tN(td.querySelector&&td.querySelector(".cv"));if(cols[k2].cv2)w[k2]+=tN(td.querySelector&&td.querySelector(".cv2"));}}
-  var nRef=bodyRows.length;
+  var nRef=(typeof svVisRefCount==="function"?svVisRefCount(typeof lastCells!=="undefined"?lastCells:[]):bodyRows.length);
   var sig=firstFil+"|"+ncol+"|"+nRef+"|"+d.join(",")+"|"+v.join(",")+"|"+w.join(",");
   if(totRow.getAttribute("data-svsig")===sig)return;
   var html='<td colspan="'+firstFil+'" style="text-align:left;font-weight:600">Totale: '+nRef+' referenze</td>';
