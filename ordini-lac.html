@@ -159,8 +159,7 @@ function render(){
   if(centrale&&!S.negozio){S.negozio=S.negozi[0]}
   app.innerHTML=tabs+`
   <div class="card"><h2>Ordine${S.profilo.ruolo==="negozio"?(S.negozio?` · ${S.negozio.nome}`:""):`<select id="negsel" style="width:auto;margin-left:8px">${S.negozi.map(n=>`<option value="${n.id}" ${S.negozio&&S.negozio.id===n.id?"selected":""}>${n.nome}</option>`).join("")}</select>`}</h2>
-   <div class="row"><div><label>Tipo *</label><select id="tipo"><option value="prova">Lenti di prova</option><option value="vendita_cliente">Ordine cliente (vendita)</option><option value="scorta_negozio">Scorta negozio</option></select></div>
-   <div id="motw"><label>Motivo prova *</label><select id="mot">${S.motivi.map(m=>`<option value="${m.id}">${m.nome}</option>`).join("")}</select></div></div>
+   <label>Tipo *</label><select id="tipo"><option value="prova">Lenti di prova</option><option value="vendita_cliente">Ordine cliente (vendita)</option><option value="scorta_negozio">Scorta negozio</option></select>
    <div id="cliw">
     <div class="row"><div><label>Cognome *</label><input id="cog" autocomplete="off"></div><div><label>Nome *</label><input id="nom" autocomplete="off"></div></div>
     <div class="row"><div><label>Codice cliente Focus *</label><input id="cod" inputmode="numeric" autocomplete="off"></div>
@@ -174,7 +173,6 @@ function render(){
   const ns=$("#negsel");if(ns)ns.onchange=()=>{S.negozio=S.negozi.find(n=>n.id==ns.value)};
   $("#tipo").onchange=()=>{
     const t=$("#tipo").value;
-    $("#motw").classList.toggle("hide",t!=="prova");
     $("#forw").classList.toggle("hide",t!=="vendita_cliente");
     $("#cliw").classList.toggle("hide",t==="scorta_negozio");
   };
@@ -338,7 +336,7 @@ async function invia(){
   window.__okDup=false;
   $("#invia").disabled=true;
   const {data:o,error}=await sb.from("ordini").insert({
-    negozio_id:S.negozio.id,tipo,motivo_id:tipo==="prova"?parseInt($("#mot").value):null,
+    negozio_id:S.negozio.id,tipo,motivo_id:null,
     nome_cliente:nom||null,cognome_cliente:cog||null,codice_cliente_focus:cod||null,
     numero_fornitura:tipo==="vendita_cliente"?$("#forn").value.trim():null,
     cliente_rif:cog?`${cog} ${nom}`:null,note:$("#note").value.trim()||null
