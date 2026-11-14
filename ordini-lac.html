@@ -129,7 +129,7 @@ async function caricaTutto(){
   const [neg,forn,prod,reg,mot]=await Promise.all([
     sb.from("negozi").select("*").order("nome"),
     sb.from("fornitori").select("*").order("nome"),
-    sb.from("prodotti").select("*").eq("ordinabile",true).not("listino_id","is",null).order("modello"),
+    sb.from("prodotti").select("*").eq("ordinabile",true).order("modello"),
     sb.from("regole_parametri").select("*"),
     sb.from("motivi_prova").select("*").eq("attivo",true).order("id")
   ]);
@@ -138,18 +138,21 @@ async function caricaTutto(){
   S.negozio=S.negozi.find(n=>n.id===pr.negozio_id)||null;
   $("#who").innerHTML=`${pr.nome||""} · ${S.negozio?S.negozio.nome:pr.ruolo} · <a href="#" onclick="esci();return false">esci</a>`;
   S.occhi={DX:nuovoOcchio(),SX:nuovoOcchio()};
+  if(pr.ruolo!=="negozio")S.tab="centrale";
   render();
 }
 async function esci(){await sb.auth.signOut();location.reload()}
-function nuovoOcchio(){return{attivo:false,forn:"",prod:"",sfera:"",cil:"",asse:"",add:"",curva:"",diam:"",qta:1}}
+function nuovoOcchio(){return{libero:false,attivo:false,forn:"",prod:"",sfera:"",cil:"",asse:"",add:"",curva:"",diam:"",qta:1}}
 
 /* ---------- vista nuovo ordine ---------- */
 function render(){
-  const tabs=`<div class="tabs"><button class="${S.tab==="nuovo"?"on":""}" onclick="S.tab='nuovo';render()">Nuovo ordine</button><button class="${S.tab==="miei"?"on":""}" onclick="S.tab='miei';render()">I miei ordini</button></div>`;
+  const centrale=S.profilo.ruolo!=="negozio";
+  const tabs=`<div class="tabs">${centrale?`<button class="${S.tab==="centrale"?"on":""}" onclick="S.tab='centrale';render()">Da lavorare</button>`:""}<button class="${S.tab==="nuovo"?"on":""}" onclick="S.tab='nuovo';render()">Nuovo ordine</button><button class="${S.tab==="miei"?"on":""}" onclick="S.tab='miei';render()">${centrale?"Tutti gli ordini":"I miei ordini"}</button></div>`;
+  if(S.tab==="centrale"){app.innerHTML=tabs+`<div id="cen"></div>`;return vistaCentrale();}
   if(S.tab==="miei"){app.innerHTML=tabs+`<div id="lista" class="card">Caricamento…</div>`;return listaOrdini();}
   if(S.profilo.ruolo!=="negozio"&&!S.negozio){S.negozio=S.negozi[0]}
   app.innerHTML=tabs+`
-  <div class="card"><h2>Ordine${S.negozio?` · ${S.negozio.nome}`:""}</h2>
+  <div class="card"><h2>Ordine${S.profilo.ruolo==="negozio"?(S.negozio?` · ${S.negozio.nome}`:""):`<select id="negsel" style="width:auto;margin-left:8px">${S.negozi.map(n=>`<option value="${n.id}" ${S.negozio&&S.negozio.id===n.id?"selected":""}>${n.nome}</option>`).join("")}</select>`}</h2>
    <div class="row"><div><label>Tipo</label><select id="tipo"><option value="prova">Lenti di prova</option><option value="vendita_cliente">Ordine cliente (vendita)</option><option value="scorta_negozio">Scorta negozio</option></select></div>
    <div id="motw"><label>Motivo prova</label><select id="mot">${S.motivi.map(m=>`<option value="${m.id}">${m.nome}</option>`).join("")}</select></div></div>
    <div class="row"><div><label>Cliente / numero busta</label><input id="cli" placeholder="Cognome o n° busta"></div>
@@ -159,6 +162,7 @@ function render(){
   <div id="avv"></div>
   <div class="card"><label>Note</label><textarea id="note" rows="2"></textarea>
    <p><button id="invia">Invia ordine</button></p><div id="esito"></div></div>`;
+  const ns=$("#negsel");if(ns)ns.onchange=()=>{S.negozio=S.negozi.find(n=>n.id==ns.value)};
   $("#tipo").onchange=()=>{$("#motw").classList.toggle("hide",$("#tipo").value!=="prova")};
   disegnaOcchi();
 }
@@ -187,6 +191,24 @@ function disegnaOcchio(o){
   <label>Lente</label><select id="p${o}" ${e.forn?"":"disabled"}>${opt(prods.map(x=>x.id),e.prod,id=>{const x=prods.find(y=>y.id==id);return x.modello})}</select>`;
   if(p){
     const rr=righeDi(p);
+    if(rr.length===0)e.libero=true;
+    if(e.libero){
+      h+=`<div class="msg warn">${rr.length?"Parametri fuori elenco: ":"Per questa lente non ho ancora le regole: "}scrivi i valori. L'ordine va ad Adonella come <b>fuori catalogo</b>.</div>
+      <div class="row"><div><label>Sfera</label><input id="ls${o}" inputmode="decimal" value="${e.sfera}" placeholder="-2.25"></div><div><label>Cilindro</label><input id="lc${o}" inputmode="decimal" value="${e.cil}" placeholder="-1.25"></div></div>
+      <div class="row"><div><label>Asse</label><input id="la${o}" inputmode="numeric" value="${e.asse}" placeholder="180"></div><div><label>Addizione</label><input id="ld${o}" value="${e.add}" placeholder="+1.50"></div></div>
+      <div class="row"><div><label>Curva base</label><input id="lb${o}" inputmode="decimal" value="${e.curva}" placeholder="8.6"></div><div><label>Diametro</label><input id="lm${o}" inputmode="decimal" value="${e.diam}" placeholder="14.2"></div></div>
+      <div class="row"><div><label>Confezioni</label><input id="q${o}" type="number" min="1" value="${e.qta}"></div><div></div></div>
+      ${rr.length?`<p><button class="sec small" id="lib${o}">Torna ai menu</button></p>`:""}`;
+      box.innerHTML=h;
+      const bind=(id,k)=>{const x=$("#"+id+o);if(x)x.oninput=()=>{e[k]=x.value.replace(",",".")}};
+      bind("ls","sfera");bind("lc","cil");bind("la","asse");bind("ld","add");bind("lb","curva");bind("lm","diam");
+      $("#rm"+o).onclick=()=>{S.occhi[o]=nuovoOcchio();disegnaOcchio(o)};
+      $("#f"+o).onchange=ev=>{Object.assign(e,nuovoOcchio(),{attivo:true,forn:ev.target.value});disegnaOcchio(o)};
+      $("#p"+o).onchange=ev=>{Object.assign(e,{prod:ev.target.value,libero:false,sfera:"",cil:"",asse:"",add:"",curva:"",diam:""});disegnaOcchio(o)};
+      const q=$("#q"+o);if(q)q.oninput=()=>{e.qta=parseInt(q.value)||1};
+      const lb=$("#lib"+o);if(lb)lb.onclick=()=>{Object.assign(e,{libero:false,sfera:"",cil:"",asse:"",add:"",curva:"",diam:""});disegnaOcchio(o)};
+      return;
+    }
     const A=rr.filter(x=>(e.sfera===""||x.sfere.includes(parseFloat(e.sfera))));
     const sfere=sortN(uniq(rr.flatMap(x=>x.sfere)));
     const hasCil=rr.some(x=>x.cils),hasAsse=rr.some(x=>x.assi),hasAdd=rr.some(x=>x.addRaw);
@@ -214,11 +236,13 @@ function disegnaOcchio(o){
     h+=`<div class="row"><div><label>Curva base</label><select id="b${o}">${opt(curve,e.curva,v=>v.toFixed(2))}</select></div>
     <div><label>Diametro</label><select id="m${o}">${opt(diam,e.diam,v=>v.toFixed(2))}</select></div></div>`;
     h+=`<div class="row"><div><label>Confezioni</label><input id="q${o}" type="number" min="1" value="${e.qta}"></div><div></div></div>`;
+    h+=`<p><button class="sec small" id="fc${o}">Il parametro che mi serve non c'è</button></p>`;
     if(p.su_misura)h+=`<div class="msg warn">Lente su misura: i valori fuori elenco vengono controllati da Adonella.</div>`;
   }
   box.innerHTML=h;
   const on=(id,fn)=>{const x=$("#"+id+o);if(x)x.onchange=x.oninput=()=>{fn(x.value);};};
   $("#rm"+o).onclick=()=>{S.occhi[o]=nuovoOcchio();disegnaOcchio(o)};
+  const fc=$("#fc"+o);if(fc)fc.onclick=()=>{e.libero=true;disegnaOcchio(o)};
   on("f",v=>{Object.assign(e,nuovoOcchio(),{attivo:true,forn:v});disegnaOcchio(o)});
   on("p",v=>{Object.assign(e,{prod:v,sfera:"",cil:"",asse:"",add:"",curva:"",diam:""});disegnaOcchio(o)});
   on("s",v=>{Object.assign(e,{sfera:v,cil:"",asse:"",curva:"",diam:""});disegnaOcchio(o)});
@@ -236,16 +260,18 @@ function controlla(){
     const p=S.prodotti.find(x=>String(x.id)===String(e.prod));
     if(!p){err.push(o+": scegli la lente");return}
     const rr=righeDi(p);
+    const lib=e.libero||rr.length===0;
     if(e.sfera==="")err.push(o+": manca la sfera");
-    if(rr.some(x=>x.cils)&&e.cil==="")err.push(o+": manca il cilindro");
-    if(rr.some(x=>x.assi)&&e.asse==="")err.push(o+": manca l'asse");
-    if(rr.some(x=>x.addRaw)&&!e.add)err.push(o+": manca l'addizione");
-    if(!e.curva)err.push(o+": manca la curva base");
-    if(!e.diam)err.push(o+": manca il diametro");
+    if(!lib&&rr.some(x=>x.cils)&&e.cil==="")err.push(o+": manca il cilindro");
+    if(!lib&&rr.some(x=>x.assi)&&e.asse==="")err.push(o+": manca l'asse");
+    if(!lib&&rr.some(x=>x.addRaw)&&!e.add)err.push(o+": manca l'addizione");
+    if(lib&&((p.geometria||"").includes("torica"))&&(e.cil===""||e.asse===""))err.push(o+": lente torica, servono cilindro e asse");
+    if(!e.curva&&!lib)err.push(o+": manca la curva base");
+    if(!e.diam&&!lib)err.push(o+": manca il diametro");
     righe.push({occhio:o,prodotto_id:p.id,fornitore_id:p.fornitore_id,
-      curva_base:parseFloat(e.curva),diametro:parseFloat(e.diam),sfera:parseFloat(e.sfera),
+      curva_base:e.curva?parseFloat(e.curva):null,diametro:e.diam?parseFloat(e.diam):null,sfera:parseFloat(e.sfera),
       cilindro:e.cil===""?null:parseFloat(e.cil),asse:e.asse===""?null:parseInt(e.asse),
-      addizione:e.add||null,quantita:e.qta||1,fuori_catalogo:false});
+      addizione:e.add||null,quantita:e.qta||1,fuori_catalogo:lib});
   });
   if(!righe.length&&!err.length)err.push("Aggiungi almeno una lente");
   return {err,righe};
@@ -279,17 +305,64 @@ async function invia(){
 /* ---------- i miei ordini ---------- */
 const STATI={inviato:"Inviato",preso_in_carico:"Preso in carico",ordinato_fornitore:"Ordinato al fornitore",arrivato_sede:"Arrivato in sede",in_partenza_giro:"In partenza col giro",consegnato_negozio:"Consegnato al negozio",evaso_da_deposito:"Evaso da deposito",annullato:"Annullato"};
 async function listaOrdini(){
-  let q=sb.from("ordini").select("id,riferimento,tipo,cliente_rif,stato,creato_il,righe_ordine(occhio,quantita,prodotti(modello))").order("creato_il",{ascending:false}).limit(40);
-  if(S.negozio)q=q.eq("negozio_id",S.negozio.id);
+  let q=sb.from("ordini").select("id,riferimento,tipo,cliente_rif,stato,creato_il,negozio_id,righe_ordine(occhio,quantita,fuori_catalogo,prodotti(modello))").order("creato_il",{ascending:false}).limit(40);
+  if(S.profilo.ruolo==="negozio"&&S.negozio)q=q.eq("negozio_id",S.negozio.id);
   const {data,error}=await q;
   const box=$("#lista");
   if(error){box.innerHTML=`<div class="msg err">${error.message}</div>`;return}
   if(!data.length){box.innerHTML="Nessun ordine.";return}
   box.innerHTML=`<table><tr><th>Rif.</th><th>Cliente</th><th>Lenti</th><th>Stato</th></tr>`+data.map(o=>`<tr>
-   <td>${o.riferimento}<div class="mut">${new Date(o.creato_il).toLocaleDateString("it-IT")}</div></td>
+   <td>${o.riferimento}<div class="mut">${(S.negozi.find(n=>n.id===o.negozio_id)||{}).nome||""} · ${new Date(o.creato_il).toLocaleDateString("it-IT")}</div></td>
    <td>${o.cliente_rif||""}</td>
    <td>${(o.righe_ordine||[]).map(r=>`${r.occhio} ${r.prodotti?r.prodotti.modello:""} ×${r.quantita}`).join("<br>")}</td>
    <td><span class="pill">${STATI[o.stato]||o.stato}</span></td></tr>`).join("")+`</table>`;
+}
+
+/* ---------- vista centrale (Adonella) ---------- */
+const FLUSSO=["inviato","preso_in_carico","ordinato_fornitore","arrivato_sede","in_partenza_giro","consegnato_negozio"];
+const FLUSSO_DEP=["inviato","preso_in_carico","evaso_da_deposito"];
+const fmtS=v=>v===null||v===undefined?"":(v>0?"+":"")+Number(v).toFixed(2);
+async function vistaCentrale(){
+  const box=$("#cen");
+  box.innerHTML='<div class="card">Caricamento…</div>';
+  const {data,error}=await sb.from("ordini").select("*,righe_ordine(*,prodotti(modello,marchio,su_misura),fornitori(nome)),eventi_ordine(stato,quando)").not("stato","in","(consegnato_negozio,evaso_da_deposito,annullato)").order("creato_il");
+  if(error){box.innerHTML=`<div class="msg err">${error.message}</div>`;return}
+  S.cen=data||[];
+  if(!S.cen.length){box.innerHTML='<div class="card">Nessun ordine da lavorare.</div>';return}
+  // raggruppo per fornitore (le righe di un ordine possono avere fornitori diversi)
+  const gruppi={};
+  S.cen.forEach(o=>(o.righe_ordine||[]).forEach(r=>{
+    const fn=(r.fornitori&&r.fornitori.nome)||"?";
+    (gruppi[fn]=gruppi[fn]||[]).push({o,r});
+  }));
+  let h="";
+  Object.keys(gruppi).sort().forEach(fn=>{
+    const f=S.fornitori.find(x=>x.nome===fn)||{};
+    const conf=gruppi[fn].reduce((s,x)=>s+(x.r.quantita||0),0);
+    const sotto=f.minimo_confezioni&&conf<f.minimo_confezioni;
+    h+=`<div class="card"><h2>${fn} <span class="pill">${conf} confezioni</span> <span class="pill">${f.destinazione==="negozio"?"spedisce al negozio":"spedisce al Deposito"}</span></h2>
+    ${f.minimo_confezioni?`<div class="msg ${sotto?"warn":"ok"}">Minimo ${f.minimo_confezioni} confezioni: ${sotto?"ancora sotto, conviene aspettare":"raggiunto"}${f.verificato?"":" (dato da verificare)"}</div>`:""}
+    <table><tr><th>Ordine</th><th>Lente</th><th>Parametri</th></tr>`+
+    gruppi[fn].map(({o,r})=>`<tr><td>${o.riferimento}<div class="mut">${(S.negozi.find(n=>n.id===o.negozio_id)||{}).nome||""}<br>${o.cliente_rif||""}</div></td>
+      <td>${r.occhio} · ${r.prodotti?r.prodotti.modello:""}${r.fuori_catalogo?' <span class="pill" style="color:var(--warn)">fuori catalogo</span>':""}</td>
+      <td>Sf ${fmtS(r.sfera)}${r.cilindro!==null?` Cil ${fmtS(r.cilindro)} Ax ${r.asse}°`:""}${r.addizione?` Add ${r.addizione}`:""}<br>BC ${r.curva_base||"—"} · Ø ${r.diametro||"—"} · ×${r.quantita}</td></tr>`).join("")+`</table></div>`;
+  });
+  h+=`<div class="card"><h2>Ordini (${S.cen.length})</h2>`+S.cen.map(o=>{
+    const neg=(S.negozi.find(n=>n.id===o.negozio_id)||{}).nome||"";
+    const fl=FLUSSO.includes(o.stato)?FLUSSO:FLUSSO.concat([o.stato]);
+    const ev=(o.eventi_ordine||[]).sort((a,b)=>new Date(a.quando)-new Date(b.quando)).map(e=>`${STATI[e.stato]||e.stato} ${new Date(e.quando).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`).join(" → ");
+    return `<div style="border-top:1px solid var(--line);padding:10px 0"><b>${o.riferimento}</b> · ${neg} · ${o.cliente_rif||""} <span class="pill">${o.tipo}</span>
+      <div class="mut">${ev}</div>
+      ${o.note?`<div class="mut">Note: ${o.note}</div>`:""}${o.scheda_focus?`<div class="mut">Scheda Focus: ${o.scheda_focus}</div>`:""}
+      <div class="row" style="margin-top:6px"><select id="st${o.id}">${[...FLUSSO,"evaso_da_deposito","annullato"].map(s=>`<option value="${s}" ${s===o.stato?"selected":""}>${STATI[s]}</option>`).join("")}</select>
+      <button class="small" onclick="cambiaStato(${o.id})">Aggiorna stato</button></div></div>`}).join("")+`</div>`;
+  box.innerHTML=h;
+}
+async function cambiaStato(id){
+  const v=$("#st"+id).value;
+  const {error}=await sb.from("ordini").update({stato:v}).eq("id",id);
+  if(error){alert(error.message);return}
+  vistaCentrale();
 }
 start();
 </script>
