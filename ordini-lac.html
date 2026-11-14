@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ordini LAC</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b2430;--mut:#6b7686;--line:#dde2e9;--pri:#1f5fbf;--ok:#1d7a46;--warn:#b26a00;--err:#b3261e}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--card:#1b222c;--tx:#e8edf3;--mut:#93a0b1;--line:#2e3846;--pri:#6aa3ff;--ok:#4cc38a;--warn:#f0b050;--err:#ff8a80}}
+:root[data-theme="dark"]{--bg:#12161c;--card:#1b222c;--tx:#e8edf3;--mut:#93a0b1;--line:#2e3846;--pri:#6aa3ff;--ok:#4cc38a;--warn:#f0b050;--err:#ff8a80}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header b{font-size:17px}
+main{max-width:760px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+h2{font-size:16px;margin:0 0 10px}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+select,input,textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+select:disabled{opacity:.5}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{padding:12px 16px;border:0;border-radius:10px;background:var(--pri);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+button.sec{background:transparent;color:var(--pri);border:1px solid var(--pri)}
+button.small{padding:7px 10px;font-size:14px}
+button:disabled{opacity:.5}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tabs button{flex:1;background:var(--card);color:var(--tx);border:1px solid var(--line)}
+.tabs button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.msg{padding:10px 12px;border-radius:8px;margin:10px 0;font-size:14px}
+.msg.warn{background:color-mix(in srgb,var(--warn) 15%,transparent);color:var(--warn)}
+.msg.err{background:color-mix(in srgb,var(--err) 15%,transparent);color:var(--err)}
+.msg.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.mut{color:var(--mut);font-size:13px}
+.eye{border-left:4px solid var(--pri)}
+.eye.sx{border-left-color:var(--ok)}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;background:var(--bg);border:1px solid var(--line);font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.hide{display:none}
+</style>
+</head>
+<body>
+<header><b>Ordini lenti a contatto</b><span id="who" class="mut"></span></header>
+<main id="app"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const SUPA_URL="https://exrlurfvydxrqfzjdobp.supabase.co";
+const SUPA_KEY="sb_publishable_0mNbCOZLSV-ug9iJ9jLrNA_RabyY_LM";
+const sb=supabase.createClient(SUPA_URL,SUPA_KEY,{db:{schema:"lac"}});
+const $=s=>document.querySelector(s);
+const app=$("#app");
+const S={profilo:null,negozio:null,fornitori:[],prodotti:[],regole:{},motivi:[],tab:"nuovo",occhi:{DX:null,SX:null},msg:null};
+
+/* ---------- utilità parametri ---------- */
+const f2=n=>(n>0?"+":"")+n.toFixed(2);
+function gen(da,a,passo){ // lista valori da..a (anche decrescente)
+  if(isNaN(da)||isNaN(a)||!passo)return [];
+  const lo=Math.min(da,a),hi=Math.max(da,a),out=[];
+  const n=Math.round((hi-lo)/passo);
+  for(let i=0;i<=n;i++)out.push(Math.round((lo+i*passo)*100)/100);
+  return out;
+}
+function parseTratti(t){
+  if(!t)return[];
+  const set=new Set();
+  t.split(";").forEach(seg=>{
+    const p=seg.split(":");
+    if(p.length<3)return;
+    gen(parseFloat(p[0]),parseFloat(p[1]),parseFloat(p[2])).forEach(v=>set.add(v));
+  });
+  return [...set].sort((x,y)=>x-y);
+}
+function parseLista(t){ // "a|b|c" oppure "da..a/passo"
+  if(!t)return null;
+  const m=t.match(/^(-?[\d.]+)\.\.(-?[\d.]+)\/([\d.]+)$/);
+  if(m)return gen(parseFloat(m[1]),parseFloat(m[2]),parseFloat(m[3]));
+  return t.split("|").map(x=>parseFloat(x)).filter(x=>!isNaN(x));
+}
+function parseCurve(t){ // "8.60" o "8.40|8.60" o "7.10..9.80/0.3"
+  return parseLista(t)||[];
+}
+function parseAdd(t){ // opzioni addizione; null = non parsabile
+  if(!t)return null;
+  const pulita=t.replace(/\[.*?\]/g,"").trim();
+  if(/^[+\d.|\s]+$/.test(pulita))return pulita.split("|").map(x=>x.trim()).filter(Boolean);
+  const m=pulita.match(/(?:^|\|)\s*([A-Za-zÀ-ù ]+(?:\([A-Z]+\))?)\s*:/g);
+  if(m&&!/CD:|CN:|A =|SPH/.test(pulita))return m.map(x=>x.replace(/^[|\s]+/,"").replace(/:$/,"").trim());
+  return null;
+}
+function righeDi(p){ // regole del prodotto, già decodificate
+  const rr=S.regole[p.listino_id]||[];
+  return rr.map(r=>({
+    r,
+    sfere:parseTratti(r.sfera_tratti),
+    cils:r.cilindri?parseLista(r.cilindri):null,
+    assi:r.assi?parseLista(r.assi):null,
+    curve:parseCurve(r.curva_base),
+    diam:parseCurve(r.diametro),
+    add:parseAdd(r.addizioni),
+    addRaw:r.addizioni
+  }));
+}
+const uniq=a=>[...new Set(a)];
+const sortN=a=>[...a].sort((x,y)=>x-y);
+
+/* ---------- avvio / login ---------- */
+async function start(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session)return loginView();
+  await caricaTutto();
+}
+function loginView(err){
+  app.innerHTML=`<div class="card"><h2>Accedi</h2>
+  <label>Email</label><input id="em" type="email" autocomplete="username">
+  <label>Password</label><input id="pw" type="password" autocomplete="current-password">
+  ${err?`<div class="msg err">${err}</div>`:""}
+  <p><button id="go">Entra</button></p></div>`;
+  $("#go").onclick=async()=>{
+    const {error}=await sb.auth.signInWithPassword({email:$("#em").value.trim(),password:$("#pw").value});
+    if(error)return loginView("Email o password non corrette.");
+    await caricaTutto();
+  };
+}
+async function caricaTutto(){
+  const {data:{user}}=await sb.auth.getUser();
+  const {data:pr}=await sb.from("profili").select("*").eq("user_id",user.id).maybeSingle();
+  if(!pr){app.innerHTML=`<div class="card"><div class="msg err">Utente non ancora abilitato. Avvisa la direzione.</div><button class="sec" onclick="esci()">Esci</button></div>`;return;}
+  S.profilo=pr;
+  const [neg,forn,prod,reg,mot]=await Promise.all([
+    sb.from("negozi").select("*").order("nome"),
+    sb.from("fornitori").select("*").order("nome"),
+    sb.from("prodotti").select("*").eq("ordinabile",true).not("listino_id","is",null).order("modello"),
+    sb.from("regole_parametri").select("*"),
+    sb.from("motivi_prova").select("*").eq("attivo",true).order("id")
+  ]);
+  S.negozi=neg.data||[];S.fornitori=forn.data||[];S.prodotti=prod.data||[];S.motivi=mot.data||[];
+  S.regole={};(reg.data||[]).forEach(r=>{(S.regole[r.listino_id]=S.regole[r.listino_id]||[]).push(r)});
+  S.negozio=S.negozi.find(n=>n.id===pr.negozio_id)||null;
+  $("#who").innerHTML=`${pr.nome||""} · ${S.negozio?S.negozio.nome:pr.ruolo} · <a href="#" onclick="esci();return false">esci</a>`;
+  S.occhi={DX:nuovoOcchio(),SX:nuovoOcchio()};
+  render();
+}
+async function esci(){await sb.auth.signOut();location.reload()}
+function nuovoOcchio(){return{attivo:false,forn:"",prod:"",sfera:"",cil:"",asse:"",add:"",curva:"",diam:"",qta:1}}
+
+/* ---------- vista nuovo ordine ---------- */
+function render(){
+  const tabs=`<div class="tabs"><button class="${S.tab==="nuovo"?"on":""}" onclick="S.tab='nuovo';render()">Nuovo ordine</button><button class="${S.tab==="miei"?"on":""}" onclick="S.tab='miei';render()">I miei ordini</button></div>`;
+  if(S.tab==="miei"){app.innerHTML=tabs+`<div id="lista" class="card">Caricamento…</div>`;return listaOrdini();}
+  if(S.profilo.ruolo!=="negozio"&&!S.negozio){S.negozio=S.negozi[0]}
+  app.innerHTML=tabs+`
+  <div class="card"><h2>Ordine${S.negozio?` · ${S.negozio.nome}`:""}</h2>
+   <div class="row"><div><label>Tipo</label><select id="tipo"><option value="prova">Lenti di prova</option><option value="vendita_cliente">Ordine cliente (vendita)</option><option value="scorta_negozio">Scorta negozio</option></select></div>
+   <div id="motw"><label>Motivo prova</label><select id="mot">${S.motivi.map(m=>`<option value="${m.id}">${m.nome}</option>`).join("")}</select></div></div>
+   <div class="row"><div><label>Cliente / numero busta</label><input id="cli" placeholder="Cognome o n° busta"></div>
+   <div><label>Scheda Focus (se c'è)</label><input id="sch" placeholder="n° scheda prova"></div></div>
+  </div>
+  <div id="occ"></div>
+  <div id="avv"></div>
+  <div class="card"><label>Note</label><textarea id="note" rows="2"></textarea>
+   <p><button id="invia">Invia ordine</button></p><div id="esito"></div></div>`;
+  $("#tipo").onchange=()=>{$("#motw").classList.toggle("hide",$("#tipo").value!=="prova")};
+  disegnaOcchi();
+}
+function disegnaOcchi(){
+  $("#occ").innerHTML=["DX","SX"].map(o=>`<div class="card eye ${o.toLowerCase()}" id="eye${o}"></div>`).join("");
+  ["DX","SX"].forEach(disegnaOcchio);
+  $("#invia").onclick=invia;
+}
+function opt(vals,sel,fmt,vuoto="—"){
+  return `<option value="">${vuoto}</option>`+vals.map(v=>`<option value="${v}" ${String(v)===String(sel)?"selected":""}>${fmt?fmt(v):v}</option>`).join("");
+}
+function disegnaOcchio(o){
+  const e=S.occhi[o],box=$("#eye"+o);
+  const nome=o==="DX"?"Occhio destro (DX)":"Occhio sinistro (SX)";
+  if(!e.attivo){
+    box.innerHTML=`<h2>${nome}</h2><button class="sec small" id="att${o}">Aggiungi lente</button>${o==="SX"&&S.occhi.DX.attivo?` <button class="sec small" id="cp${o}">Copia da DX</button>`:""}`;
+    $("#att"+o).onclick=()=>{e.attivo=true;disegnaOcchio(o)};
+    const cp=$("#cp"+o);if(cp)cp.onclick=()=>{S.occhi.SX={...S.occhi.DX};disegnaOcchio("SX")};
+    return;
+  }
+  const fornDisp=S.fornitori.filter(f=>S.prodotti.some(p=>p.fornitore_id===f.id));
+  const prods=S.prodotti.filter(p=>String(p.fornitore_id)===String(e.forn));
+  const p=S.prodotti.find(x=>String(x.id)===String(e.prod));
+  let h=`<h2>${nome} <button class="sec small" style="float:right" id="rm${o}">Togli</button></h2>
+  <label>Fornitore</label><select id="f${o}">${opt(fornDisp.map(f=>f.id),e.forn,id=>fornDisp.find(f=>f.id==id).nome)}</select>
+  <label>Lente</label><select id="p${o}" ${e.forn?"":"disabled"}>${opt(prods.map(x=>x.id),e.prod,id=>{const x=prods.find(y=>y.id==id);return x.modello})}</select>`;
+  if(p){
+    const rr=righeDi(p);
+    const A=rr.filter(x=>(e.sfera===""||x.sfere.includes(parseFloat(e.sfera))));
+    const sfere=sortN(uniq(rr.flatMap(x=>x.sfere)));
+    const hasCil=rr.some(x=>x.cils),hasAsse=rr.some(x=>x.assi),hasAdd=rr.some(x=>x.addRaw);
+    h+=`<div class="row"><div><label>Sfera</label><select id="s${o}">${opt(sfere,e.sfera,f2)}</select></div>`;
+    let B=A;
+    if(hasCil){
+      const cils=sortN(uniq(A.flatMap(x=>x.cils||[])));
+      h+=`<div><label>Cilindro</label><select id="c${o}" ${e.sfera===""?"disabled":""}>${opt(cils,e.cil,f2)}</select></div>`;
+      if(e.cil!=="")B=A.filter(x=>x.cils&&x.cils.includes(parseFloat(e.cil)));
+    }
+    h+=`</div>`;
+    if(hasAsse){
+      const assi=sortN(uniq(B.flatMap(x=>x.assi||[])));
+      h+=`<label>Asse</label><select id="a${o}" ${e.cil===""?"disabled":""}>${opt(assi,e.asse,v=>v+"°")}</select>`;
+    }
+    if(hasAdd){
+      const opts=uniq(B.flatMap(x=>x.add||[]));
+      const nonParsabile=B.some(x=>x.addRaw&&!x.add);
+      if(opts.length&&!nonParsabile)h+=`<label>Addizione</label><select id="d${o}">${opt(opts,e.add)}</select>`;
+      else h+=`<label>Addizione</label><input id="d${o}" value="${e.add}" placeholder="es. +1.50 (D) / +1.50 (N)"><div class="mut">Elenco addizioni non ancora definito per questo prodotto.</div>`;
+    }
+    const curve=sortN(uniq(B.flatMap(x=>x.curve))),diam=sortN(uniq(B.flatMap(x=>x.diam)));
+    if(curve.length===1&&e.curva!==String(curve[0]))e.curva=String(curve[0]);
+    if(diam.length===1&&e.diam!==String(diam[0]))e.diam=String(diam[0]);
+    h+=`<div class="row"><div><label>Curva base</label><select id="b${o}">${opt(curve,e.curva,v=>v.toFixed(2))}</select></div>
+    <div><label>Diametro</label><select id="m${o}">${opt(diam,e.diam,v=>v.toFixed(2))}</select></div></div>`;
+    h+=`<div class="row"><div><label>Confezioni</label><input id="q${o}" type="number" min="1" value="${e.qta}"></div><div></div></div>`;
+    if(p.su_misura)h+=`<div class="msg warn">Lente su misura: i valori fuori elenco vengono controllati da Adonella.</div>`;
+  }
+  box.innerHTML=h;
+  const on=(id,fn)=>{const x=$("#"+id+o);if(x)x.onchange=x.oninput=()=>{fn(x.value);};};
+  $("#rm"+o).onclick=()=>{S.occhi[o]=nuovoOcchio();disegnaOcchio(o)};
+  on("f",v=>{Object.assign(e,nuovoOcchio(),{attivo:true,forn:v});disegnaOcchio(o)});
+  on("p",v=>{Object.assign(e,{prod:v,sfera:"",cil:"",asse:"",add:"",curva:"",diam:""});disegnaOcchio(o)});
+  on("s",v=>{Object.assign(e,{sfera:v,cil:"",asse:"",curva:"",diam:""});disegnaOcchio(o)});
+  on("c",v=>{Object.assign(e,{cil:v,asse:"",curva:"",diam:""});disegnaOcchio(o)});
+  on("a",v=>{e.asse=v});
+  const d=$("#d"+o);if(d)d.onchange=d.oninput=()=>{e.add=d.value};
+  on("b",v=>{e.curva=v});on("m",v=>{e.diam=v});on("q",v=>{e.qta=parseInt(v)||1});
+}
+
+/* ---------- invio ---------- */
+function controlla(){
+  const err=[],righe=[];
+  ["DX","SX"].forEach(o=>{
+    const e=S.occhi[o];if(!e.attivo)return;
+    const p=S.prodotti.find(x=>String(x.id)===String(e.prod));
+    if(!p){err.push(o+": scegli la lente");return}
+    const rr=righeDi(p);
+    if(e.sfera==="")err.push(o+": manca la sfera");
+    if(rr.some(x=>x.cils)&&e.cil==="")err.push(o+": manca il cilindro");
+    if(rr.some(x=>x.assi)&&e.asse==="")err.push(o+": manca l'asse");
+    if(rr.some(x=>x.addRaw)&&!e.add)err.push(o+": manca l'addizione");
+    if(!e.curva)err.push(o+": manca la curva base");
+    if(!e.diam)err.push(o+": manca il diametro");
+    righe.push({occhio:o,prodotto_id:p.id,fornitore_id:p.fornitore_id,
+      curva_base:parseFloat(e.curva),diametro:parseFloat(e.diam),sfera:parseFloat(e.sfera),
+      cilindro:e.cil===""?null:parseFloat(e.cil),asse:e.asse===""?null:parseInt(e.asse),
+      addizione:e.add||null,quantita:e.qta||1,fuori_catalogo:false});
+  });
+  if(!righe.length&&!err.length)err.push("Aggiungi almeno una lente");
+  return {err,righe};
+}
+async function invia(){
+  const {err,righe}=controlla();
+  const esito=$("#esito");
+  if(err.length){esito.innerHTML=`<div class="msg err">${err.join("<br>")}</div>`;return}
+  const cli=$("#cli").value.trim();
+  if(!cli){esito.innerHTML=`<div class="msg err">Inserisci il cliente o il numero busta</div>`;return}
+  // avviso doppioni: stesso cliente, stesso negozio, ultimi 14 giorni
+  const da=new Date(Date.now()-14*864e5).toISOString();
+  const {data:dup}=await sb.from("ordini").select("riferimento,creato_il").eq("negozio_id",S.negozio.id).ilike("cliente_rif",cli).gte("creato_il",da).neq("stato","annullato");
+  if(dup&&dup.length&&!window.__okDup){
+    esito.innerHTML=`<div class="msg warn">Esiste già un ordine per "${cli}" negli ultimi 14 giorni (${dup.map(d=>d.riferimento).join(", ")}). Premi di nuovo Invia per confermare.</div>`;
+    window.__okDup=true;return;
+  }
+  window.__okDup=false;
+  $("#invia").disabled=true;
+  const tipo=$("#tipo").value;
+  const {data:o,error}=await sb.from("ordini").insert({
+    negozio_id:S.negozio.id,tipo,motivo_id:tipo==="prova"?parseInt($("#mot").value):null,
+    cliente_rif:cli,scheda_focus:$("#sch").value.trim()||null,note:$("#note").value.trim()||null
+  }).select("id,riferimento").single();
+  if(error){esito.innerHTML=`<div class="msg err">Errore: ${error.message}</div>`;$("#invia").disabled=false;return}
+  const {error:e2}=await sb.from("righe_ordine").insert(righe.map(r=>({...r,ordine_id:o.id})));
+  if(e2){esito.innerHTML=`<div class="msg err">Ordine creato ma righe non salvate: ${e2.message}. Avvisa la direzione (${o.riferimento}).</div>`;return}
+  app.innerHTML=`<div class="card"><div class="msg ok"><b>Ordine inviato</b><br>Riferimento: <b>${o.riferimento}</b></div><p><button onclick="S.occhi={DX:nuovoOcchio(),SX:nuovoOcchio()};render()">Nuovo ordine</button> <button class="sec" onclick="S.tab='miei';render()">I miei ordini</button></p></div>`;
+}
+
+/* ---------- i miei ordini ---------- */
+const STATI={inviato:"Inviato",preso_in_carico:"Preso in carico",ordinato_fornitore:"Ordinato al fornitore",arrivato_sede:"Arrivato in sede",in_partenza_giro:"In partenza col giro",consegnato_negozio:"Consegnato al negozio",evaso_da_deposito:"Evaso da deposito",annullato:"Annullato"};
+async function listaOrdini(){
+  let q=sb.from("ordini").select("id,riferimento,tipo,cliente_rif,stato,creato_il,righe_ordine(occhio,quantita,prodotti(modello))").order("creato_il",{ascending:false}).limit(40);
+  if(S.negozio)q=q.eq("negozio_id",S.negozio.id);
+  const {data,error}=await q;
+  const box=$("#lista");
+  if(error){box.innerHTML=`<div class="msg err">${error.message}</div>`;return}
+  if(!data.length){box.innerHTML="Nessun ordine.";return}
+  box.innerHTML=`<table><tr><th>Rif.</th><th>Cliente</th><th>Lenti</th><th>Stato</th></tr>`+data.map(o=>`<tr>
+   <td>${o.riferimento}<div class="mut">${new Date(o.creato_il).toLocaleDateString("it-IT")}</div></td>
+   <td>${o.cliente_rif||""}</td>
+   <td>${(o.righe_ordine||[]).map(r=>`${r.occhio} ${r.prodotti?r.prodotti.modello:""} ×${r.quantita}`).join("<br>")}</td>
+   <td><span class="pill">${STATI[o.stato]||o.stato}</span></td></tr>`).join("")+`</table>`;
+}
+start();
+</script>
+</body>
+</html>
