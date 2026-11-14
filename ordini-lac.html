@@ -168,7 +168,7 @@ function render(){
    </div>
   </div>
   <div id="occ"></div>
-  <div class="card"><label>Note</label><textarea id="note" rows="2"></textarea>
+  <div class="card"><label id="notelab">Note</label><textarea id="note" rows="2"></textarea>
    <div id="esito"></div>
    <p><button id="invia">Invia ordine</button></p></div>`;
   const ns=$("#negsel");if(ns)ns.onchange=()=>{S.negozio=S.negozi.find(n=>n.id==ns.value)};
@@ -179,6 +179,14 @@ function render(){
     $("#cliw").classList.toggle("hide",t==="scorta_negozio");
   };
   disegnaOcchi();
+  aggiornaNota();
+}
+function haLibero(){return ["DX","SX"].some(o=>{const e=S.occhi[o];if(!e.attivo||!e.prod)return false;const p=S.prodotti.find(x=>String(x.id)===String(e.prod));return p&&(e.libero||righeDi(p).length===0)})}
+function aggiornaNota(){
+  const l=$("#notelab"),n=$("#note");if(!l||!n)return;
+  const ob=haLibero();
+  l.textContent=ob?"Nota * (descrivi cosa manca nell'elenco)":"Note";
+  n.placeholder=ob?"Es. sfera -7.50 non presente per questa lente; serve curva 8.4":"";
 }
 function disegnaOcchi(){
   // come sulle schede ottiche: DX a sinistra, SX a destra
@@ -205,7 +213,7 @@ function disegnaOcchio(o){
   const fornDisp=S.fornitori.filter(f=>S.prodotti.some(p=>p.fornitore_id===f.id));
   const prods=S.prodotti.filter(p=>String(p.fornitore_id)===String(e.forn));
   const p=S.prodotti.find(x=>String(x.id)===String(e.prod));
-  let h=eyeHead(o,e)+`
+  let h=eyeHead(o,e)+(o==="SX"?`<p style="margin:0 0 4px"><button class="sec small" id="cp${o}" ${S.occhi.DX.attivo&&S.occhi.DX.prod?"":"disabled"}>Copia lente da DX</button></p>`:"")+`
   <label>Fornitore *</label><select id="f${o}">${opt(fornDisp.map(f=>f.id),e.forn,id=>fornDisp.find(f=>f.id==id).nome)}</select>
   <label>Lente *</label><select id="p${o}" ${e.forn?"":"disabled"}>${opt(prods.map(x=>x.id),e.prod,id=>prods.find(y=>y.id==id).modello)}</select>`;
   let rr=[];
@@ -214,7 +222,7 @@ function disegnaOcchio(o){
     if(rr.length===0)e.libero=true;
     const tor=(p.geometria||"").includes("torica");
     if(e.libero){
-      h+=`<div class="msg warn">${rr.length?"Parametri fuori elenco: ":"Per questa lente non ho ancora le regole: "}scrivi i valori. L'ordine va ad Adonella come <b>fuori catalogo</b>.</div>
+      h+=`<div class="msg warn">${rr.length?"Parametro non presente nell'elenco.":"Per questa lente l'elenco dei parametri non è ancora disponibile."} Scrivi i valori e <b>descrivi nella nota</b> cosa manca: l'ordine parte con la tua descrizione e noi veniamo avvisati per sistemare l'elenco.</div>
       <div class="row"><div><label>Sfera *</label><input id="ls${o}" inputmode="decimal" value="${e.sfera}" placeholder="-2.25"></div>
       ${tor?`<div><label>Cilindro *</label><input id="lc${o}" inputmode="decimal" value="${e.cil}" placeholder="-1.25"></div>`:"<div></div>"}</div>
       <div class="row">${tor?`<div><label>Asse *</label><input id="la${o}" inputmode="numeric" value="${e.asse}" placeholder="180"></div>`:"<div></div>"}
@@ -250,10 +258,10 @@ function disegnaOcchio(o){
       <div><label>Diametro *</label><select id="m${o}" ${diam.length===1?"disabled":""}>${opt(diam,e.diam,v=>v.toFixed(2))}</select></div></div>
       <div class="row"><div><label>Confezioni *</label><input id="q${o}" type="number" min="1" value="${e.qta}"></div><div></div></div>
       <p><button class="sec small" id="fc${o}">Il parametro che mi serve non c'è</button></p>`;
-      if(p.su_misura)h+=`<div class="msg warn">Lente su misura: i valori fuori elenco vengono controllati da Adonella.</div>`;
+      if(p.su_misura)h+=`<div class="msg warn">Lente su misura: i valori fuori elenco vengono verificati prima dell'invio al fornitore.</div>`;
     }
   }
-  if(o==="SX"&&S.occhi.DX.attivo&&S.occhi.DX.prod)h+=`<p><button class="sec small" id="cp${o}">Copia lente da DX</button></p>`;
+
   box.innerHTML=h;
   $("#on"+o).onchange=ev=>{e.attivo=ev.target.checked;disegnaOcchio(o)};
   const set=(id,fn)=>{const x=$("#"+id+o);if(x)x.onchange=()=>fn(x.value)};
@@ -272,7 +280,9 @@ function disegnaOcchio(o){
     const fc=$("#fc"+o);if(fc)fc.onclick=()=>{e.libero=true;disegnaOcchio(o)};
   }
   const q=$("#q"+o);if(q)q.oninput=()=>{e.qta=parseInt(q.value)||0};
-  const cp=$("#cp"+o);if(cp)cp.onclick=()=>{S.occhi.SX={...S.occhi.DX,attivo:true};disegnaOcchio("SX")};
+  const cp=$("#cp"+o);if(cp)cp.onclick=()=>{if(!S.occhi.DX.prod)return;S.occhi.SX={...S.occhi.DX,attivo:true};disegnaOcchio("SX")};
+  aggiornaNota();
+  if(o==="DX"&&!window.__noRefreshSX){window.__noRefreshSX=true;disegnaOcchio("SX");window.__noRefreshSX=false}
 }
 
 /* ---------- invio ---------- */
@@ -307,6 +317,7 @@ function controlla(){
       cilindro:tor&&e.cil!==""?parseFloat(e.cil):null,asse:tor&&e.asse!==""?parseInt(e.asse):null,
       addizione:e.add||null,quantita:e.qta||1,fuori_catalogo:lib});
   });
+  if(righe.some(r=>r.fuori_catalogo)&&!$("#note").value.trim())err.push("Nella nota descrivi cosa manca nell'elenco (parametro o lente non presenti)");
   return {err,righe};
 }
 async function invia(){
@@ -372,6 +383,8 @@ async function vistaCentrale(){
     (gruppi[fn]=gruppi[fn]||[]).push({o,r});
   }));
   let h="";
+  const nfc=S.cen.reduce((s,o)=>s+(o.righe_ordine||[]).filter(r=>r.fuori_catalogo).length,0);
+  if(nfc)h+=`<div class="msg warn"><b>${nfc} righe fuori elenco da sistemare</b>: il negozio ha descritto cosa manca nella nota dell'ordine. Dopo l'ordine, aggiornare le regole del catalogo.</div>`;
   Object.keys(gruppi).sort().forEach(fn=>{
     const f=S.fornitori.find(x=>x.nome===fn)||{};
     const conf=gruppi[fn].reduce((s,x)=>s+(x.r.quantita||0),0);
