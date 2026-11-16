@@ -179,10 +179,13 @@ async function caricaTutto(){
   render();
 }
 async function esci(){await sb.auth.signOut();location.reload()}
+const isScorta=t=>t==="scorta_prove"||t==="scorta_vendita"||t==="scorta_negozio";
+const isProva=t=>t==="prova"||t==="scorta_prove";
+const TIPI={prova:"prova",vendita_cliente:"vendita",scorta_prove:"scorta prove",scorta_vendita:"scorta vendita",scorta_negozio:"scorta"};
 const tipoSel=()=>{const t=$("#tipo");return t?t.value:""};
 // prove: le lenti non giornaliere si ordinano singole; le giornaliere in confezione da 5
-const unitaDi=p=>tipoSel()==="prova"&&p&&p.durata&&p.durata!=="giornaliera"?"lenti":"confezioni";
-const qLab=p=>unitaDi(p)==="lenti"?"Lenti singole *":(tipoSel()==="prova"&&p&&p.durata==="giornaliera"?"Confezioni (da 5) *":"Confezioni *");
+const unitaDi=p=>isProva(tipoSel())&&p&&p.durata&&p.durata!=="giornaliera"?"lenti":"confezioni";
+const qLab=p=>unitaDi(p)==="lenti"?"Lenti singole *":(isProva(tipoSel())&&p&&p.durata==="giornaliera"?"Confezioni (da 5) *":"Confezioni *");
 function nuovoOcchio(){return{libero:false,attivo:true,forn:"",prod:"",sfera:"",cil:"",asse:"",add:"",curva:"",diam:"",qta:1}}
 
 
@@ -251,7 +254,7 @@ function render(){
   if(centrale&&!S.negozio){S.negozio=S.negozi[0]}
   app.innerHTML=tabs+(S.modifica?`<div class="msg warn"><b>Stai modificando ${S.modifica.rif}.</b> Puoi salvare solo finché la sede non lo prende in carico. <button class="sec small" onclick="vaiTab('miei')">Esci senza salvare</button></div>`:"")+`
   <div class="card"><div class="top">
-   <div><label>Tipo *${S.profilo.ruolo==="negozio"?(S.negozio?` · ${S.negozio.nome}`:""):""}</label>${S.profilo.ruolo==="negozio"?"":`<select id="negsel" style="margin-bottom:4px">${S.negozi.map(n=>`<option value="${n.id}" ${S.negozio&&S.negozio.id===n.id?"selected":""}>${n.nome}</option>`).join("")}</select>`}<select id="tipo"><option value="" selected disabled>— scegli il tipo di ordine —</option><option value="prova">Lenti di prova</option><option value="vendita_cliente">Ordine cliente (vendita)</option><option value="scorta_negozio">Scorta negozio</option></select></div>
+   <div><label>Tipo *${S.profilo.ruolo==="negozio"?(S.negozio?` · ${S.negozio.nome}`:""):""}</label>${S.profilo.ruolo==="negozio"?"":`<select id="negsel" style="margin-bottom:4px">${S.negozi.map(n=>`<option value="${n.id}" ${S.negozio&&S.negozio.id===n.id?"selected":""}>${n.nome}</option>`).join("")}</select>`}<select id="tipo"><option value="" selected disabled>— scegli il tipo di ordine —</option><option value="prova">Lenti di prova</option><option value="vendita_cliente">Ordine cliente (vendita)</option><option value="scorta_prove">Scorta lenti di prova</option><option value="scorta_vendita">Scorta lenti in vendita</option></select><div id="tipoAvv" class="hide" style="color:var(--warn);font-size:12px;margin-top:2px"></div></div>
    <div class="cli"><label>Cognome *</label><input id="cog" autocomplete="off"></div>
    <div class="cli"><label>Nome *</label><input id="nom" autocomplete="off"></div>
    <div class="cli"><label>Codice cliente Focus *</label><input id="cod" inputmode="numeric" autocomplete="off"></div>
@@ -264,7 +267,8 @@ function render(){
   $("#tipo").onchange=()=>{
     const t=$("#tipo").value;
     $("#forw").classList.toggle("hide",t!=="vendita_cliente");
-    document.querySelectorAll(".cli").forEach(x=>x.classList.toggle("hide",t==="scorta_negozio"));
+    document.querySelectorAll(".cli").forEach(x=>x.classList.toggle("hide",isScorta(t)));
+    const av=$("#tipoAvv");if(av){av.classList.toggle("hide",t!=="scorta_vendita");av.textContent=t==="scorta_vendita"?"Di norma il negozio non le ordina: seguono lo stock minimo di Focus. Ordina solo se serve davvero.":""}
     if($("#occ")&&$("#occ").children.length)disegnaOcchi();
   };
   disegnaOcchi();
@@ -381,7 +385,7 @@ function controlla(){
   const err=[],righe=[];
   const tipo=$("#tipo").value;
   if(!tipo)err.push("Scegli il tipo di ordine (prova, cliente o scorta)");
-  if(tipo!=="scorta_negozio"){
+  if(!isScorta(tipo)){
     if(!$("#cog").value.trim())err.push("Cognome del cliente obbligatorio");
     if(!$("#nom").value.trim())err.push("Nome del cliente obbligatorio");
     if(!$("#cod").value.trim())err.push("Codice cliente Focus obbligatorio");
@@ -417,7 +421,7 @@ async function invia(){
   const esito=$("#esito");
   if(err.length){esito.innerHTML=`<div class="msg err">Controlla:<br>${err.join("<br>")}</div>`;return}
   const tipo=$("#tipo").value;
-  const cog=tipo==="scorta_negozio"?"":$("#cog").value.trim(),nom=tipo==="scorta_negozio"?"":$("#nom").value.trim(),cod=tipo==="scorta_negozio"?"":$("#cod").value.trim();
+  const cog=isScorta(tipo)?"":$("#cog").value.trim(),nom=isScorta(tipo)?"":$("#nom").value.trim(),cod=isScorta(tipo)?"":$("#cod").value.trim();
   if(S.modifica)return salvaModifica(tipo,cog,nom,cod,righe);
   // un cliente può avere più prove: l'avviso non blocca
   if(cod){
@@ -569,14 +573,14 @@ function disegnaCentrale(){
       const fatte=lav.filter(x=>x.r.ordinata_il).length;
       h+=`<div class="sec-h">In lavorazione (bloccati per i negozi) · ${fatte}/${lav.length} righe inserite</div>`;
       const gr={};
-      lav.forEach(x=>{const o=x.o;const k=o.tipo==="scorta_negozio"||!o.codice_cliente_focus?"o"+o.id:o.negozio_id+"|"+o.codice_cliente_focus;(gr[k]=gr[k]||[]).push(x)});
+      lav.forEach(x=>{const o=x.o;const k=isScorta(o.tipo)||!o.codice_cliente_focus?"o"+o.id:o.negozio_id+"|"+o.codice_cliente_focus;(gr[k]=gr[k]||[]).push(x)});
       Object.values(gr).sort((a,b)=>(a[0].o.cliente_rif||"~").localeCompare(b[0].o.cliente_rif||"~")).forEach(g=>{
         const o=g[0].o;const neg=(S.negozi.find(n=>n.id===o.negozio_id)||{}).nome||"";
         const ords=[...new Map(g.map(x=>[x.o.id,x.o])).values()];
         h+=`<div class="grp"><div class="grp-h">
-          ${o.cognome_cliente?`${fld("Cognome",o.cognome_cliente)}${fld("Nome",o.nome_cliente)}${fld("Cod. Focus",o.codice_cliente_focus)}`:`<b>Scorta negozio</b>`}
+          ${o.cognome_cliente?`${fld("Cognome",o.cognome_cliente)}${fld("Nome",o.nome_cliente)}${fld("Cod. Focus",o.codice_cliente_focus)}`:`<b>${TIPI[o.tipo]||"Scorta"}</b>`}
           ${o.numero_fornitura?fld("N. fornitura",o.numero_fornitura):""}
-          <span class="mut">${esc(neg)} · ${ords.map(x=>x.riferimento).join(", ")}</span> <span class="pill">${o.tipo==="prova"?"prova":o.tipo==="vendita_cliente"?"vendita":"scorta"}</span>
+          <span class="mut">${esc(neg)} · ${ords.map(x=>x.riferimento).join(", ")}</span> <span class="pill">${TIPI[o.tipo]||o.tipo}</span>
           ${ords.some(x=>x.modificato_il)?'<span class="pill w">modificato dal negozio</span>':""}
           ${ords.map(x=>`<button class="small sec" onclick="sbloccaOrdine(${x.id})" title="Rimette l'ordine in attesa: il negozio potrà modificarlo">Sblocca ${x.riferimento.slice(-5)}</button>`).join("")}</div>
           ${ords.filter(x=>x.note).map(x=>`<div class="mut">Nota ${x.riferimento.slice(-5)}: ${esc(x.note)}</div>`).join("")}
