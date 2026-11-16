@@ -225,7 +225,7 @@ function render(){
   if(centrale&&!S.negozio){S.negozio=S.negozi[0]}
   app.innerHTML=tabs+`
   <div class="card"><div class="top">
-   <div><label>Tipo *${S.profilo.ruolo==="negozio"?(S.negozio?` · ${S.negozio.nome}`:""):""}</label>${S.profilo.ruolo==="negozio"?"":`<select id="negsel" style="margin-bottom:4px">${S.negozi.map(n=>`<option value="${n.id}" ${S.negozio&&S.negozio.id===n.id?"selected":""}>${n.nome}</option>`).join("")}</select>`}<select id="tipo"><option value="prova">Lenti di prova</option><option value="vendita_cliente">Ordine cliente (vendita)</option><option value="scorta_negozio">Scorta negozio</option></select></div>
+   <div><label>Tipo *${S.profilo.ruolo==="negozio"?(S.negozio?` · ${S.negozio.nome}`:""):""}</label>${S.profilo.ruolo==="negozio"?"":`<select id="negsel" style="margin-bottom:4px">${S.negozi.map(n=>`<option value="${n.id}" ${S.negozio&&S.negozio.id===n.id?"selected":""}>${n.nome}</option>`).join("")}</select>`}<select id="tipo"><option value="" selected disabled>— scegli il tipo di ordine —</option><option value="prova">Lenti di prova</option><option value="vendita_cliente">Ordine cliente (vendita)</option><option value="scorta_negozio">Scorta negozio</option></select></div>
    <div class="cli"><label>Cognome *</label><input id="cog" autocomplete="off"></div>
    <div class="cli"><label>Nome *</label><input id="nom" autocomplete="off"></div>
    <div class="cli"><label>Codice cliente Focus *</label><input id="cod" inputmode="numeric" autocomplete="off"></div>
@@ -352,6 +352,7 @@ function disegnaOcchio(o){
 function controlla(){
   const err=[],righe=[];
   const tipo=$("#tipo").value;
+  if(!tipo)err.push("Scegli il tipo di ordine (prova, cliente o scorta)");
   if(tipo!=="scorta_negozio"){
     if(!$("#cog").value.trim())err.push("Cognome del cliente obbligatorio");
     if(!$("#nom").value.trim())err.push("Nome del cliente obbligatorio");
