@@ -582,8 +582,8 @@ function disegnaCentrale(){
           ${o.numero_fornitura?fld("N. fornitura",o.numero_fornitura):""}
           <span class="mut">${esc(neg)} · ${ords.map(x=>x.riferimento).join(", ")}</span> <span class="pill">${TIPI[o.tipo]||o.tipo}</span>
           ${ords.some(x=>x.modificato_il)?'<span class="pill w">modificato dal negozio</span>':""}
-          ${ords.map(x=>`<button class="small sec" onclick="sbloccaOrdine(${x.id})" title="Rimette l'ordine in attesa: il negozio potrà modificarlo">Sblocca ${x.riferimento.slice(-5)}</button>`).join("")}</div>
-          ${ords.filter(x=>x.note).map(x=>`<div class="mut">Nota ${x.riferimento.slice(-5)}: ${esc(x.note)}</div>`).join("")}
+          ${ords.map(x=>`<button class="small sec" onclick="sbloccaOrdine(${x.id})" title="Rimette l'ordine in attesa: il negozio potrà modificarlo">Sblocca ${x.riferimento}</button>`).join("")}</div>
+          ${ords.filter(x=>x.note).map(x=>`<div class="mut">Nota ${x.riferimento}: ${esc(x.note)}</div>`).join("")}
           ${g.sort((a,b)=>a.r.occhio.localeCompare(b.r.occhio)).map(x=>rigaLavoro(x.o,x.r)).join("")}</div>`;
       });
       h+=`<button class="go" ${fatte===lav.length?"":"disabled"} onclick="segnaInviato(${fid})">Segna ordine ${esc(f.nome)} inviato${fatte===lav.length?"":` (mancano ${lav.length-fatte} righe)`}</button>`;
