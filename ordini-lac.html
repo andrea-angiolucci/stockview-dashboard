@@ -480,7 +480,7 @@ async function annullaOrdine(id){
 /* ---------- i miei ordini ---------- */
 const STATI={inviato:"Inviato",preso_in_carico:"Preso in carico",ordinato_fornitore:"Ordinato al fornitore",arrivato_sede:"Arrivato in sede",in_partenza_giro:"In partenza col giro",consegnato_negozio:"Consegnato al negozio",evaso_da_deposito:"Evaso da deposito",annullato:"Annullato"};
 async function listaOrdini(){
-  let q=sb.from("ordini").select("id,riferimento,tipo,cliente_rif,codice_cliente_focus,numero_fornitura,stato,creato_il,negozio_id,righe_ordine(occhio,quantita,fuori_catalogo,sfera,cilindro,asse,addizione,curva_base,diametro,prodotto_id,fornitore_id,prodotti(modello,marchio)),note,nome_cliente,cognome_cliente,modificato_il").order("creato_il",{ascending:false}).limit(40);
+  let q=sb.from("ordini").select("id,riferimento,tipo,cliente_rif,codice_cliente_focus,numero_fornitura,stato,creato_il,negozio_id,righe_ordine(occhio,quantita,fuori_catalogo,sfera,cilindro,asse,addizione,curva_base,diametro,prodotto_id,fornitore_id,prodotti(modello,marchio)),note,nome_cliente,cognome_cliente,modificato_il,eventi_ordine(stato,quando)").order("creato_il",{ascending:false}).limit(40);
   if(S.profilo.ruolo==="negozio"&&S.negozio)q=q.eq("negozio_id",S.negozio.id);
   const {data,error}=await q;
   const box=$("#lista");
@@ -492,7 +492,8 @@ async function listaOrdini(){
    <td>${o.cliente_rif||""}<div class="mut">${o.codice_cliente_focus?"cod. "+o.codice_cliente_focus:""}${o.numero_fornitura?" · forn. "+o.numero_fornitura:""}</div></td>
    <td>${["DX","SX"].map(oc=>(o.righe_ordine||[]).filter(r=>r.occhio===oc).map(r=>`<div style="margin-bottom:4px"><b>${oc}</b> ${r.prodotti?(r.prodotti.marchio?r.prodotti.marchio+" ":"")+r.prodotti.modello:""}${r.fuori_catalogo?' <span class="pill" style="color:var(--warn);border-color:var(--warn)">parametri liberi</span>':""}<br>Sf ${fmtS(r.sfera)}${r.cilindro!==null&&r.cilindro!==undefined?` · Cil ${fmtS(r.cilindro)} · Asse ${r.asse}°`:""}${r.addizione?` · Add ${r.addizione}`:""}<br>BC ${r.curva_base||"—"} · Ø ${r.diametro||"—"} · Qtà ${r.quantita}</div>`).join("")).join("")}${o.note?`<div class="mut">Note: ${o.note}</div>`:""}</td>
    <td><span class="pill">${STATI[o.stato]||o.stato}</span>${o.modificato_il?`<div class="mut">modificato ${new Date(o.modificato_il).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</div>`:""}
-     ${o.stato==="inviato"?`<div class="mut">Modificabile finché la sede non lo prende in carico</div><div style="display:flex;gap:6px;margin-top:4px"><button class="small" onclick="modificaOrdine(${o.id})">Modifica</button><button class="small sec" onclick="annullaOrdine(${o.id})">Annulla</button></div>`:(o.stato==="annullato"?"":`<div class="mut">Non modificabile</div>`)}</td></tr>`).join("")+`</table>`;
+     ${S.profilo.ruolo!=="negozio"?`<div class="mut">${(o.eventi_ordine||[]).sort((a,b)=>new Date(a.quando)-new Date(b.quando)).map(e=>`${STATI[e.stato]||e.stato} ${fmtT(e.quando)}`).join(" → ")}</div>
+       <div style="display:flex;gap:6px;margin-top:4px"><select id="st${o.id}">${[...FLUSSO,"evaso_da_deposito","annullato"].map(st=>`<option value="${st}" ${st===o.stato?"selected":""}>${STATI[st]}</option>`).join("")}</select><button class="small" onclick="cambiaStato(${o.id})">Aggiorna stato</button></div>`:o.stato==="inviato"?`<div class="mut">Modificabile finché la sede non lo prende in carico</div><div style="display:flex;gap:6px;margin-top:4px"><button class="small" onclick="modificaOrdine(${o.id})">Modifica</button><button class="small sec" onclick="annullaOrdine(${o.id})">Annulla</button></div>`:(o.stato==="annullato"?"":`<div class="mut">Non modificabile</div>`)}</td></tr>`).join("")+`</table>`;
 }
 
 /* ---------- vista centrale (Adonella) ---------- */
@@ -544,7 +545,7 @@ function rigaLavoro(o,r){
 function disegnaCentrale(){
   const box=$("#cen");if(!box)return;
   const y=window.scrollY;
-  if(!S.cen.length){box.innerHTML='<div class="card">Nessun ordine da lavorare.</div>';return}
+  if(!S.cen.some(o=>o.stato==="inviato"||o.stato==="preso_in_carico")){box.innerHTML='<div class="card">Nessun ordine da lavorare. Gli ordini già inviati ai fornitori sono in "Tutti gli ordini".</div>';return}
   const perF={};
   S.cen.filter(o=>o.stato==="inviato"||o.stato==="preso_in_carico").forEach(o=>(o.righe_ordine||[]).forEach(r=>{(perF[r.fornitore_id]=perF[r.fornitore_id]||[]).push({o,r})}));
   let h="";
@@ -586,16 +587,6 @@ function disegnaCentrale(){
     }
     h+=`</div>`;
   });
-  // elenco ordini con stato (include quelli già ordinati / in viaggio)
-  h+=`<div class="card"><h2>Ordini (${S.cen.length})</h2>`+S.cen.map(o=>{
-    const neg=(S.negozi.find(n=>n.id===o.negozio_id)||{}).nome||"";
-    const ev=(o.eventi_ordine||[]).sort((a,b)=>new Date(a.quando)-new Date(b.quando)).map(e=>`${STATI[e.stato]||e.stato} ${fmtT(e.quando)}`).join(" → ");
-    const daVer=(o.righe_ordine||[]).some(r=>r.fuori_catalogo);
-    return `<div class="${daVer?"vf":""}" style="border-top:1px solid var(--line);padding:10px 6px"><b>${o.riferimento}</b>${daVer?' <span class="pill w">parametri da verificare</span>':""} · ${esc(neg)} · ${esc(o.cliente_rif||"")} ${o.codice_cliente_focus?"· cod. "+esc(o.codice_cliente_focus):""}${o.numero_fornitura?" · forn. "+esc(o.numero_fornitura):""} <span class="pill">${o.tipo}</span>
-      <div class="mut">${ev}</div>
-      ${o.note?`<div class="mut">Note: ${esc(o.note)}</div>`:""}
-      <div class="row" style="margin-top:6px"><select id="st${o.id}">${[...FLUSSO,"evaso_da_deposito","annullato"].map(st=>`<option value="${st}" ${st===o.stato?"selected":""}>${STATI[st]}</option>`).join("")}</select>
-      <button class="small" onclick="cambiaStato(${o.id})">Aggiorna stato</button></div></div>`}).join("")+`</div>`;
   box.innerHTML=h;
   window.scrollTo(0,y);
 }
@@ -633,7 +624,7 @@ async function cambiaStato(id){
   const v=$("#st"+id).value;
   const {error}=await sb.from("ordini").update({stato:v}).eq("id",id);
   if(error){alert(error.message);return}
-  vistaCentrale();
+  if(S.tab==="miei")listaOrdini();else vistaCentrale();
 }
 start();
 </script>
