@@ -569,6 +569,7 @@ function disegnaCentrale(){
     const sotto=f.minimo_confezioni&&conf<f.minimo_confezioni;
     h+=`<div class="card"><h2>${esc(f.nome)} <span class="pill">${conf} confezioni</span>${lenti?` <span class="pill">+ ${lenti} lenti singole</span>`:""} <span class="pill">${f.destinazione==="negozio"?"spedisce al negozio":"spedisce al Deposito"}</span></h2>
     ${f.minimo_confezioni?`<div class="msg ${sotto?"warn":"ok"}">Minimo ${f.minimo_confezioni} confezioni: ${sotto?"ancora sotto, conviene aspettare":"raggiunto"}${f.verificato?"":" (dato da verificare)"}</div>`:""}`;
+    if(!f.minimo_confezioni&&f.costo_spedizione&&f.spedizione_gratis_sopra){const ss=conf<f.spedizione_gratis_sopra;h+=`<div class="msg ${ss?"warn":"ok"}">${ss?`Sotto le ${f.spedizione_gratis_sopra} confezioni (${conf}): contributo di spedizione €${f.costo_spedizione}. Conviene accorpare altri ordini prima di inviare`:`Da ${f.spedizione_gratis_sopra} confezioni: nessun contributo di spedizione`}</div>`}
     if(f.note)h+=`<div class="mut" style="margin:4px 0">${esc(f.note)}</div>`;
     if(lav.length){
       const fatte=lav.filter(x=>x.r.ordinata_il).length;
