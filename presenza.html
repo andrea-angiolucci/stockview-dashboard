@@ -1147,7 +1147,7 @@ function drawMatrix(cells,negozi){
   const TIN='<input class="tgtin" type="number" min="0" style="width:34px;padding:1px 3px;font-size:11px;background:var(--panel);border:1px solid var(--accent);color:var(--txt);border-radius:4px" value="';
   const OIN='<input class="ordin" type="number" min="0" style="width:34px;padding:1px 3px;font-size:11px;margin-top:2px;background:var(--panel);border:1px solid var(--truck);color:var(--txt);border-radius:4px" value="';
   const body=rows.map(r=>{
-    const q=esc((r.info.marchio||"")+" "+(r.info.modello||"")+" "+(r.info.colore||"")+" "+(r.info.barcode||"")+" occhiali");
+    const q=esc((r.info.marchio||"")+" "+(r.info.modello||"")+" "+(r.info.colore||"")+" "+(r.info.barcode||""));
     let tr=`<tr><td class="mar ref" data-bc="${esc(r.info.barcode)}" data-img="${q}" style="cursor:pointer" title="Cerca immagini Google"><b>${esc(r.info.marchio)} ${esc(r.info.modello||"")}</b><small>${[r.info.tipo_lenti,r.info.categoria,r.info.colore,r.info.calibro,r.info.barcode].filter(Boolean).map(esc).join(" · ")}</small></td>`;
     for(const n of negozi){const c=r.by[n];
       if(!c){tr+='<td class="filcol cellna" title="non previsto"><div class="cg">0</div><div class="cv">0</div></td>';continue;}
