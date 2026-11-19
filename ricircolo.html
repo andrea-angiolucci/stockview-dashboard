@@ -269,7 +269,7 @@ function render(){
     var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':'')+'>'+(cr?days+"g":"-")+'</td>';
     var az=rcActionBtns(r);
     var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" \u00b7 "));
-    return '<tr data-ricid="'+esc(r.id)+'"><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+rcRegBadge(r.regola)+statoBadge(r.stato,r.trovato_il)+'</td><td>'+esc(r.marchio||"")+'</td><td>'+esc(r.tipo_lenti||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td class="refcell" data-img="'+esc([r.marchio,r.modello,r.colore].filter(Boolean).join(" ")+" occhiali")+'">'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
+    return '<tr data-ricid="'+esc(r.id)+'"><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+rcRegBadge(r.regola)+statoBadge(r.stato,r.trovato_il)+'</td><td>'+esc(r.marchio||"")+'</td><td>'+esc(r.tipo_lenti||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td class="refcell" data-img="'+esc([r.marchio,r.modello,r.colore].filter(Boolean).join(" "))+'">'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
   }
   function tableHTML(list){ return '<table><thead>'+head+'</thead><tbody>'+list.map(rowHTML).join("")+'</tbody></table>'; }
   function wireActions(){
@@ -359,7 +359,7 @@ function render(){
     var dcol='<td'+((r.stato==="pending"&&days>3)?' style="color:var(--bad);font-weight:700"':"")+'>'+(cr?days+"g":"-")+'</td>';
     var az=rcActionBtns(r);
     var ref=esc([(r.marchio||"")+" "+(r.modello||"")].concat([r.colore,r.calibro,r.categoria,r.barcode].filter(Boolean)).join(" · "));
-    return '<tr data-ricid="'+esc(r.id)+'"><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+rcRegBadge(r.regola)+statoBadge(r.stato,r.trovato_il)+'</td><td>'+esc(r.fornitore||"")+'</td><td>'+esc(r.marchio||"")+'</td><td>'+esc(r.tipo_lenti||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td class="refcell" data-img="'+esc([r.marchio,r.modello,r.colore].filter(Boolean).join(" ")+" occhiali")+'">'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
+    return '<tr data-ricid="'+esc(r.id)+'"><td style="white-space:nowrap">'+(cr?fmtDate(cr):"-")+'</td>'+dcol+'<td>'+rcRegBadge(r.regola)+statoBadge(r.stato,r.trovato_il)+'</td><td>'+esc(r.fornitore||"")+'</td><td>'+esc(r.marchio||"")+'</td><td>'+esc(r.tipo_lenti||"")+'</td><td class="from">'+esc(filName(r.filiale_da))+'</td><td class="to">'+esc(filName(r.filiale_a))+'</td><td class="refcell" data-img="'+esc([r.marchio,r.modello,r.colore].filter(Boolean).join(" "))+'">'+ref+'</td><td class="qta">'+(r.quantita||1)+'</td><td style="white-space:nowrap">'+az+'</td></tr>';
   }).join(""); }
   var __store=(RC_ROLE==="vendita")?(RC_FILIALE||""):ff;
   if(__store){
