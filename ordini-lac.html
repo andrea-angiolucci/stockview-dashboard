@@ -531,7 +531,7 @@ async function vistaCentrale(){
   box.innerHTML='<div class="card">Caricamento…</div>';
   const {data,error}=await caricaCentrale();
   if(error){box.innerHTML=`<div class="msg err">${error.message}</div>`;return}
-  S.cen=data;__cenSig=sigC(data);disegnaCentrale();
+  S.cen=data;__cenSig=sigC(data);await caricaScorta();disegnaCentrale();
   clearInterval(__cenTimer);
   __cenTimer=setInterval(async()=>{
     if(S.tab!=="centrale"||!$("#cen")){clearInterval(__cenTimer);return}
@@ -554,7 +554,7 @@ function rigaLavoro(o,r){
 function disegnaCentrale(){
   const box=$("#cen");if(!box)return;
   const y=window.scrollY;
-  if(!S.cen.some(o=>o.stato==="inviato"||o.stato==="preso_in_carico")){box.innerHTML='<div class="card">Nessun ordine da lavorare. Gli ordini già inviati ai fornitori sono in "Tutti gli ordini".</div>';return}
+  if(!S.cen.some(o=>o.stato==="inviato"||o.stato==="preso_in_carico")){box.innerHTML='<div class="card">Nessun ordine da lavorare. Gli ordini già inviati ai fornitori sono in "Tutti gli ordini".</div>'+schedaScorta();return}
   const perF={};
   S.cen.filter(o=>o.stato==="inviato"||o.stato==="preso_in_carico").forEach(o=>(o.righe_ordine||[]).forEach(r=>{(perF[r.fornitore_id]=perF[r.fornitore_id]||[]).push({o,r})}));
   let h="";
@@ -599,8 +599,49 @@ function disegnaCentrale(){
     }
     h+=`</div>`;
   });
-  box.innerHTML=h;
+  box.innerHTML=h+schedaScorta();
   window.scrollTo(0,y);
+}
+async function caricaScorta(){
+  const {data,error}=await sb.from("proposte_scorta").select("*").order("fornitore_id").order("modello").order("sfera");
+  S.prop=error?[]:(data||[]);
+}
+function schedaScorta(){
+  const P=S.prop||[];
+  if(!P.length)return "";
+  const perF={};
+  P.forEach(x=>(perF[x.fornitore_id]=perF[x.fornitore_id]||[]).push(x));
+  let h=`<div class="card"><h2>Rifornimento scorta minima <span class="pill">${P.filter(x=>!x.ordinata_il).reduce((n,x)=>n+Number(x.da_ordinare),0)} confezioni da ordinare</span></h2>
+  <div class="mut">Da Focus (giacenza, quantità in arrivo, scorta minima). Fabbisogno = scorta minima − giacenza − in arrivo, solo confezioni in vendita, per filiale attiva. Dati del ${esc(fmtT(P[0].generato_il))}. Non sono ordini dei negozi: sono proposte da valutare. "Dep." = disponibilità in Deposito (puoi rifornire il negozio da lì invece di ordinare).</div></div>`;
+  Object.keys(perF).forEach(fid=>{
+    const f=S.fornitori.find(x=>x.id==fid)||{nome:"?"};
+    const bc={};
+    perF[fid].forEach(x=>{(bc[x.barcode]=bc[x.barcode]||[]).push(x)});
+    const righe=Object.values(bc);
+    const tot=righe.reduce((n,g)=>n+(g[0].ordinata_il?0:g.reduce((m,x)=>m+Number(x.da_ordinare),0)),0);
+    const fatte=righe.filter(g=>g[0].ordinata_il).length;
+    h+=`<div class="card"><h2>${esc(f.nome)} <span class="pill">${tot} confezioni</span> <span class="pill">${righe.length} referenze · ${fatte} ordinate</span> <span class="pill">${f.destinazione==="negozio"?"spedisce al negozio":"spedisce al Deposito"}</span></h2>`;
+    h+=righe.map(g=>{
+      const x=g[0],done=!!x.ordinata_il,q=g.reduce((m,y)=>m+Number(y.da_ordinare),0);
+      const dove=g.map(y=>`${esc(y.filiale)} ${y.da_ordinare}`).join(" · ");
+      const dep=g.find(y=>y.disponibile_deposito>0&&y.filiale!=="Deposito");
+      const tutta=[x.modello,x.sfera,x.cilindro&&x.cilindro!=="0"?x.cilindro:"",x.asse&&x.asse!=="0"?x.asse:"",x.addizione&&x.addizione!=="0"?x.addizione:"",x.rb,x.diametro,q].join("\t");
+      return `<div class="lr ${done?"done":""}">
+        ${fld("Modello",x.modello)}${fld("Sfera",x.sfera)}${x.cilindro&&x.cilindro!=="0"?fld("Cil",x.cilindro):""}${x.asse&&x.asse!=="0"?fld("Asse",x.asse):""}${x.addizione&&x.addizione!=="0"?fld("Add",x.addizione):""}${fld("BC",x.rb)}${fld("Diam",x.diametro)}${fld("Q.tà",q)}${fld("Barcode",x.barcode)}
+        <button type="button" class="small sec" data-cp="${esc(tutta)}">Copia riga</button>
+        <button type="button" class="small ${done?"":"go"}" onclick="toggleScorta('${esc(x.barcode)}')">${done?"✓ Ordinata (annulla)":"Ordinata"}</button>
+        <div class="mut">${dove}${dep?` · Dep. ${x.disponibile_deposito}`:""}</div></div>`;
+    }).join("");
+    h+=`</div>`;
+  });
+  return h;
+}
+async function toggleScorta(barcode){
+  const righe=S.prop.filter(x=>x.barcode===barcode);if(!righe.length)return;
+  const nuovo=righe[0].ordinata_il?null:new Date().toISOString();
+  const {error}=await sb.from("proposte_scorta").update({ordinata_il:nuovo,ordinata_da:nuovo?S.uid:null}).eq("barcode",barcode);
+  if(error){alert(error.message);return}
+  righe.forEach(x=>{x.ordinata_il=nuovo});disegnaCentrale();
 }
 function trovaRiga(id){for(const o of S.cen)for(const r of (o.righe_ordine||[]))if(r.id===id)return r;return null}
 async function toggleRiga(id){
