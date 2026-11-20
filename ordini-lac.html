@@ -67,6 +67,7 @@ input.free::placeholder{color:var(--mut);opacity:.7}
 .chip.ok{background:var(--ok);color:#fff;border-color:var(--ok)}
 .chip.off{color:var(--mut);cursor:default}
 .lr{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:6px 0;border-top:1px dashed var(--line)}
+.acts{margin-left:auto;display:flex;gap:8px}.acts button{min-width:112px}
 .lr.done{opacity:.45}.lr.done .chip{text-decoration:line-through}
 .fl{display:inline-flex;align-items:center;gap:4px}.lb{font-size:11px;color:var(--mut)}
 .grp{border:1px solid var(--line);border-left:5px solid var(--pri);border-radius:8px;padding:6px 10px;margin:8px 0;background:color-mix(in srgb,var(--pri) 5%,transparent)}
@@ -554,15 +555,16 @@ function rigaLavoro(o,r){
 function disegnaCentrale(){
   const box=$("#cen");if(!box)return;
   const y=window.scrollY;
-  if(!S.cen.some(o=>o.stato==="inviato"||o.stato==="preso_in_carico")){box.innerHTML='<div class="card">Nessun ordine da lavorare. Gli ordini già inviati ai fornitori sono in "Tutti gli ordini".</div>'+schedaScorta();return}
+  if(!S.cen.some(o=>o.stato==="inviato"||o.stato==="preso_in_carico")&&!(S.prop||[]).some(x=>!x.ordinata_il)){box.innerHTML='<div class="card">Nessun ordine da lavorare. Gli ordini già inviati ai fornitori sono in "Tutti gli ordini".</div>';return}
   const perF={};
   S.cen.filter(o=>o.stato==="inviato"||o.stato==="preso_in_carico").forEach(o=>(o.righe_ordine||[]).forEach(r=>{(perF[r.fornitore_id]=perF[r.fornitore_id]||[]).push({o,r})}));
   let h="";
   const nfc=S.cen.reduce((n,o)=>n+(o.righe_ordine||[]).filter(r=>r.fuori_catalogo).length,0);
   if(nfc)h+=`<div class="msg warn"><b>${nfc} righe con parametri da verificare</b> (evidenziate in giallo): non sono stati presi dal catalogo ma scritti dal negozio. Controlla la nota dell'ordine; poi aggiorna le regole del catalogo.</div>`;
+  (S.prop||[]).forEach(x=>{if(!perF[x.fornitore_id])perF[x.fornitore_id]=[]});
   Object.keys(perF).sort((a,b)=>((S.fornitori.find(f=>f.id==a)||{}).nome||"").localeCompare((S.fornitori.find(f=>f.id==b)||{}).nome||"")).forEach(fid=>{
     const f=S.fornitori.find(x=>x.id==fid)||{nome:"?"};
-    const tutte=perF[fid];
+    const tutte=perF[fid]||[];
     const lav=tutte.filter(x=>x.o.stato==="preso_in_carico"),nuovi=tutte.filter(x=>x.o.stato==="inviato");
     const conf=tutte.filter(x=>x.r.unita!=="lenti").reduce((n,x)=>n+(x.r.quantita||0),0);
     const lenti=tutte.filter(x=>x.r.unita==="lenti").reduce((n,x)=>n+(x.r.quantita||0),0);
@@ -597,43 +599,36 @@ function disegnaCentrale(){
       const nord=new Set(nuovi.map(x=>x.o.id)).size;
       h+=`<p><button onclick="inizia(${fid})">Inizia ordine ${esc(f.nome)} (${nord} ${nord===1?"ordine":"ordini"}): blocca le modifiche dei negozi</button></p>`;
     }
+    h+=bloccoScorta(fid);
     h+=`</div>`;
   });
-  box.innerHTML=h+schedaScorta();
+  box.innerHTML=h;
   window.scrollTo(0,y);
 }
 async function caricaScorta(){
   const {data,error}=await sb.from("proposte_scorta").select("*").order("fornitore_id").order("modello").order("sfera");
   S.prop=error?[]:(data||[]);
 }
-function schedaScorta(){
-  const P=S.prop||[];
+function bloccoScorta(fid){
+  const P=(S.prop||[]).filter(x=>x.fornitore_id==fid);
   if(!P.length)return "";
-  const perF={};
-  P.forEach(x=>(perF[x.fornitore_id]=perF[x.fornitore_id]||[]).push(x));
-  let h=`<div class="card"><h2>Rifornimento scorta minima <span class="pill">${P.filter(x=>!x.ordinata_il).reduce((n,x)=>n+Number(x.da_ordinare),0)} confezioni da ordinare</span></h2>
-  <div class="mut">Da Focus (giacenza, quantità in arrivo, scorta minima). Fabbisogno = scorta minima − giacenza − in arrivo, solo confezioni in vendita, per filiale attiva. Dati del ${esc(fmtT(P[0].generato_il))}. Non sono ordini dei negozi: sono proposte da valutare. "Dep." = disponibilità in Deposito (puoi rifornire il negozio da lì invece di ordinare).</div></div>`;
-  Object.keys(perF).forEach(fid=>{
-    const f=S.fornitori.find(x=>x.id==fid)||{nome:"?"};
-    const bc={};
-    perF[fid].forEach(x=>{(bc[x.barcode]=bc[x.barcode]||[]).push(x)});
-    const righe=Object.values(bc);
-    const tot=righe.reduce((n,g)=>n+(g[0].ordinata_il?0:g.reduce((m,x)=>m+Number(x.da_ordinare),0)),0);
-    const fatte=righe.filter(g=>g[0].ordinata_il).length;
-    h+=`<div class="card"><h2>${esc(f.nome)} <span class="pill">${tot} confezioni</span> <span class="pill">${righe.length} referenze · ${fatte} ordinate</span> <span class="pill">${f.destinazione==="negozio"?"spedisce al negozio":"spedisce al Deposito"}</span></h2>`;
-    h+=righe.map(g=>{
-      const x=g[0],done=!!x.ordinata_il,q=g.reduce((m,y)=>m+Number(y.da_ordinare),0);
-      const dove=g.map(y=>`${esc(y.filiale)} ${y.da_ordinare}`).join(" · ");
-      const dep=g.find(y=>y.disponibile_deposito>0&&y.filiale!=="Deposito");
-      const tutta=[x.modello,x.sfera,x.cilindro&&x.cilindro!=="0"?x.cilindro:"",x.asse&&x.asse!=="0"?x.asse:"",x.addizione&&x.addizione!=="0"?x.addizione:"",x.rb,x.diametro,q].join("\t");
-      return `<div class="lr ${done?"done":""}">
-        ${fld("Modello",x.modello)}${fld("Sfera",x.sfera)}${x.cilindro&&x.cilindro!=="0"?fld("Cil",x.cilindro):""}${x.asse&&x.asse!=="0"?fld("Asse",x.asse):""}${x.addizione&&x.addizione!=="0"?fld("Add",x.addizione):""}${fld("BC",x.rb)}${fld("Diam",x.diametro)}${fld("Q.tà",q)}${fld("Barcode",x.barcode)}
-        <button type="button" class="small sec" data-cp="${esc(tutta)}">Copia riga</button>
-        <button type="button" class="small ${done?"":"go"}" onclick="toggleScorta('${esc(x.barcode)}')">${done?"✓ Ordinata (annulla)":"Ordinata"}</button>
-        <div class="mut">${dove}${dep?` · Dep. ${x.disponibile_deposito}`:""}</div></div>`;
-    }).join("");
-    h+=`</div>`;
-  });
+  const bc={};
+  P.forEach(x=>{(bc[x.barcode]=bc[x.barcode]||[]).push(x)});
+  const righe=Object.values(bc);
+  const tot=righe.reduce((n,g)=>n+(g[0].ordinata_il?0:g.reduce((m,x)=>m+Number(x.da_ordinare),0)),0);
+  const fatte=righe.filter(g=>g[0].ordinata_il).length;
+  let h=`<div class="sec-h">Rifornimento scorta minima · ${tot} confezioni da ordinare · ${fatte}/${righe.length} inserite · si invia insieme agli ordini sopra</div>
+  <div class="mut">Da Focus (dati del ${esc(fmtT(P[0].generato_il))}): scorta minima − giacenza − in arrivo, solo confezioni in vendita. "Dep." = disponibilità in Deposito (puoi rifornire il negozio da lì invece di ordinare).</div>`;
+  h+=righe.map(g=>{
+    const x=g[0],done=!!x.ordinata_il,q=g.reduce((m,y)=>m+Number(y.da_ordinare),0);
+    const dove=g.map(y=>`${esc(y.filiale)} ${y.da_ordinare}`).join(" · ");
+    const dep=g.find(y=>y.disponibile_deposito>0&&y.filiale!=="Deposito");
+    const tutta=[x.modello,x.sfera,x.cilindro&&x.cilindro!=="0"?x.cilindro:"",x.asse&&x.asse!=="0"?x.asse:"",x.addizione&&x.addizione!=="0"?x.addizione:"",x.rb,x.diametro,q].join("\t");
+    return `<div class="lr ${done?"done":""}">
+      ${fld("Modello",x.modello)}${fld("Sfera",x.sfera)}${x.cilindro&&x.cilindro!=="0"?fld("Cil",x.cilindro):""}${x.asse&&x.asse!=="0"?fld("Asse",x.asse):""}${x.addizione&&x.addizione!=="0"?fld("Add",x.addizione):""}${fld("BC",x.rb)}${fld("Diam",x.diametro)}${fld("Q.tà",q)}${fld("Barcode",x.barcode)}
+      <span class="acts"><button type="button" class="small sec" data-cp="${esc(tutta)}">Copia riga</button><button type="button" class="small ${done?"sec":"go"}" onclick="toggleScorta('${esc(x.barcode)}')">${done?"↺ Annulla":"✓ Ordinata"}</button></span>
+      <div class="mut" style="flex-basis:100%">${dove}${dep?` · Dep. ${x.disponibile_deposito}`:""}</div></div>`;
+  }).join("");
   return h;
 }
 async function toggleScorta(barcode){
@@ -669,6 +664,8 @@ async function sbloccaOrdine(id){
 async function segnaInviato(fid){
   const ids=S.cen.filter(o=>o.stato==="preso_in_carico"&&(o.righe_ordine||[]).some(r=>r.fornitore_id==fid)&&(o.righe_ordine||[]).every(r=>r.ordinata_il)).map(o=>o.id);
   if(!ids.length)return;
+  const nonSp=new Set((S.prop||[]).filter(x=>x.fornitore_id==fid&&!x.ordinata_il).map(x=>x.barcode)).size;
+  if(nonSp&&!confirm(`Ci sono ${nonSp} referenze di rifornimento scorta minima non ancora segnate come ordinate. Segnare comunque l'ordine come inviato (restano da ordinare)?`))return;
   const {error}=await sb.from("ordini").update({stato:"ordinato_fornitore"}).in("id",ids);
   if(error){alert(error.message);return}
   vistaCentrale();
