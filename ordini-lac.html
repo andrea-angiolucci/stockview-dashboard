@@ -537,7 +537,8 @@ async function vistaCentrale(){
   __cenTimer=setInterval(async()=>{
     if(S.tab!=="centrale"||!$("#cen")){clearInterval(__cenTimer);return}
     const r=await caricaCentrale();if(r.error)return;
-    const g=sigC(r.data);if(g!==__cenSig){S.cen=r.data;__cenSig=g;disegnaCentrale()}
+    const lid=S.log?S.log.id:0;await caricaLog();const lg=(S.log?S.log.id:0)!==lid;
+    const g=sigC(r.data);if(g!==__cenSig||lg){S.cen=r.data;__cenSig=g;if(lg)await caricaScorta();disegnaCentrale()}
   },30000);
 }
 function rigaLavoro(o,r){
@@ -555,10 +556,10 @@ function rigaLavoro(o,r){
 function disegnaCentrale(){
   const box=$("#cen");if(!box)return;
   const y=window.scrollY;
-  if(!S.cen.some(o=>o.stato==="inviato"||o.stato==="preso_in_carico")&&!(S.prop||[]).some(x=>!x.ordinata_il)){box.innerHTML='<div class="card">Nessun ordine da lavorare. Gli ordini già inviati ai fornitori sono in "Tutti gli ordini".</div>';return}
+  if(!S.cen.some(o=>o.stato==="inviato"||o.stato==="preso_in_carico")&&!(S.prop||[]).some(x=>!x.ordinata_il)){box.innerHTML=indicatoreAgg()+'<div class="card">Nessun ordine da lavorare. Gli ordini già inviati ai fornitori sono in "Tutti gli ordini".</div>';return}
   const perF={};
   S.cen.filter(o=>o.stato==="inviato"||o.stato==="preso_in_carico").forEach(o=>(o.righe_ordine||[]).forEach(r=>{(perF[r.fornitore_id]=perF[r.fornitore_id]||[]).push({o,r})}));
-  let h="";
+  let h=indicatoreAgg();
   const nfc=S.cen.reduce((n,o)=>n+(o.righe_ordine||[]).filter(r=>r.fuori_catalogo).length,0);
   if(nfc)h+=`<div class="msg warn"><b>${nfc} righe con parametri da verificare</b> (evidenziate in giallo): non sono stati presi dal catalogo ma scritti dal negozio. Controlla la nota dell'ordine; poi aggiorna le regole del catalogo.</div>`;
   (S.prop||[]).forEach(x=>{if(!perF[x.fornitore_id])perF[x.fornitore_id]=[]});
@@ -608,6 +609,40 @@ function disegnaCentrale(){
 async function caricaScorta(){
   const {data,error}=await sb.from("proposte_scorta").select("*").order("fornitore_id").order("modello").order("sfera");
   S.prop=error?[]:(data||[]);
+  await caricaLog();
+}
+async function caricaLog(){
+  const {data,error}=await sb.from("proposte_log").select("*").order("eseguito_il",{ascending:false}).limit(1);
+  S.log=error?null:((data&&data[0])||null);S.logErr=!!error;
+}
+function indicatoreAgg(){
+  const R="Europe/Rome";
+  const ymd=d=>new Intl.DateTimeFormat("en-CA",{timeZone:R,year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
+  const hm=d=>new Intl.DateTimeFormat("it-IT",{timeZone:R,hour:"2-digit",minute:"2-digit"}).format(d);
+  const dm=d=>new Intl.DateTimeFormat("it-IT",{timeZone:R,day:"2-digit",month:"2-digit"}).format(d);
+  const now=new Date(),oggi=ymd(now),ieri=ymd(new Date(now.getTime()-864e5));
+  const ora=+new Intl.DateTimeFormat("en-GB",{timeZone:R,hour:"2-digit",hour12:false}).format(now);
+  const L=S.log;
+  if(S.logErr)return `<div class="msg warn"><b>Aggiornamento dati:</b> non riesco a leggere il registro degli aggiornamenti.</div>`;
+  if(!L)return `<div class="msg err"><b>Dati NON aggiornati:</b> nessun aggiornamento notturno registrato finora.</div>`;
+  const run=new Date(L.eseguito_il),runDay=ymd(run);
+  const auto=/^Automatico/.test(L.fonte||"");
+  const m=(L.fonte||"").match(/file del (\d{2})\/(\d{2}) (\d{2}):(\d{2})/);
+  let fileTxt="data del file non indicata",fileFresh=true;
+  if(m){
+    let y=+ymd(now).slice(0,4);const cand=`${y}-${m[2]}-${m[1]}`;
+    if(cand>oggi)y--;
+    const fd=`${y}-${m[2]}-${m[1]}`;
+    fileTxt=`file Focus del ${m[1]}/${m[2]} alle ${m[3]}:${m[4]}`;
+    fileFresh=(fd===ieri||fd===oggi);
+  }
+  const quando=`${runDay===oggi?"oggi":dm(run)} alle ${hm(run)}`;
+  const dett=`${fileTxt} · ${L.ricevute} proposte${auto?"":" · caricamento manuale"}`;
+  const hRun=+new Intl.DateTimeFormat("en-GB",{timeZone:R,hour:"2-digit",hour12:false}).format(run);
+  if(runDay===oggi&&fileFresh)return `<div class="msg ok"><b>✓ Dati aggiornati ${auto&&hRun<9?"stanotte":"oggi"} alle ${hm(run)}</b> · ${dett}</div>`;
+  if(runDay===oggi&&!fileFresh)return `<div class="msg warn"><b>Attenzione: aggiornamento eseguito ${quando} ma il file di Focus è vecchio</b> · ${dett}. Focus non ha rigenerato il file ieri sera: i dati sono fermi a quel giorno.</div>`;
+  if(ora<7)return `<div class="msg warn"><b>In attesa dell'aggiornamento delle 6:00</b> · ultimo aggiornamento ${quando} · ${dett}</div>`;
+  return `<div class="msg err"><b>Dati NON aggiornati stanotte</b> · ultimo aggiornamento ${quando} · ${dett}. Avvisa Andrea.</div>`;
 }
 function bloccoScorta(fid){
   const P=(S.prop||[]).filter(x=>x.fornitore_id==fid);
