@@ -712,7 +712,8 @@ async function generaFocus(fid){
     const url=URL.createObjectURL(new Blob([u],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
     const ver=data.righe_verifica||[];
     box.innerHTML=`<div class="msg ok">File pronto: ${data.righe_ok} pezzi. <a href="${url}" download="${esc(data.nome_file)}"><b>Scarica Excel per Focus</b></a></div>`+
-      (ver.length?`<div class="msg warn"><b>${ver.length} righe NON incluse, da inserire a mano su Focus:</b><br>${ver.map(v=>`${esc(v.negozio)} · ${esc(v.ordine)} · ${esc(v.modello)} ${esc(v.occhio||"")} ×${v.quantita} — ${esc(v.motivo)} <span class="mut">(${esc(v.parametri)})</span>`).join("<br>")}</div>`:"");
+      (ver.filter(v=>v.incluso).length?`<div class="msg ok"><b>Righe incluse con scelta automatica del codice (controlla):</b><br>${ver.filter(v=>v.incluso).map(v=>`${esc(v.negozio)} · ${esc(v.ordine)} · ${esc(v.modello)} ${esc(v.occhio||"")} — ${esc(v.motivo)}`).join("<br>")}</div>`:"")+
+      (ver.filter(v=>!v.incluso).length?`<div class="msg warn"><b>${ver.filter(v=>!v.incluso).length} righe NON incluse, da inserire a mano su Focus:</b><br>${ver.filter(v=>!v.incluso).map(v=>`${esc(v.negozio)} · ${esc(v.ordine)} · ${esc(v.modello)} ${esc(v.occhio||"")} ×${v.quantita} — ${esc(v.motivo)} <span class="mut">(${esc(v.parametri)})</span>`).join("<br>")}</div>`:"");
     return;
   }
   box.textContent="Il file non è ancora pronto: riprova tra poco.";
