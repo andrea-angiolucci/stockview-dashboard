@@ -599,6 +599,7 @@ function disegnaCentrale(){
           ${g.sort((a,b)=>a.r.occhio.localeCompare(b.r.occhio)).map(x=>rigaLavoro(x.o,x.r)).join("")}</div>`;
       });
       h+=`<button class="go" ${fatte===lav.length?"":"disabled"} onclick="segnaInviato(${fid})">Segna ordine ${esc(f.nome)} inviato${fatte===lav.length?"":` (mancano ${lav.length-fatte} righe)`}</button>`;
+      h+=` <button class="sec" onclick="generaFocus(${fid})" title="Crea l'Excel da caricare su Focus per generare la quantità in arrivo">Genera file Focus (carico in arrivo)</button><div id="fc${fid}" class="mut" style="margin-top:6px"></div>`;
     }
     if(nuovi.length){
       h+=`<div class="sec-h">Nuovi, in attesa (i negozi possono ancora modificarli) · ${nuovi.length} righe</div>`;
@@ -694,6 +695,27 @@ async function inizia(fid){
   const {data,error}=await sb.rpc("prendi_in_carico",{p_fornitore:fid});
   if(error){alert(error.message);return}
   vistaCentrale();
+}
+async function generaFocus(fid){
+  const box=document.getElementById("fc"+fid);
+  const ids=S.cen.filter(o=>o.stato==="preso_in_carico"&&(o.righe_ordine||[]).some(r=>r.fornitore_id==fid)).map(o=>o.id);
+  if(!ids.length)return;
+  box.textContent="Preparo il file Focus… (richiede circa un minuto)";
+  const {data:eid,error}=await sb.rpc("richiedi_proforma",{p_ordini:ids,p_fornitore:fid});
+  if(error){box.textContent="Errore: "+error.message;return}
+  for(let i=0;i<60;i++){
+    await new Promise(r=>setTimeout(r,5000));
+    const {data}=await sb.from("export_proforma").select("stato,nome_file,contenuto_b64,righe_ok,righe_verifica,errore").eq("id",eid).single();
+    if(!data||data.stato==="richiesto")continue;
+    if(data.stato==="errore"){box.textContent="Errore nella creazione del file: "+(data.errore||"");return}
+    const bin=atob(data.contenuto_b64),u=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)u[k]=bin.charCodeAt(k);
+    const url=URL.createObjectURL(new Blob([u],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+    const ver=data.righe_verifica||[];
+    box.innerHTML=`<div class="msg ok">File pronto: ${data.righe_ok} pezzi. <a href="${url}" download="${esc(data.nome_file)}"><b>Scarica Excel per Focus</b></a></div>`+
+      (ver.length?`<div class="msg warn"><b>${ver.length} righe NON incluse, da inserire a mano su Focus:</b><br>${ver.map(v=>`${esc(v.negozio)} · ${esc(v.ordine)} · ${esc(v.modello)} ${esc(v.occhio||"")} ×${v.quantita} — ${esc(v.motivo)} <span class="mut">(${esc(v.parametri)})</span>`).join("<br>")}</div>`:"");
+    return;
+  }
+  box.textContent="Il file non è ancora pronto: riprova tra poco.";
 }
 async function sbloccaOrdine(id){
   const o=S.cen.find(x=>x.id===id);if(!o)return;
