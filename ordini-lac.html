@@ -189,7 +189,7 @@ const tipoSel=()=>{const t=$("#tipo");return t?t.value:""};
 // prove: le lenti non giornaliere si ordinano singole; le giornaliere in confezione da 5
 const unitaDi=p=>isProva(tipoSel())&&p&&p.durata&&p.durata!=="giornaliera"?"lenti":"confezioni";
 const qLab=p=>unitaDi(p)==="lenti"?"Lenti singole *":(isProva(tipoSel())&&p&&p.durata==="giornaliera"?"Confezioni (da 5) *":"Confezioni *");
-function nuovoOcchio(){return{libero:false,attivo:true,forn:"",prod:"",sfera:"",cil:"",asse:"",add:"",curva:"",diam:"",qta:1}}
+function nuovoOcchio(){return{libero:false,attivo:true,forn:"",prod:"",sfera:"",cil:"",asse:"",add:"",dn:"",curva:"",diam:"",qta:1}}
 
 
 /* ---------- menu con ricerca (filtro in tempo reale) ---------- */
@@ -326,7 +326,8 @@ function disegnaOcchio(o){
       h+=`<div class="msg warn">${rr.length?"Parametro non presente nell'elenco.":"Per questa lente l'elenco dei parametri non è ancora disponibile."} Scrivi tu i valori nei campi evidenziati e <b>descrivi nella nota</b> cosa manca: l'ordine parte con la tua descrizione e noi veniamo avvisati per sistemare l'elenco.</div>
       <div class="gr g4">${F("Sfera *",`<input id="ls${o}" inputmode="decimal" value="${e.sfera}" placeholder="es. -2.25" class="free">`)}
       ${tor?F("Cilindro *",`<input id="lc${o}" inputmode="decimal" value="${e.cil}" placeholder="es. -1.25" class="free">`)+F("Asse *",`<input id="la${o}" inputmode="numeric" value="${e.asse}" placeholder="es. 180" class="free">`):""}
-      ${F("Addizione"+(mf?" *":""),`<input id="ld${o}" value="${e.add}" placeholder="es. +1.50" class="free">`)}</div>
+      ${F("Addizione"+(mf?" *":""),`<input id="ld${o}" value="${e.add}" placeholder="es. +1.50" class="free">`)}
+      ${p.richiede_dn?F("Occhio D/N *",`<select id="dn${o}" class="free">${opt(["D","N"],e.dn,v=>v==="D"?"D · dominante":"N · controlaterale")}</select>`):""}</div>
       <div class="gr g3">${F("Curva base *",`<input id="lb${o}" inputmode="decimal" value="${e.curva}" placeholder="es. 8.6" class="free">`)}${F("Diametro *",`<input id="lm${o}" inputmode="decimal" value="${e.diam}" placeholder="es. 14.2" class="free">`)}${F(qLab(p),`<input id="q${o}" type="number" min="1" value="${e.qta}">`)}</div>
       ${rr.length?`<button class="sec small" id="lib${o}">Torna ai menu</button>`:""}`;
     } else {
@@ -348,7 +349,8 @@ function disegnaOcchio(o){
         const nonParsabile=B.some(x=>x.addRaw&&!x.add);
         campi+=(opts.length&&!nonParsabile)?F("Addizione *",`<select id="d${o}">${opt(opts,e.add)}</select>`):F("Addizione *",`<input id="d${o}" value="${e.add}" placeholder="+1.50 (D)/(N)">`);
       }
-      const nc=1+(hasCil?2:0)+(hasAdd?1:0);
+      if(p.richiede_dn)campi+=F("Occhio D/N *",`<select id="dn${o}">${opt(["D","N"],e.dn,v=>v==="D"?"D · dominante":"N · controlaterale")}</select>`);
+      const nc=1+(hasCil?2:0)+(hasAdd?1:0)+(p.richiede_dn?1:0);
       h+=`<div class="gr g${nc}">${campi}</div>`;
       // curva e diametro: precompilati solo se il valore è unico, altrimenti da scegliere dalla tendina
       const curve=sortN(uniq(B.flatMap(x=>x.curve))),diam=sortN(uniq(B.flatMap(x=>x.diam)));
@@ -364,10 +366,10 @@ function disegnaOcchio(o){
   const set=(id,fn)=>{const x=$("#"+id+o);if(x)x.onchange=()=>fn(x.value)};
   const on=(id,k)=>{const x=$("#"+id+o);if(x)x.oninput=()=>{e[k]=x.value.replace(",",".")}};
   set("f",v=>{Object.assign(e,nuovoOcchio(),{attivo:true,forn:v});disegnaOcchio(o)});
-  set("p",v=>{Object.assign(e,{prod:v,libero:false,sfera:"",cil:"",asse:"",add:"",curva:"",diam:""});disegnaOcchio(o)});
+  set("p",v=>{Object.assign(e,{prod:v,libero:false,sfera:"",cil:"",asse:"",add:"",dn:"",curva:"",diam:""});disegnaOcchio(o)});
   if(e.libero&&p){
     on("ls","sfera");on("lc","cil");on("la","asse");on("ld","add");on("lb","curva");on("lm","diam");
-    const lb=$("#lib"+o);if(lb)lb.onclick=()=>{Object.assign(e,{libero:false,sfera:"",cil:"",asse:"",add:"",curva:"",diam:""});disegnaOcchio(o)};
+    const lb=$("#lib"+o);if(lb)lb.onclick=()=>{Object.assign(e,{libero:false,sfera:"",cil:"",asse:"",add:"",dn:"",curva:"",diam:""});disegnaOcchio(o)};
   } else {
     set("s",v=>{Object.assign(e,{sfera:v,cil:"",asse:"",curva:"",diam:""});disegnaOcchio(o)});
     set("c",v=>{Object.assign(e,{cil:v,asse:"",curva:"",diam:""});disegnaOcchio(o)});
@@ -376,6 +378,7 @@ function disegnaOcchio(o){
     set("b",v=>{e.curva=v});set("m",v=>{e.diam=v});
     const fc=$("#fc"+o);if(fc)fc.onclick=()=>{e.libero=true;disegnaOcchio(o)};
   }
+  set("dn",v=>{e.dn=v});
   const q=$("#q"+o);if(q)q.oninput=()=>{e.qta=parseInt(q.value)||0};
   const cp=$("#cp"+o);if(cp)cp.onclick=()=>{if(!S.occhi.DX.prod)return;S.occhi.SX={...S.occhi.DX,attivo:true};disegnaOcchio("SX")};
   aggiornaNota();
@@ -408,13 +411,14 @@ function controlla(){
     if(tor&&e.asse==="")err.push(o+": lente astigmatica, manca l'asse");
     if(mf&&!e.add)err.push(o+": lente multifocale, manca l'addizione");
     if(!lib&&rr.some(x=>x.addRaw)&&!e.add)err.push(o+": manca l'addizione");
+    if(p.richiede_dn&&!e.dn)err.push(o+": lente multifocale, indica se è l'occhio dominante (D) o controlaterale (N)");
     if(!e.curva)err.push(o+": manca la curva base");
     if(!e.diam)err.push(o+": manca il diametro");
     if(!(e.qta>0))err.push(o+": manca la quantità");
     righe.push({occhio:o,prodotto_id:p.id,fornitore_id:p.fornitore_id,
       curva_base:e.curva?parseFloat(e.curva):null,diametro:e.diam?parseFloat(e.diam):null,sfera:parseFloat(e.sfera),
       cilindro:tor&&e.cil!==""?parseFloat(e.cil):null,asse:tor&&e.asse!==""?parseInt(e.asse):null,
-      addizione:e.add||null,quantita:e.qta||1,fuori_catalogo:lib,unita:unitaDi(p)});
+      addizione:e.add||null,dominanza:p.richiede_dn?(e.dn||null):null,quantita:e.qta||1,fuori_catalogo:lib,unita:unitaDi(p)});
   });
   if(righe.some(r=>r.fuori_catalogo)&&!$("#note").value.trim())err.push("Nella nota descrivi cosa manca nell'elenco (parametro o lente non presenti)");
   return {err,righe};
@@ -475,7 +479,7 @@ function modificaOrdine(id){
     const r=(o.righe_ordine||[]).find(x=>x.occhio===k);
     if(!r){occ[k].attivo=false;return}
     occ[k]={libero:!!r.fuori_catalogo,attivo:true,forn:String(r.fornitore_id),prod:String(r.prodotto_id),sfera:String(r.sfera),
-      cil:r.cilindro===null?"":String(r.cilindro),asse:r.asse===null?"":String(r.asse),add:r.addizione||"",
+      cil:r.cilindro===null?"":String(r.cilindro),asse:r.asse===null?"":String(r.asse),add:r.addizione||"",dn:r.dominanza||"",
       curva:r.curva_base===null?"":String(r.curva_base),diam:r.diametro===null?"":String(r.diametro),qta:r.quantita};
   });
   S.occhi=occ;S.negozio=S.negozi.find(n=>n.id===o.negozio_id)||S.negozio;
@@ -492,7 +496,7 @@ async function annullaOrdine(id){
 /* ---------- i miei ordini ---------- */
 const STATI={inviato:"Inviato",preso_in_carico:"Preso in carico",ordinato_fornitore:"Ordinato al fornitore",arrivato_sede:"Arrivato in sede",in_partenza_giro:"In partenza col giro",consegnato_negozio:"Consegnato al negozio",evaso_da_deposito:"Evaso da deposito",annullato:"Annullato"};
 async function listaOrdini(){
-  let q=sb.from("ordini").select("id,riferimento,tipo,cliente_rif,codice_cliente_focus,numero_fornitura,stato,creato_il,negozio_id,righe_ordine(occhio,quantita,unita,fuori_catalogo,sfera,cilindro,asse,addizione,curva_base,diametro,prodotto_id,fornitore_id,prodotti(modello,marchio)),note,nome_cliente,cognome_cliente,modificato_il,eventi_ordine(stato,quando)").order("creato_il",{ascending:false}).limit(40);
+  let q=sb.from("ordini").select("id,riferimento,tipo,cliente_rif,codice_cliente_focus,numero_fornitura,stato,creato_il,negozio_id,righe_ordine(occhio,quantita,unita,fuori_catalogo,sfera,cilindro,asse,addizione,dominanza,curva_base,diametro,prodotto_id,fornitore_id,prodotti(modello,marchio)),note,nome_cliente,cognome_cliente,modificato_il,eventi_ordine(stato,quando)").order("creato_il",{ascending:false}).limit(40);
   if(S.profilo.ruolo==="negozio"&&S.negozio)q=q.eq("negozio_id",S.negozio.id);
   const {data,error}=await q;
   const box=$("#lista");
@@ -502,7 +506,7 @@ async function listaOrdini(){
   box.innerHTML=`<table><tr><th>Rif.</th><th>Cliente</th><th>Lenti (dati inviati)</th><th>Stato</th></tr>`+data.map(o=>`<tr class="${S.profilo.ruolo!=="negozio"&&(o.righe_ordine||[]).some(r=>r.fuori_catalogo)?"vf":""}">
    <td>${o.riferimento}<div class="mut">${(S.negozi.find(n=>n.id===o.negozio_id)||{}).nome||""} · ${new Date(o.creato_il).toLocaleDateString("it-IT")}</div></td>
    <td>${o.cliente_rif||""}<div class="mut">${o.codice_cliente_focus?"cod. "+o.codice_cliente_focus:""}${o.numero_fornitura?" · forn. "+o.numero_fornitura:""}</div></td>
-   <td>${["DX","SX"].map(oc=>(o.righe_ordine||[]).filter(r=>r.occhio===oc).map(r=>`<div style="margin-bottom:4px"><b>${oc}</b> ${r.prodotti?(r.prodotti.marchio?r.prodotti.marchio+" ":"")+r.prodotti.modello:""}${r.fuori_catalogo?' <span class="pill" style="color:var(--warn);border-color:var(--warn)">parametri liberi</span>':""}<br>Sf ${fmtS(r.sfera)}${r.cilindro!==null&&r.cilindro!==undefined?` · Cil ${fmtS(r.cilindro)} · Asse ${r.asse}°`:""}${r.addizione?` · Add ${r.addizione}`:""}<br>BC ${r.curva_base||"—"} · Ø ${r.diametro||"—"} · ${r.unita==="lenti"?"Lenti singole":"Confezioni"}: ${r.quantita}</div>`).join("")).join("")}${o.note?`<div class="mut">Note: ${o.note}</div>`:""}</td>
+   <td>${["DX","SX"].map(oc=>(o.righe_ordine||[]).filter(r=>r.occhio===oc).map(r=>`<div style="margin-bottom:4px"><b>${oc}</b> ${r.prodotti?(r.prodotti.marchio?r.prodotti.marchio+" ":"")+r.prodotti.modello:""}${r.fuori_catalogo?' <span class="pill" style="color:var(--warn);border-color:var(--warn)">parametri liberi</span>':""}<br>Sf ${fmtS(r.sfera)}${r.cilindro!==null&&r.cilindro!==undefined?` · Cil ${fmtS(r.cilindro)} · Asse ${r.asse}°`:""}${r.addizione?` · Add ${r.addizione}`:""}${r.dominanza?` · <b>${r.dominanza}</b>`:""}<br>BC ${r.curva_base||"—"} · Ø ${r.diametro||"—"} · ${r.unita==="lenti"?"Lenti singole":"Confezioni"}: ${r.quantita}</div>`).join("")).join("")}${o.note?`<div class="mut">Note: ${o.note}</div>`:""}</td>
    <td><span class="pill">${STATI[o.stato]||o.stato}</span>${o.modificato_il?`<div class="mut">modificato ${new Date(o.modificato_il).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</div>`:""}
      ${S.profilo.ruolo!=="negozio"?`<div class="mut">${(o.eventi_ordine||[]).sort((a,b)=>new Date(a.quando)-new Date(b.quando)).map(e=>`${STATI[e.stato]||e.stato} ${fmtT(e.quando)}`).join(" → ")}</div>
        <div style="display:flex;gap:6px;margin-top:4px"><select id="st${o.id}">${[...FLUSSO,"evaso_da_deposito","annullato"].map(st=>`<option value="${st}" ${st===o.stato?"selected":""}>${STATI[st]}</option>`).join("")}</select><button class="small" onclick="cambiaStato(${o.id})">Aggiorna stato</button></div>`:o.stato==="inviato"?`<div class="mut">Modificabile finché la sede non lo prende in carico</div><div style="display:flex;gap:6px;margin-top:4px"><button class="small" onclick="modificaOrdine(${o.id})">Modifica</button><button class="small sec" onclick="annullaOrdine(${o.id})">Annulla</button></div>`:(o.stato==="annullato"?"":`<div class="mut">Non modificabile</div>`)}</td></tr>`).join("")+`</table>`;
@@ -516,7 +520,7 @@ const esc=v=>String(v===null||v===undefined?"":v).replace(/[&<>"']/g,c=>({"&":"&
 const chip=(v,lab)=>v===null||v===undefined||v===""?`<span class="chip off">—</span>`:`<button type="button" class="chip" data-cp="${esc(v)}" title="Copia">${esc(lab===undefined?v:lab)}</button>`;
 const fld=(l,v,lab)=>`<span class="fl"><span class="lb">${l}</span>${chip(v,lab)}</span>`;
 const fmtT=d=>new Date(d).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
-const paramTxt=r=>`Sf ${fmtS(r.sfera)}${r.cilindro!==null&&r.cilindro!==undefined?` · Cil ${fmtS(r.cilindro)} · Ax ${r.asse}°`:""}${r.addizione?` · Add ${esc(r.addizione)}`:""} · BC ${r.curva_base??"—"} · Ø ${r.diametro??"—"} · ${r.unita==="lenti"?r.quantita+(r.quantita==1?" lente singola":" lenti singole"):"×"+r.quantita}`;
+const paramTxt=r=>`Sf ${fmtS(r.sfera)}${r.cilindro!==null&&r.cilindro!==undefined?` · Cil ${fmtS(r.cilindro)} · Ax ${r.asse}°`:""}${r.addizione?` · Add ${esc(r.addizione)}`:""}${r.dominanza?` · ${r.dominanza}`:""} · BC ${r.curva_base??"—"} · Ø ${r.diametro??"—"} · ${r.unita==="lenti"?r.quantita+(r.quantita==1?" lente singola":" lenti singole"):"×"+r.quantita}`;
 function copiaTesto(t,el){
   const ok=()=>{if(el){el.classList.add("ok");setTimeout(()=>el.classList.remove("ok"),600)}};
   const fb=()=>{const x=document.createElement("textarea");x.value=t;x.style.position="fixed";x.style.opacity="0";document.body.appendChild(x);x.select();try{document.execCommand("copy");ok()}catch(e){}x.remove()};
@@ -551,7 +555,7 @@ function rigaLavoro(o,r){
   return `<div class="lr ${done?"done":""} ${r.fuori_catalogo?"vf":""}">
     <button class="small ${done?"sec":"go"}" onclick="toggleRiga(${r.id})">${done?"↺ Annulla":"✓ Inserita"}</button>
     <b>${r.occhio}</b> ${chip(modCopy,modello)}${r.fuori_catalogo?' <span class="pill w">parametri da verificare</span>':""}
-    ${fld("Sf",fmtS(r.sfera))}${r.cilindro!==null&&r.cilindro!==undefined?fld("Cil",fmtS(r.cilindro))+fld("Asse",r.asse,r.asse+"°"):""}${r.addizione?fld("Add",r.addizione):""}
+    ${fld("Sf",fmtS(r.sfera))}${r.cilindro!==null&&r.cilindro!==undefined?fld("Cil",fmtS(r.cilindro))+fld("Asse",r.asse,r.asse+"°"):""}${r.addizione?fld("Add",r.addizione):""}${r.dominanza?fld("D/N",r.dominanza):""}
     ${fld("BC",r.curva_base)}${fld("Ø",r.diametro)}${fld(r.unita==="lenti"?"Lenti":"Conf.",r.quantita)}
     <button class="small sec" data-cp="${esc(tutta)}" title="Copia l'intera riga separata da tab">Copia riga</button></div>`;
 }
