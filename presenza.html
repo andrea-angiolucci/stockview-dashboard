@@ -2076,7 +2076,38 @@ window.__SVCACHE_CFG={key:'sv_cache_presenza_v4',container:'#tablewrap',statusSe
  }
 })();
 </script>
-<script>/*sv-sticky2*/(function(){function fit(){try{var w=document.getElementById('tablewrap')||document.querySelector('.tablewrap');if(!w)return;var vh=window.innerHeight||document.documentElement.clientHeight;if(!vh)return;var top=w.getBoundingClientRect().top;var mh=vh-top-12;if(mh<260)mh=260;w.style.overflow='auto';w.style.webkitOverflowScrolling='touch';w.style.maxHeight=mh+'px';}catch(e){}}function boot(){fit();try{window.addEventListener('resize',fit);}catch(e){}try{var tb=document.querySelector('#tbl tbody');if(tb){var mo=new MutationObserver(function(){fit();});mo.observe(tb,{childList:true});}}catch(e){}try{var _rf=function(){try{if(window.__svFitRAF)cancelAnimationFrame(window.__svFitRAF);window.__svFitRAF=requestAnimationFrame(fit);}catch(e){fit();}setTimeout(fit,360);};document.addEventListener('click',_rf,true);}catch(e){}setTimeout(fit,600);setTimeout(fit,1800);setTimeout(fit,4000);}if(document.readyState!=='loading')boot();else document.addEventListener('DOMContentLoaded',boot);})();</script>
+<script>/*sv-sticky3*/(function(){
+  /* Altezza della matrice = spazio rimasto nella finestra. Calcolo in coordinate di PAGINA (indipendente dallo scroll)
+     e con il vero spazio sotto la tabella; ricalcolato a ogni cambio di layout sopra di essa. */
+  var raf=0;
+  function fit(){try{
+    var w=document.getElementById('tablewrap')||document.querySelector('.tablewrap');
+    if(!w||w.style.display==='none')return;
+    var vh=window.innerHeight||document.documentElement.clientHeight; if(!vh)return;
+    var r=w.getBoundingClientRect();
+    var p=w.parentElement, below=0;
+    if(p){below=p.getBoundingClientRect().bottom-r.bottom; if(!(below>=0))below=0;}
+    // posizione in coordinate di pagina: r.top + scroll. Con pagina a scroll 0 la tabella finisce esattamente a fondo finestra.
+    var sy=window.pageYOffset||document.documentElement.scrollTop||0;
+    var mh=Math.floor(vh-(r.top+sy)-below-1);
+    if(mh<260)mh=260;
+    w.style.overflow='auto';w.style.webkitOverflowScrolling='touch';
+    var cur=parseFloat(w.style.maxHeight)||0;
+    if(Math.abs(cur-mh)>=1)w.style.maxHeight=mh+'px';
+  }catch(e){}}
+  function sched(){try{if(raf)cancelAnimationFrame(raf);raf=requestAnimationFrame(function(){raf=0;fit();});}catch(e){fit();}}
+  function boot(){
+    fit();
+    try{window.addEventListener('resize',sched);window.addEventListener('load',sched);window.addEventListener('orientationchange',sched);}catch(e){}
+    try{if(document.fonts&&document.fonts.ready)document.fonts.ready.then(sched);}catch(e){}
+    try{var tb=document.querySelector('#tbl tbody');if(tb)new MutationObserver(sched).observe(tb,{childList:true});}catch(e){}
+    // qualunque cambio di altezza degli elementi sopra la matrice (toolbar, legenda, stato) sposta la tabella: ricalcolo
+    try{if(window.ResizeObserver){var ro=new ResizeObserver(sched);['toolbar','status'].forEach(function(id){var e=document.getElementById(id);if(e)ro.observe(e);});var lg=document.querySelector('.legend');if(lg)ro.observe(lg);var hd=document.querySelector('header');if(hd)ro.observe(hd);}}catch(e){}
+    try{document.addEventListener('click',function(){sched();setTimeout(sched,360);},true);}catch(e){}
+    setTimeout(sched,600);setTimeout(sched,1800);setTimeout(sched,4000);
+  }
+  if(document.readyState!=='loading')boot();else document.addEventListener('DOMContentLoaded',boot);
+})();</script>
 <script>/*sv-catgate*/(function(){var TIP='Seleziona un marchio per cambiare categoria';var st=document.createElement('style');st.textContent='body.sv-catgate .catedit-hit{display:none!important}';(document.head||document.documentElement).appendChild(st);function hasCells(){try{return (typeof lastCells!=='undefined'&&lastCells&&lastCells.length>0);}catch(e){return false;}}function apply(){try{var gate=!hasCells();document.body.classList.toggle('sv-catgate',gate);var editing=document.body.classList.contains('editcat');var tds=document.querySelectorAll('td.mar.ref[data-bc]');for(var i=0;i<tds.length;i++){if(gate&&editing){tds[i].setAttribute('title',TIP);}else if(tds[i].getAttribute('title')===TIP){tds[i].removeAttribute('title');}}}catch(e){}}function boot(){apply();try{var tb=document.querySelector('#tbl tbody');if(tb){new MutationObserver(apply).observe(tb,{childList:true});}}catch(e){}try{var eb=document.getElementById('editCatBtn');if(eb)eb.addEventListener('click',function(){setTimeout(apply,60);});}catch(e){}setInterval(apply,1500);}if(document.readyState!=='loading')boot();else document.addEventListener('DOMContentLoaded',boot);})();</script>
 
 <script>
