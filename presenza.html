@@ -998,13 +998,13 @@ async function loadGiacExtra(m,t,c){
   var have={}; lastCells.forEach(function(x){ have[x.barcode+"|"+x.filiale]=1; });
   var added=[], from=0, guard=0;
   while(guard<40){ guard++;
-    var q=sb.from("giacenze").select("barcode,filiale,marchio,modello,colore,calibro,categoria,tipo_lenti,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo").in("filiale",ACTIVEFIL).in("marchio",m).gt("quantita_disponibile",0);
+    var q=sb.from("giacenze").select("barcode,filiale,marchio,modello,colore,calibro,categoria,tipo_lenti,fornitore,quantita_disponibile,quantita_magazzino,quantita_prenotata,quantita_in_arrivo").in("filiale",ACTIVEFIL).in("marchio",m).gt("quantita_disponibile",0);
     if(tips)q=q.in("tipo_lenti",tips);
     if(cats)q=q.in("categoria",cats);
     var g=await q.order("barcode").range(from,from+999);
     var d=g.data||[];
     for(var j=0;j<d.length;j++){ var r=d[j]; var k=r.barcode+"|"+r.filiale; if(have[k])continue; have[k]=1;
-      lastCells.push({fornitore:null,marchio:r.marchio,tipo_lenti:_tcT(r.tipo_lenti),categoria:r.categoria,barcode:r.barcode,modello:r.modello,colore:r.colore,calibro:r.calibro,filiale:r.filiale,negozio:FN[r.filiale]||r.filiale,disponibile:r.quantita_disponibile||0,magazzino:r.quantita_magazzino||0,prenotati:r.quantita_prenotata||0,in_arrivo:r.quantita_in_arrivo||0,presente:false,venduto:0,_x:true,_noideal:!cellHasIdeal(r.categoria,r.marchio,idealSetU)});
+      lastCells.push({fornitore:(r.fornitore||null),marchio:r.marchio,tipo_lenti:_tcT(r.tipo_lenti),categoria:r.categoria,barcode:r.barcode,modello:r.modello,colore:r.colore,calibro:r.calibro,filiale:r.filiale,negozio:FN[r.filiale]||r.filiale,disponibile:r.quantita_disponibile||0,magazzino:r.quantita_magazzino||0,prenotati:r.quantita_prenotata||0,in_arrivo:r.quantita_in_arrivo||0,presente:false,venduto:0,_x:true,_noideal:!cellHasIdeal(r.categoria,r.marchio,idealSetU)});
       added.push(lastCells[lastCells.length-1]);
     }
     if(d.length<1000)break; from+=1000;
